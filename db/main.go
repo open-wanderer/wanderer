@@ -291,6 +291,8 @@ func setupEventHandlers(app *pocketbase.PocketBase, client meilisearch.ServiceMa
 	// persist branch; the upstream fetch happens off the request goroutine.
 	app.OnRecordAfterUpdateSuccess("regions").BindFunc(hooks.CacheGeometryOnEnableHandler(app))
 
+	app.OnBackupCreate().BindFunc(hooks.ExcludeRegionArchivesFromBackupHandler())
+
 	app.OnRecordValidate().BindFunc(util.SanitizeHTML())
 
 	app.OnServe().BindFunc(onBeforeServeHandler(client))

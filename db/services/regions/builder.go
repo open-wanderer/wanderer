@@ -185,12 +185,8 @@ func buildRegion(app core.App, record *core.Record, date, url string) {
 		return
 	}
 
-	// Geometry MUST resolve before the archive record is created. Since bbox
-	// lives in region_geometry rather than on the regions record,
-	// ResolveGeometry is the only source of the four bounds, and
-	// region_archives requires all of them — creating the record first fails
-	// validation with "min_lat: cannot be blank" for any region that has no
-	// archive row yet (i.e. every newly enabled region).
+	// Geometry resolves before anything else, because the bbox lives in
+	// region_geometry rather than on the regions record and a build needs both.
 	//
 	// Resolving up front also runs ahead of the !needsVector && !needsDem
 	// early return below, which is what makes a deleted or corrupted
@@ -200,18 +196,24 @@ func buildRegion(app core.App, record *core.Record, date, url string) {
 	// The preserved property: a well-formed cached row still costs zero
 	// network (ResolveGeometry returns it with no fetch).
 	//
-	// Only a failed refetch reaches setVectorError — this is the last
-	// resort, after ResolveGeometry has already attempted the self-heal.
+	// Only a failed refetch reaches the error path — this is the last
+	// resort, after ResolveGeometry has already attempted the self-heal. A
+	// region that has never built gets a row without bounds to carry the
+	// error; a later successful resolve fills them in through the
+	// configChanged check below. Neither archive can be built, so a DEM that
+	// does not exist yet fails too; one that exists has nothing to report, and
+	// would keep the message forever because it is not rebuilt.
 	geometry, bbox, err := ResolveGeometry(app, record)
 	if err != nil {
-		// A region that has never built has no archive row to carry the
-		// error, and one cannot be created without the bbox that just failed
-		// to resolve — so there is nothing to mark. Log instead. Either way
-		// buildRegionSafely's per-region isolation keeps the run going.
-		if archive, findErr := findRegionArchiveRecord(app, regionID); findErr == nil && archive != nil {
-			setVectorError(app, archive, regionID, fmt.Errorf("resolve geometry for region %s: %w", regionID, err))
-		} else {
-			log.Printf("[regions] failed to resolve geometry for region %s (no archive record to mark): %v", regionID, err)
+		archive, findErr := findOrCreateRegionRecord(app, regionID, name, [4]float64{})
+		if findErr != nil {
+			log.Printf("[regions] failed to resolve geometry for region %s (no archive record to mark): %v (%v)", regionID, err, findErr)
+			return
+		}
+		failure := fmt.Errorf("resolve geometry for region %s: %w", regionID, err)
+		setVectorError(app, archive, regionID, failure)
+		if !archiveFileExists(RegionDemPath(app, regionID)) {
+			setDemError(app, archive, regionID, failure)
 		}
 		return
 	}
@@ -242,12 +244,16 @@ func buildRegion(app core.App, record *core.Record, date, url string) {
 		}
 	}
 
-	needsVector := configChanged || needsVectorRebuild(archive.GetString("vector_built_date"), date, rebuildDays())
+	// The file checks catch an archive deleted from disk: the row alone still
+	// looks built, but the listing no longer advertises a download for it.
+	needsVector := configChanged || !archiveFileExists(RegionArchivePath(app, regionID)) ||
+		needsVectorRebuild(archive.GetString("vector_built_date"), date, rebuildDays())
 
 	// DEM builds once and never auto-rebuilds unless the catalog bbox
-	// changed — Mapterhorn's source has no date-stamped URL to
-	// compare against.
-	needsDem := archive.GetString("dem_status") != "ready" || configChanged
+	// changed or the file is gone — Mapterhorn's source has no date-stamped
+	// URL to compare against.
+	needsDem := archive.GetString("dem_status") != "ready" || configChanged ||
+		!archiveFileExists(RegionDemPath(app, regionID))
 
 	if !needsVector && !needsDem {
 		return
@@ -269,10 +275,7 @@ func buildRegion(app core.App, record *core.Record, date, url string) {
 }
 
 // findRegionArchiveRecord returns the existing region_archives record for
-// regionID, or (nil, nil) when the region has never been built. Unlike
-// findOrCreateRegionRecord it never creates one, which is what the geometry
-// failure path needs: a create is impossible there precisely because the
-// bbox it would require is the thing that failed to resolve.
+// regionID, or (nil, nil) when the region has never been built.
 func findRegionArchiveRecord(app core.App, regionID string) (*core.Record, error) {
 	records, err := app.FindAllRecords("region_archives",
 		dbx.NewExp("path = {:path}", dbx.Params{"path": regionID}),
@@ -291,15 +294,9 @@ func findRegionArchiveRecord(app core.App, regionID string) (*core.Record, error
 // the per-cell generator's findOrCreateRecord shape. regionID is a
 // regions.path value, stored in the region_archives.path field.
 //
-// bbox must be supplied by the caller, resolved from region_geometry via
-// ResolveGeometry (it does not live on the regions record). It is NOT
-// optional: region_archives declares all four bounds as required number
-// fields, and PocketBase treats a required number as "non-zero", so a
-// record saved with zeroed bounds is rejected outright with
-// "min_lat: cannot be blank". An earlier revision of this function omitted
-// bbox on the theory that the caller's configChanged check would backfill
-// it — that never runs, because the Save below fails first, breaking every
-// newly enabled region at its first build.
+// bbox is the one resolved from region_geometry via ResolveGeometry (it does
+// not live on the regions record), or all zeros when that failed and the record
+// only carries the error. The bounds are optional for that reason.
 func findOrCreateRegionRecord(app core.App, regionID, name string, bbox [4]float64) (*core.Record, error) {
 	collection, err := app.FindCollectionByNameOrId("region_archives")
 	if err != nil {

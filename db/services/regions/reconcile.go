@@ -19,6 +19,12 @@ import (
 // unless the row records a failed build: those carry the error the admin page
 // and clients show, and the next build pass retries them anyway.
 //
+// A row marked "error" whose file is on disk goes back to "ready", keeping its
+// error message: v0.21.0-app set "error" on a failed rebuild even though the
+// previous archive was still there, and nothing else would clear it until the
+// next rebuild. This needs no upstream, so it cannot be held up by the failure
+// that caused the error.
+//
 // It also removes `.building` files left behind by a build that was
 // interrupted (crash, kill, power loss). No build can be running at startup,
 // so any such file is debris.
@@ -40,7 +46,10 @@ func ReconcileArchives(app core.App) error {
 	for _, record := range records {
 		path := record.GetString("path")
 
-		if archiveFileExists(RegionArchivePath(app, path)) || archiveFileExists(RegionDemPath(app, path)) {
+		hasVector := archiveFileExists(RegionArchivePath(app, path))
+		hasDem := archiveFileExists(RegionDemPath(app, path))
+		if hasVector || hasDem {
+			markBuiltArchivesReady(app, record, hasVector, hasDem)
 			continue
 		}
 		if record.GetString("status") == "error" || record.GetString("dem_status") == "error" {
@@ -60,6 +69,29 @@ func ReconcileArchives(app core.App) error {
 	}
 
 	return nil
+}
+
+// markBuiltArchivesReady clears an "error" status on an archive that exists.
+func markBuiltArchivesReady(app core.App, record *core.Record, hasVector, hasDem bool) {
+	recovered := false
+	if hasVector && record.GetString("status") == "error" {
+		record.Set("status", "ready")
+		recovered = true
+	}
+	if hasDem && record.GetString("dem_status") == "error" {
+		record.Set("dem_status", "ready")
+		recovered = true
+	}
+	if !recovered {
+		return
+	}
+
+	path := record.GetString("path")
+	if err := app.Save(record); err != nil {
+		log.Printf("[regions] reconcile: failed to mark built archives of %q ready: %v", path, err)
+		return
+	}
+	log.Printf("[regions] reconcile: marked %q ready, its archive is on disk", path)
 }
 
 // removeInterruptedBuilds deletes the temporary `.building` outputs of builds

@@ -7,11 +7,17 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/pocketbase/pocketbase/core"
 
 	"pocketbase/services/regions"
 )
+
+// regionDownloadStallTimeout is how long a single write of an archive download
+// may block before the connection is dropped. It is a var so tests can shorten
+// it.
+var regionDownloadStallTimeout = 2 * time.Minute
 
 // RegionsList returns the full group+leaf region catalog from the seeded
 // `regions` table, joined with each leaf's build state from
@@ -38,12 +44,12 @@ import (
 // with no `bbox` key at all, and the existing Flutter
 // parser already drops entries missing required fields, which is why the
 // pre-existing comment about group rows above applies here too. The
-// `?enabled=true` filtered listing that the shipped app uses is unaffected,
-// because an enabled region cannot exist without its geometry having
-// resolved. An enabled region whose geometry fetch failed also has no bbox
-// at all — its `status` is already "error"
-// and its `error` field already names the upstreams tried, so the absence
-// of `bbox` is explained by fields the response already contains.
+// `?enabled=true` filtered listing that the shipped app uses carries `bbox`
+// for every enabled region whose geometry resolved. One whose geometry has not
+// resolved has no bbox: it reports `building` until a build pass has tried, and
+// after a failed attempt its `status` is "error" and its `error` field names the
+// upstreams tried, so the absence of `bbox` is explained by fields the response
+// already contains.
 //
 // Auth is enforced at the route-group level in main.go (apis.RequireAuth()),
 // so — unlike map_cells_id.go's unauthenticated /map/cells routes — every
@@ -225,5 +231,40 @@ func serveRegionArchive(e *core.RequestEvent, file, notReady string) error {
 	}
 
 	e.Response.Header().Set("ETag", fmt.Sprintf(`"%x-%x"`, info.Size(), info.ModTime().UnixNano()))
+	useRollingWriteDeadline(e)
 	return e.FileFS(os.DirFS(regions.CacheDir(e.App)), filepath.Join(id, file))
+}
+
+// useRollingWriteDeadline replaces the server's fixed WriteTimeout for this
+// response with one that moves forward on every write. The fixed timeout would
+// cut any download that takes longer than it, at the same point on every retry
+// of a large archive. Clearing it instead would let a client that stops reading
+// hold the connection forever.
+func useRollingWriteDeadline(e *core.RequestEvent) {
+	controller := http.NewResponseController(e.Response)
+	if err := controller.SetWriteDeadline(time.Now().Add(regionDownloadStallTimeout)); err != nil {
+		e.App.Logger().Warn("SetWriteDeadline is not supported, falling back to the default server WriteTimeout", "error", err)
+		return
+	}
+	e.Response = &rollingDeadlineWriter{ResponseWriter: e.Response, controller: controller}
+}
+
+// rollingDeadlineWriter pushes the write deadline forward before each write.
+// It deliberately does not implement io.ReaderFrom: http.ServeContent would
+// otherwise hand the whole file to one call, under one deadline. Unwrap keeps
+// the status tracking of the writer underneath reachable.
+type rollingDeadlineWriter struct {
+	http.ResponseWriter
+	controller *http.ResponseController
+}
+
+func (w *rollingDeadlineWriter) Write(data []byte) (int, error) {
+	if err := w.controller.SetWriteDeadline(time.Now().Add(regionDownloadStallTimeout)); err != nil {
+		return 0, err
+	}
+	return w.ResponseWriter.Write(data)
+}
+
+func (w *rollingDeadlineWriter) Unwrap() http.ResponseWriter {
+	return w.ResponseWriter
 }

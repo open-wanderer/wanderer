@@ -59,3 +59,27 @@ func TestArchivePathsFollowTheDataDir(t *testing.T) {
 		t.Errorf("RegionDemPath = %q, want %q", got, want)
 	}
 }
+
+func TestRelativeInside(t *testing.T) {
+	for _, test := range []struct {
+		name, root, path string
+		want             string
+		wantOK           bool
+	}{
+		{"default location", "/pb_data", "/pb_data/region_archives", "region_archives", true},
+		{"other name", "/pb_data", "/pb_data/offline", "offline", true},
+		{"nested", "/pb_data", "/pb_data/cache/regions", "cache/regions", true},
+		{"relative data dir", "pb_data", "pb_data/region_archives", "region_archives", true},
+		{"outside", "/pb_data", "/mnt/archives", "", false},
+		{"sibling sharing the prefix", "/pb_data", "/pb_data_archives", "", false},
+		{"the data dir itself", "/pb_data", "/pb_data", "", false},
+		{"parent of the data dir", "/data/pb_data", "/data", "", false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			got, ok := relativeInside(test.root, test.path)
+			if got != test.want || ok != test.wantOK {
+				t.Errorf("relativeInside(%q, %q) = %q, %v; want %q, %v", test.root, test.path, got, ok, test.want, test.wantOK)
+			}
+		})
+	}
+}
