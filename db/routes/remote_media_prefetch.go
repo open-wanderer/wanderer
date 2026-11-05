@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"pocketbase/services/routeimage"
 	"pocketbase/util"
 	"sort"
 	"strings"
@@ -78,7 +79,7 @@ func (c *remoteMediaCollector) record(app core.App, target, remoteID, origin, ir
 	}
 	for _, value := range photos {
 		name, ok := value.(string)
-		if !ok || name == "" || strings.ContainsAny(name, "/\\") {
+		if !ok || name == "" || strings.ContainsAny(name, "/\\") || routeimage.IsPlaceholder(name) {
 			continue
 		}
 		if added >= util.RemotePhotoLimit(app, collection) {
