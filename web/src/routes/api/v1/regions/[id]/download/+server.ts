@@ -70,6 +70,8 @@ import { type RequestEvent } from '@sveltejs/kit';
  *         description: The requested range is outside the archive
  *       500:
  *         description: Internal Server Error
+ *       503:
+ *         description: The backend cannot be reached or did not answer the auth checks in time
  *       504:
  *         description: The backend did not respond
  *   head:
@@ -89,6 +91,10 @@ import { type RequestEvent } from '@sveltejs/kit';
  *         description: Unauthorized
  *       404:
  *         description: Region archive not ready yet
+ *       503:
+ *         description: The backend cannot be reached or did not answer the auth checks in time
+ *       504:
+ *         description: The backend did not respond
  */
 export async function GET(event: RequestEvent) {
   return proxy(event, 'GET');

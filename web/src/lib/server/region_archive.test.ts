@@ -1,13 +1,19 @@
+import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
+import type { AddressInfo } from 'node:net';
 import type { RequestEvent } from '@sveltejs/kit';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { proxyRegionArchive } from './region_archive';
+
+// Tests swap request-scoped functions on the event.
+type TestEvent = { -readonly [K in keyof RequestEvent]: RequestEvent[K] };
 
 function buildEvent(upstream: (url: string, init: RequestInit) => Promise<Response>, headers: Record<string, string> = {}) {
   return {
     request: new Request('http://localhost/api/v1/regions/monaco/download', { headers }),
     locals: { pb: { baseURL: 'http://internal', authStore: { token: 't' } } },
     fetch: vi.fn(upstream),
-  } as unknown as RequestEvent;
+    getClientAddress: () => '192.0.2.1',
+  } as unknown as TestEvent;
 }
 
 describe('proxyRegionArchive', () => {
@@ -73,5 +79,102 @@ describe('proxyRegionArchive', () => {
     const response = await pending;
 
     expect(response.status).toBe(504);
+  });
+
+  it('answers 504 even if the abort never reaches the fetch', async () => {
+    vi.useFakeTimers();
+    const event = buildEvent(() => new Promise(() => {}));
+
+    const pending = proxyRegionArchive(event, '/regions/monaco/download', 'monaco-vector.pmtiles');
+    await vi.advanceTimersByTimeAsync(30_000);
+
+    expect((await pending).status).toBe(504);
+  });
+
+  it('forwards the resolved client address, not a client-supplied one', async () => {
+    const event = buildEvent(async () => new Response('pmtiles'), { 'X-Forwarded-For': '198.51.100.1' });
+
+    await proxyRegionArchive(event, '/regions/monaco/download', 'monaco-vector.pmtiles');
+
+    const fetchMock = event.fetch as unknown as ReturnType<typeof vi.fn>;
+    expect(fetchMock.mock.calls[0][1].headers['X-Forwarded-For']).toBe('192.0.2.1');
+  });
+
+  it('sends no client address when none can be resolved', async () => {
+    const event = buildEvent(async () => new Response('pmtiles'), { 'X-Forwarded-For': '198.51.100.1' });
+    event.getClientAddress = () => {
+      throw new Error('ADDRESS_HEADER was specified, but the incoming request does not include it');
+    };
+
+    await proxyRegionArchive(event, '/regions/monaco/download', 'monaco-vector.pmtiles');
+
+    const fetchMock = event.fetch as unknown as ReturnType<typeof vi.fn>;
+    expect(fetchMock.mock.calls[0][1].headers).not.toHaveProperty('X-Forwarded-For');
+  });
+
+  it('answers a JSON 503 without the raw error when the backend cannot be reached', async () => {
+    const event = buildEvent(async () => {
+      throw new TypeError('fetch failed', { cause: new Error('connect ECONNREFUSED 10.0.0.1:8090') });
+    });
+
+    const response = await proxyRegionArchive(event, '/regions/monaco/download', 'monaco-vector.pmtiles');
+
+    expect(response.status).toBe(503);
+    expect(response.headers.get('Content-Type')).toContain('application/json');
+    expect(await response.json()).toEqual({ message: 'backend_unavailable' });
+  });
+});
+
+describe('proxyRegionArchive streaming from a real backend', () => {
+  let server: Server | undefined;
+
+  afterEach(async () => {
+    server?.closeAllConnections();
+    await new Promise(resolve => server ? server.close(resolve) : resolve(undefined));
+    server = undefined;
+  });
+
+  async function backend(handler: (req: IncomingMessage, res: ServerResponse) => void) {
+    server = createServer(handler);
+    await new Promise<void>(resolve => server!.listen(0, '127.0.0.1', resolve));
+    const baseURL = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+    return {
+      request: new Request('http://localhost/api/v1/regions/monaco/download'),
+      locals: { pb: { baseURL, authStore: { token: 't' } } },
+      fetch,
+      getClientAddress: () => '192.0.2.1',
+    } as unknown as RequestEvent;
+  }
+
+  it('cancels the upstream transfer when the client disconnects', async () => {
+    const upstreamClosed = new Promise<boolean>(resolve => {
+      void backend((_req, res) => {
+        res.writeHead(200, { 'Content-Length': String(1024 * 1024 * 1024) });
+        res.write('first chunk');
+        res.on('close', () => resolve(res.writableFinished));
+      }).then(event => proxyRegionArchive(event, '/regions/monaco/download', 'monaco-vector.pmtiles'))
+        .then(async response => {
+          const reader = response.body!.getReader();
+          await reader.read();
+          // adapter-node cancels the body like this when the client goes away.
+          await reader.cancel();
+        });
+    });
+
+    expect(await upstreamClosed).toBe(false);
+  });
+
+  it('fails the client download when the backend dies mid-body', async () => {
+    const event = await backend((_req, res) => {
+      res.writeHead(200, { 'Content-Length': '1000' });
+      res.write('partial', () => res.destroy());
+    });
+
+    const response = await proxyRegionArchive(event, '/regions/monaco/download', 'monaco-vector.pmtiles');
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('Content-Length')).toBe('1000');
+    // A clean end here would let the client keep a truncated archive.
+    await expect(response.arrayBuffer()).rejects.toThrow();
   });
 });

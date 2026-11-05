@@ -1,3 +1,4 @@
+import { clientAddress, settleOnAbort } from '#lib/server/http.ts';
 import type { RequestEvent } from '@sveltejs/kit';
 
 // Archives are replaced by an atomic rename on every rebuild. The conditional
@@ -6,8 +7,9 @@ import type { RequestEvent } from '@sveltejs/kit';
 const forwardedRequestHeaders = ['Range', 'If-Range', 'If-None-Match', 'If-Modified-Since'];
 const forwardedResponseHeaders = ['Content-Type', 'Content-Length', 'Content-Range', 'Accept-Ranges', 'ETag', 'Last-Modified'];
 
-// How long to wait for the backend's response headers. The body itself can
-// take much longer for a large archive, so it is not bounded.
+// How long to wait for the backend's response headers. The total transfer time
+// of a large archive is not bounded, so a slow client is unaffected, but a
+// backend that stalls mid-body is cut off by undici's 300 s idle timeout.
 const BACKEND_HEADERS_TIMEOUT_MS = 30_000;
 
 /**
@@ -31,23 +33,31 @@ export async function proxyRegionArchive(
     }
   }
 
+  // PocketBase sees the visitor's address, as on every call through the SDK.
+  const address = clientAddress(event);
+  if (address) {
+    headers['X-Forwarded-For'] = address;
+  }
+
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), BACKEND_HEADERS_TIMEOUT_MS);
   let response: Response;
   try {
-    response = await event.fetch(`${event.locals.pb.baseURL}${backendPath}`, {
+    response = await settleOnAbort(event.fetch(`${event.locals.pb.baseURL}${backendPath}`, {
       method,
       headers,
       signal: controller.signal,
-    });
-  } catch (e) {
+    }), controller.signal);
+  } catch {
     if (controller.signal.aborted) {
       return new Response(JSON.stringify({ message: 'Region archive backend did not respond' }), {
         status: 504,
         headers: { 'Content-Type': 'application/json' },
       });
     }
-    throw e;
+    // The connection failed: same meaning as the auth hook's and the health
+    // probe's 503.
+    return Response.json({ message: 'backend_unavailable' }, { status: 503 });
   } finally {
     clearTimeout(timeout);
   }
