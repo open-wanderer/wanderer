@@ -26,6 +26,10 @@ import (
 var ErrProfilePrivate = errors.New("profile is private")
 var ErrActorNotFound = errors.New("actor not found")
 
+// ErrActorUnreachable marks a failed actor fetch that says nothing about the
+// actor itself, so a stored copy stays usable.
+var ErrActorUnreachable = errors.New("actor unreachable")
+
 var newActorFetchHTTPClient = util.SafeHTTPClient
 var newWebfingerHTTPClient = util.SafeHTTPClient
 var ErrInvalidActorResponse = errors.New("invalid or incomplete actor response")
@@ -37,6 +41,14 @@ func SetActorFetchClientForTesting(f func() *http.Client) (restore func()) {
 	previous := newActorFetchHTTPClient
 	newActorFetchHTTPClient = f
 	return func() { newActorFetchHTTPClient = previous }
+}
+
+// SetCollectionFetchClientForTesting replaces the client collections are
+// fetched with and returns a restore function. Tests only.
+func SetCollectionFetchClientForTesting(f func() *http.Client) (restore func()) {
+	previous := newHTTPClient
+	newHTTPClient = f
+	return func() { newHTTPClient = previous }
 }
 
 type WebfingerResponse struct {
@@ -547,14 +559,14 @@ func fetchRemoteActor(app core.App, ctx context.Context, iri string, includeFoll
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("actor fetch failed: %w", err)
+		return nil, nil, nil, fmt.Errorf("%w: actor fetch failed: %w", ErrActorUnreachable, err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		if resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusGone {
 			return nil, nil, nil, ErrActorNotFound
 		}
-		return nil, nil, nil, fmt.Errorf("actor fetch failed: status %v", resp.StatusCode)
+		return nil, nil, nil, fmt.Errorf("%w: actor fetch failed: status %v", ErrActorUnreachable, resp.StatusCode)
 	}
 
 	var pubActor pub.Actor
