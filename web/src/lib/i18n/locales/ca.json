@@ -700,9 +700,9 @@
   "search-layout-top": "Amunt",
   "search-layout-left": "Esquerra",
   "search-layout-right": "Dreta",
-  "search-layout-expansion": "Expanded search",
-  "search-layout-overlay": "Overlay results",
-  "search-layout-push": "Push results down",
+  "search-layout-expansion": "Cerca ampliada",
+  "search-layout-overlay": "Superposa resultats",
+  "search-layout-push": "Desplaça els resultats cap avall",
   "trail-results-view": "View",
   "trail-results-relevance": "Relevance",
   "trail-results-sort-by": "Sort by",
@@ -770,6 +770,6 @@
   "settings-search": "Cerca",
   "settings-search-help": "Enable a switch to show that filter under “More filters”; otherwise it appears directly in general search.",
   "settings-search-placement": "Search filter placement",
-  "settings-search-error": "Could not save the filter placement. Please try again.",
+  "settings-search-error": "No s'ha pogut desar la ubicació del filtre. Torneu-ho a provar.",
   "list-search-placeholder": "Cerca a les meves llistes"
 }
