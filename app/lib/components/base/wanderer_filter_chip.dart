@@ -11,7 +11,7 @@ class WandererFilterChip<T> extends StatelessWidget {
   final bool keepSelectedOnTap;
   final void Function(T item)? onItemTap;
   final void Function(T item)? onLongPress;
-  final Widget? Function(T item)? avatarBuilder;
+  final Widget? Function(T item, bool selected)? avatarBuilder;
   final int Function(T item)? badgeCountBuilder;
 
   const WandererFilterChip({
@@ -40,7 +40,7 @@ class WandererFilterChip<T> extends StatelessWidget {
 
         Widget chip = FilterChip(
           label: Text(labelBuilder(option)),
-          avatar: avatarBuilder?.call(option),
+          avatar: avatarBuilder?.call(option, isSelected),
           selected: isSelected,
           onSelected: (bool selected) {
             onItemTap?.call(option);

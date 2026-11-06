@@ -257,9 +257,9 @@ class TrailQuickFilterBar extends ConsumerWidget {
                               children: [
                                 Text(
                                   l10n.categories,
-                                  style: Theme.of(
-                                    context,
-                                  ).textTheme.titleMedium,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleMedium,
                                 ),
                                 IconButton(
                                   onPressed: () => Navigator.of(context).pop(),
@@ -270,6 +270,16 @@ class TrailQuickFilterBar extends ConsumerWidget {
                                 ),
                               ],
                             ),
+                            Text(
+                              l10n.filter_category_deselect_hint,
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withValues(alpha: 0.5),
+                                  ),
+                            ),
                             const SizedBox(height: 12),
                             WandererFilterChip<Category>(
                               options: visibleCategories,
@@ -277,14 +287,21 @@ class TrailQuickFilterBar extends ConsumerWidget {
                               multiple: true,
                               keepSelectedOnTap: true,
                               labelBuilder: (c) => c.displayName(locale),
-                              avatarBuilder: (c) => categoryFilterAvatar(
-                                c,
-                                color:
-                                    Theme.of(context).brightness ==
-                                        Brightness.light
-                                    ? Theme.of(context).primaryColor
-                                    : Theme.of(context).colorScheme.onSurface,
-                              ),
+                              avatarBuilder: (c, selected) =>
+                                  categoryFilterAvatar(
+                                    c,
+                                    color:
+                                        Theme.of(context).brightness ==
+                                            Brightness.light
+                                        ? (selected
+                                              ? Theme.of(context)
+                                                    .colorScheme
+                                                    .surface
+                                              : Theme.of(context).primaryColor)
+                                        : Theme.of(context)
+                                              .colorScheme
+                                              .onSurface,
+                                  ),
                               badgeCountBuilder: (c) => currentFilter
                                   .subcategory
                                   .where((s) => s.category == c.id)
@@ -348,9 +365,9 @@ class TrailQuickFilterBar extends ConsumerWidget {
                                         const SizedBox(height: 12),
                                         Text(
                                           l10n.subcategories,
-                                          style: Theme.of(
-                                            context,
-                                          ).textTheme.titleMedium,
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .titleMedium,
                                         ),
                                         const SizedBox(height: 8),
                                         WandererFilterChip<Subcategory>(
@@ -360,7 +377,7 @@ class TrailQuickFilterBar extends ConsumerWidget {
                                           multiple: true,
                                           labelBuilder: (s) =>
                                               s.displayName(locale),
-                                          avatarBuilder: (s) =>
+                                          avatarBuilder: (s, selected) =>
                                               subcategoryFilterAvatar(
                                                 s,
                                                 currentFilter.category
@@ -370,22 +387,23 @@ class TrailQuickFilterBar extends ConsumerWidget {
                                                 locale,
 
                                                 color:
-                                                    Theme.of(
-                                                          context,
-                                                        ).brightness ==
+                                                    Theme.of(context)
+                                                            .brightness ==
                                                         Brightness.light
-                                                    ? Theme.of(
-                                                        context,
-                                                      ).primaryColor
-                                                    : Theme.of(
-                                                        context,
-                                                      ).colorScheme.onSurface,
+                                                    ? (selected
+                                                          ? Theme.of(context)
+                                                                .colorScheme
+                                                                .surface
+                                                          : Theme.of(context)
+                                                                .primaryColor)
+                                                    : Theme.of(context)
+                                                          .colorScheme
+                                                          .onSurface,
                                               ),
                                           onChanged: (sel) => ref
                                               .read(
-                                                trailFilterProvider(
-                                                  filterId,
-                                                ).notifier,
+                                                trailFilterProvider(filterId)
+                                                    .notifier,
                                               )
                                               .updateFilter(
                                                 (f) => f.copyWith(

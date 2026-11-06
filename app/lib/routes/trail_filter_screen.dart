@@ -111,6 +111,14 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
               children: [
                 Text(l10n.categories, style: TextTheme.of(context).labelLarge),
                 const SizedBox(height: 8),
+                Text(
+                  l10n.filter_category_deselect_hint,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurface
+                        .withValues(alpha: 0.5),
+                  ),
+                ),
+                const SizedBox(height: 8),
 
                 WandererFilterChip<Category>(
                   options: visibleCategories,
@@ -119,10 +127,12 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
                   keepSelectedOnTap: true,
                   labelBuilder: (c) =>
                       c.displayName(Localizations.localeOf(context)),
-                  avatarBuilder: (c) => categoryFilterAvatar(
+                  avatarBuilder: (c, selected) => categoryFilterAvatar(
                     c,
                     color: Theme.of(context).brightness == Brightness.light
-                        ? Theme.of(context).primaryColor
+                        ? (selected
+                              ? Theme.of(context).colorScheme.surface
+                              : Theme.of(context).primaryColor)
                         : Theme.of(context).colorScheme.onSurface,
                   ),
                   badgeCountBuilder: (c) =>
@@ -191,23 +201,29 @@ class _TrailFilterScreenState extends ConsumerState<TrailFilterScreen> {
                               labelBuilder: (s) => s.displayName(
                                 Localizations.localeOf(context),
                               ),
-                              avatarBuilder: (s) => subcategoryFilterAvatar(
-                                s,
-                                f.category.firstWhereOrNull(
-                                  (c) => c.id == s.category,
-                                ),
-                                Localizations.localeOf(context),
-                                color:
-                                    Theme.of(context).brightness ==
-                                        Brightness.light
-                                    ? Theme.of(context).primaryColor
-                                    : Theme.of(context).colorScheme.onSurface,
-                              ),
+                              avatarBuilder: (s, selected) =>
+                                  subcategoryFilterAvatar(
+                                    s,
+                                    f.category.firstWhereOrNull(
+                                      (c) => c.id == s.category,
+                                    ),
+                                    Localizations.localeOf(context),
+                                    color:
+                                        Theme.of(context).brightness ==
+                                            Brightness.light
+                                        ? (selected
+                                              ? Theme.of(context)
+                                                    .colorScheme
+                                                    .surface
+                                              : Theme.of(context).primaryColor)
+                                        : Theme.of(context)
+                                              .colorScheme
+                                              .onSurface,
+                                  ),
                               onChanged: (sel) => ref
                                   .read(
-                                    trailFilterProvider(
-                                      widget.filterId,
-                                    ).notifier,
+                                    trailFilterProvider(widget.filterId)
+                                        .notifier,
                                   )
                                   .updateFilter(
                                     (flt) => flt.copyWith(subcategory: sel),
