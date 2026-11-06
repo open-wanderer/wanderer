@@ -18,25 +18,28 @@ import 'package:wanderer/provider/welcome/server_compatibility_provider.dart';
 import 'package:wanderer/provider/welcome/server_selection_provider.dart';
 import 'package:wanderer/store/account_data_purge.dart';
 import 'package:wanderer/store/avatar_cache.dart';
+import 'package:wanderer/util/oauth_app_state.dart';
 import 'package:wanderer/util/server_compatibility.dart';
 
 part 'auth_provider.g.dart';
 
 /// The custom URL scheme registered natively (Android intent-filter, iOS
-/// CFBundleURLSchemes) to receive the OAuth callback relayed by the web app's
-/// `/login/redirect` page. Must match [OAuthProvider.url]'s redirect_uri host
-/// registered with each OAuth provider — see login/+page.svelte redirect page.
+/// CFBundleURLSchemes) to receive the OAuth callback from the web app's
+/// `/login/redirect` page. That page hands the login over once the user
+/// confirms it: on Android through an `intent:` URL bound to the app's package,
+/// which resolves to flutter_web_auth_2's CallbackActivity, elsewhere through
+/// `wanderer://oauth-callback`.
 const _oauthCallbackScheme = "wanderer";
 
-/// Appended to the PocketBase-generated `state` value before opening the
-/// authorization URL, so `/login/redirect` can tell an app-originated flow
-/// apart from a plain web login by looking at the state value itself, rather
-/// than inferring it from the absence of web-only signals (localStorage),
-/// which browsers can also legitimately lack. PocketBase's OAuth2 code
-/// exchange never inspects `state` server-side — it's a purely client-side
-/// CSRF check — so it's safe to tag. Keep in sync with the identical
-/// constant in login/redirect/+page.svelte.
-const _oauthAppStateMarker = ".wanderer-app";
+/// Appended to the PocketBase-generated `state` to mark an app login, for
+/// servers that predate `POST /auth/oauth/app-state` only. Their
+/// `/login/redirect` looks for this suffix and relays the callback to
+/// `wanderer://` with the state untouched.
+///
+/// Anyone can compute this suffix, which is why servers that have the endpoint
+/// ignore it and treat such a login as a plain web login. Remove it once no
+/// supported server lacks the endpoint.
+const _legacyOAuthAppStateMarker = ".wanderer-app";
 
 @Riverpod(keepAlive: true)
 class Auth extends _$Auth {
@@ -273,6 +276,39 @@ class Auth extends _$Auth {
     return userEntity;
   }
 
+  /// The `state` for one OAuth login attempt, sent to the provider unchanged
+  /// and compared exactly on the callback. Requested per attempt, as it expires
+  /// 600 seconds after it is issued; opaque to the app.
+  ///
+  /// Only a 404 falls back to the marker flow: it is how a server without the
+  /// endpoint answers, on private instances too, since `/api/v1/auth` is public
+  /// there. A server that has the endpoint ignores the marker, so if a 404
+  /// reaches this on one (a proxy, say), the login fails in the browser and the
+  /// code is not handed over. Anything else ends the login rather than falling
+  /// back. Network failures stay [DioException]s, like every other request here.
+  Future<String> _requestOAuthState(OAuthProvider provider) async {
+    final Response<dynamic> response;
+    try {
+      response = await ref
+          .read(apiProvider)
+          .post('/auth/oauth/app-state', data: {'provider': provider.name});
+    } on DioException catch (err) {
+      final errorResponse = err.response;
+      if (errorResponse == null) rethrow;
+      if (errorResponse.statusCode == 404) {
+        return '${provider.state}$_legacyOAuthAppStateMarker';
+      }
+      throw OAuthAppStateException.fromResponse(errorResponse);
+    }
+
+    final data = response.data;
+    final issued = data is Map ? data['state'] : null;
+    if (issued is! String || issued.isEmpty) {
+      throw const OAuthAppStateException(OAuthAppStateFailure.rejected);
+    }
+    return issued;
+  }
+
   Future<UserEntity?> loginWithOAuth(OAuthProvider provider) async {
     state = const AsyncLoading();
 
@@ -281,12 +317,11 @@ class Auth extends _$Auth {
       // take the user through the whole provider sign-in only to fail after.
       await _ensureSelectedServerCompatible();
 
+      final sentState = await _requestOAuthState(provider);
+
       final authUrl = Uri.parse(provider.url);
       final launchUrl = authUrl.replace(
-        queryParameters: {
-          ...authUrl.queryParameters,
-          'state': '${provider.state}$_oauthAppStateMarker',
-        },
+        queryParameters: {...authUrl.queryParameters, 'state': sentState},
       );
 
       final callbackUrl = await FlutterWebAuth2.authenticate(
@@ -299,7 +334,15 @@ class Auth extends _$Auth {
         options: const FlutterWebAuth2Options(),
       );
 
+      // Before anything else in the callback is read: one that does not
+      // belong to this attempt has no say, not even in the error shown.
       final callback = Uri.parse(callbackUrl);
+      if (callback.queryParameters['state'] != sentState) {
+        throw Exception(
+          "OAuth provider response did not match the requested login.",
+        );
+      }
+
       final oauthError = callback.queryParameters['error'];
       if (oauthError != null) {
         throw Exception(
@@ -308,14 +351,7 @@ class Auth extends _$Auth {
       }
 
       final code = callback.queryParameters['code'];
-      final rawState = callback.queryParameters['state'];
-      final oauthState = rawState?.endsWith(_oauthAppStateMarker) == true
-          ? rawState!.substring(
-              0,
-              rawState.length - _oauthAppStateMarker.length,
-            )
-          : rawState;
-      if (code == null || oauthState == null || oauthState != provider.state) {
+      if (code == null) {
         throw Exception(
           "OAuth provider response did not match the requested login.",
         );
