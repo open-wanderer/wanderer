@@ -308,6 +308,10 @@ class AppLocalizationsCs extends AppLocalizations {
   String get search_this_area => 'Hledat v této oblasti';
 
   @override
+  String get filter_category_deselect_hint =>
+      'Press and hold to deselect a category';
+
+  @override
   String get filter_tags => 'Filtrovat podle štítků';
 
   @override
@@ -960,7 +964,7 @@ class AppLocalizationsCs extends AppLocalizations {
   String get travel_profile => 'Způsob přesunu';
 
   @override
-  String get no_track_data => 'Žádná data trasy';
+  String get no_elevation_data => 'No elevation data';
 
   @override
   String get available_offline => 'Dostupné offline';

@@ -160,6 +160,10 @@
   "stop_recording": "Stop recording",
   "stop_recording_confirm": "Stop recording?",
   "search_this_area": "Search this area",
+  "filter_category_deselect_hint": "Press and hold to deselect a category",
+  "@filter_category_deselect_hint": {
+    "description": "Hint above the category chips on the trail filter screen. A long press removes a category from the selection."
+  },
   "filter_tags": "Filter tags",
   "filter_trails": "Filter trails",
   "finish": "Finish",
@@ -481,7 +485,10 @@
   "auto_routing": "Auto-routing",
   "auto_routing_hint": "Automatically follow roads and paths between anchors.",
   "travel_profile": "Travel profile",
-  "no_track_data": "No track data",
+  "no_elevation_data": "No elevation data",
+  "@no_elevation_data": {
+    "description": "Shown in place of the elevation chart when a trail has too few points with elevation. The track itself may still exist."
+  },
   "available_offline": "Available offline",
   "no_lists_found": "No lists found",
   "search_lists": "Search lists…",

@@ -652,6 +652,12 @@ abstract class AppLocalizations {
   /// **'Search this area'**
   String get search_this_area;
 
+  /// Hint above the category chips on the trail filter screen. A long press removes a category from the selection.
+  ///
+  /// In en, this message translates to:
+  /// **'Press and hold to deselect a category'**
+  String get filter_category_deselect_hint;
+
   /// No description provided for @filter_tags.
   ///
   /// In en, this message translates to:
@@ -1726,11 +1732,11 @@ abstract class AppLocalizations {
   /// **'Travel profile'**
   String get travel_profile;
 
-  /// No description provided for @no_track_data.
+  /// Shown in place of the elevation chart when a trail has too few points with elevation. The track itself may still exist.
   ///
   /// In en, this message translates to:
-  /// **'No track data'**
-  String get no_track_data;
+  /// **'No elevation data'**
+  String get no_elevation_data;
 
   /// No description provided for @available_offline.
   ///

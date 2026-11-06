@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:gpx/gpx.dart';
 import 'package:maplibre/maplibre.dart';
 import 'package:wanderer/components/trail/elevation_profile.dart';
+import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/provider/local_settings_provider.dart';
 import 'package:wanderer/util/gpx/conversion.dart';
 import 'package:wanderer/util/gpx/gpx.dart';
@@ -298,6 +299,44 @@ void main() {
       final points = twoPoints();
 
       expect(elevationAtDistance(points, 2000), points.last.elevationM);
+    });
+  });
+
+  group('empty state', () {
+    Widget harness(Gpx gpx) {
+      return ProviderScope(
+        overrides: [unitProvider.overrideWithValue('metric')],
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(body: ElevationProfile(gpx: gpx, chartHeight: 120)),
+        ),
+      );
+    }
+
+    testWidgets('a track without elevation is not reported as missing', (
+      tester,
+    ) async {
+      final gpx = Gpx()
+        ..trks = [
+          Trk(
+            trksegs: [
+              Trkseg(
+                trkpts: [
+                  for (var i = 0; i < 10; i++)
+                    Wpt(lat: 47.0, lon: 11.0 + i * 0.001),
+                ],
+              ),
+            ],
+          ),
+        ];
+
+      await tester.pumpWidget(harness(gpx));
+      await tester.pumpAndSettle();
+
+      expect(find.text('No elevation data'), findsOneWidget);
+      expect(find.byType(LineChart), findsNothing);
+      expect(tester.getSize(find.byType(ElevationProfile)).height, 120);
     });
   });
 

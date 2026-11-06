@@ -1,108 +1,136 @@
 {
   "ca": [
+    "filter_category_deselect_hint",
     "track_transform_failed",
     "shortcut_new_trail",
+    "no_elevation_data",
     "recent_searches",
     "clear_search_history",
     "clear_search_history_confirm"
   ],
 
   "cs": [
+    "filter_category_deselect_hint",
     "track_transform_failed",
     "shortcut_new_trail",
+    "no_elevation_data",
     "recent_searches",
     "clear_search_history",
     "clear_search_history_confirm"
   ],
 
   "de": [
+    "filter_category_deselect_hint",
     "track_transform_failed",
-    "shortcut_new_trail"
+    "shortcut_new_trail",
+    "no_elevation_data"
   ],
 
   "es": [
+    "filter_category_deselect_hint",
     "track_transform_failed",
     "shortcut_new_trail",
+    "no_elevation_data",
     "recent_searches",
     "clear_search_history",
     "clear_search_history_confirm"
   ],
 
   "eu": [
+    "filter_category_deselect_hint",
     "track_transform_failed",
     "shortcut_new_trail",
+    "no_elevation_data",
     "recent_searches",
     "clear_search_history",
     "clear_search_history_confirm"
   ],
 
   "fr": [
+    "filter_category_deselect_hint",
     "track_transform_failed",
     "shortcut_new_trail",
+    "no_elevation_data",
     "recent_searches",
     "clear_search_history",
     "clear_search_history_confirm"
   ],
 
   "hu": [
+    "filter_category_deselect_hint",
     "track_transform_failed",
     "shortcut_new_trail",
+    "no_elevation_data",
     "recent_searches",
     "clear_search_history",
     "clear_search_history_confirm"
   ],
 
   "it": [
+    "filter_category_deselect_hint",
     "track_transform_failed",
     "shortcut_new_trail",
+    "no_elevation_data",
     "recent_searches",
     "clear_search_history",
     "clear_search_history_confirm"
   ],
 
   "nl": [
+    "filter_category_deselect_hint",
     "track_transform_failed",
     "shortcut_new_trail",
+    "no_elevation_data",
     "recent_searches",
     "clear_search_history",
     "clear_search_history_confirm"
   ],
 
   "no": [
+    "filter_category_deselect_hint",
     "track_transform_failed",
     "shortcut_new_trail",
+    "no_elevation_data",
     "recent_searches",
     "clear_search_history",
     "clear_search_history_confirm"
   ],
 
   "pl": [
+    "filter_category_deselect_hint",
     "track_transform_failed",
     "shortcut_new_trail",
+    "no_elevation_data",
     "recent_searches",
     "clear_search_history",
     "clear_search_history_confirm"
   ],
 
   "pt": [
+    "filter_category_deselect_hint",
     "track_transform_failed",
     "shortcut_new_trail",
+    "no_elevation_data",
     "recent_searches",
     "clear_search_history",
     "clear_search_history_confirm"
   ],
 
   "ru": [
+    "filter_category_deselect_hint",
     "track_transform_failed",
     "shortcut_new_trail",
+    "no_elevation_data",
     "recent_searches",
     "clear_search_history",
     "clear_search_history_confirm"
   ],
 
   "zh": [
+    "filter_category_deselect_hint",
     "track_transform_failed",
     "shortcut_new_trail",
+    "no_elevation_data",
     "recent_searches",
     "clear_search_history",
     "clear_search_history_confirm"

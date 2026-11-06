@@ -94,7 +94,7 @@ class _ElevationProfileState extends ConsumerState<ElevationProfile> {
     // whose first breadcrumb point came from the altitude-less seed fix has
     // exactly one plottable point until its second real fix lands.
     if (_points.length < 2) {
-      return const _EmptyState();
+      return _EmptyState(height: widget.chartHeight);
     }
 
     final minElev = _points.map((p) => p.elevationM).reduce(min);
@@ -684,31 +684,34 @@ double _niceInterval(double range, int targetCount) {
   return 10 * magnitude;
 }
 
+/// Shown when fewer than two points carry elevation. The track itself may be
+/// complete, so the copy must not claim that it is missing. Unfilled because
+/// the profile sits on several different surfaces.
 class _EmptyState extends StatelessWidget {
-  const _EmptyState();
+  final double height;
+
+  const _EmptyState({required this.height});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 200,
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.secondaryContainer,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      alignment: Alignment.center,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.terrain, size: 48),
-          SizedBox(height: 8),
-          Text(
-            AppLocalizations.of(context)!.no_track_data,
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.onSurface,
-              fontSize: 14,
+    final color = Theme.of(context).colorScheme.onSurfaceVariant;
+    return SizedBox(
+      height: height,
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.terrain, size: 32, color: color),
+            const SizedBox(height: 8),
+            Text(
+              AppLocalizations.of(context)!.no_elevation_data,
+              textAlign: TextAlign.center,
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: color),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

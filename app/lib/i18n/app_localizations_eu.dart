@@ -305,6 +305,10 @@ class AppLocalizationsEu extends AppLocalizations {
   String get search_this_area => 'Search this area';
 
   @override
+  String get filter_category_deselect_hint =>
+      'Press and hold to deselect a category';
+
+  @override
   String get filter_tags => 'Iragazi etiketak';
 
   @override
@@ -951,7 +955,7 @@ class AppLocalizationsEu extends AppLocalizations {
   String get travel_profile => 'Travel profile';
 
   @override
-  String get no_track_data => 'No track data';
+  String get no_elevation_data => 'No elevation data';
 
   @override
   String get available_offline => 'Available offline';

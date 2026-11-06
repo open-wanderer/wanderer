@@ -307,6 +307,10 @@ class AppLocalizationsCa extends AppLocalizations {
   String get search_this_area => 'Cerca en aquesta zona';
 
   @override
+  String get filter_category_deselect_hint =>
+      'Press and hold to deselect a category';
+
+  @override
   String get filter_tags => 'Filtra les etiquetes';
 
   @override
@@ -958,7 +962,7 @@ class AppLocalizationsCa extends AppLocalizations {
   String get travel_profile => 'Perfil de desplaçament';
 
   @override
-  String get no_track_data => 'Sense dades de traçat';
+  String get no_elevation_data => 'No elevation data';
 
   @override
   String get available_offline => 'Disponible sense connexió';
