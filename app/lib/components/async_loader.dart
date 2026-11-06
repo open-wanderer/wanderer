@@ -9,6 +9,7 @@ class AsyncLoader<T> extends StatelessWidget {
     required this.mockData,
     required this.builder,
     this.enableSwitchAnimation = true,
+    this.keepValueWhileLoading = false,
     super.key,
   });
 
@@ -18,6 +19,13 @@ class AsyncLoader<T> extends StatelessWidget {
   Widget errorBuilder(Object err) => WandererError(err: err);
 
   final bool enableSwitchAnimation;
+
+  /// Leaves an existing value on screen during a reload or refresh instead of
+  /// skeletonizing it, so the skeleton only stands in when there is no value.
+  /// The equivalent of `.when(skipLoadingOnReload: true)`. Needed where a
+  /// reload must not throw away a scroll position, as the skeleton swap
+  /// remounts [builder]'s subtree.
+  final bool keepValueWhileLoading;
 
   @override
   Widget build(BuildContext context) {
@@ -31,7 +39,9 @@ class AsyncLoader<T> extends StatelessWidget {
     };
 
     return Skeletonizer(
-      enabled: asyncValue.isLoading,
+      enabled:
+          asyncValue.isLoading &&
+          !(keepValueWhileLoading && asyncValue.hasValue),
       enableSwitchAnimation: true,
       switchAnimationConfig: const SwitchAnimationConfig(
         layoutBuilder: _switchLayoutBuilder,

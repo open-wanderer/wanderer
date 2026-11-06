@@ -985,14 +985,6 @@ class AppLocalizationsCa extends AppLocalizations {
   String get filter => 'Filtra';
 
   @override
-  String no_label_yet(String label) {
-    return 'Encara no hi ha cap $label.';
-  }
-
-  @override
-  String get no_lists_yet => 'Encara no hi ha llistes.';
-
-  @override
   String get no_bio_yet => 'Encara no hi ha biografia.';
 
   @override
@@ -1013,7 +1005,54 @@ class AppLocalizationsCa extends AppLocalizations {
   }
 
   @override
-  String get no_trails_yet => 'Encara no hi ha senders.';
+  String get find_people => 'Find people';
+
+  @override
+  String get profile_trails_empty_other_title => 'No public trails yet';
+
+  @override
+  String profile_trails_empty_other_body(String username) {
+    return 'Trails $username makes public will appear here.';
+  }
+
+  @override
+  String get profile_lists_empty_own_title => 'No lists yet';
+
+  @override
+  String get profile_lists_empty_own_body =>
+      'Lists group trails into collections, like a multi-day trek or your local favorites. You can create them in the web app.';
+
+  @override
+  String get profile_lists_empty_other_title => 'No public lists yet';
+
+  @override
+  String profile_lists_empty_other_body(String username) {
+    return 'Lists $username makes public will appear here.';
+  }
+
+  @override
+  String get profile_following_empty_title => 'Not following anyone yet';
+
+  @override
+  String get profile_following_empty_own_body =>
+      'Follow people to stay up to date with their newest public trails, including people on other instances.';
+
+  @override
+  String profile_following_empty_other_body(String username) {
+    return 'Accounts $username follows will appear here.';
+  }
+
+  @override
+  String get profile_followers_empty_title => 'No followers yet';
+
+  @override
+  String get profile_followers_empty_own_body =>
+      'People who follow you will appear here and stay up to date with your newest public trails.';
+
+  @override
+  String profile_followers_empty_other_body(String username) {
+    return 'People who follow $username will appear here.';
+  }
 
   @override
   String get library_empty_title => 'No hi ha senders baixats';

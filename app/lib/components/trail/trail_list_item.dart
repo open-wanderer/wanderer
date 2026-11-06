@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:skeletonizer/skeletonizer.dart';
 import 'package:wanderer/components/base/actor_avatar.dart';
 import 'package:wanderer/components/base/wanderer_photo.dart';
 import 'package:wanderer/components/trail/stat_chip.dart';
@@ -129,11 +130,16 @@ class TrailListItem extends ConsumerWidget {
                               ),
                               const SizedBox(width: 8),
                             ],
-                            ActorAvatar(
-                              actorId: trail.summaryAuthorActorId,
-                              imageUrl: trail.summaryAuthorAvatar,
-                              nameSeed: trail.summaryAuthorName,
-                              radius: 9,
+                            // Replaced so a mock trail neither shows the
+                            // avatar's fallback nor fetches one.
+                            Skeleton.replace(
+                              replacement: const Bone.circle(size: 18),
+                              child: ActorAvatar(
+                                actorId: trail.summaryAuthorActorId,
+                                imageUrl: trail.summaryAuthorAvatar,
+                                nameSeed: trail.summaryAuthorName,
+                                radius: 9,
+                              ),
                             ),
                             const SizedBox(width: 4),
                             Expanded(

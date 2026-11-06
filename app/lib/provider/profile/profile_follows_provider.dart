@@ -25,6 +25,12 @@ abstract class ProfileFollowsState
 
   const ProfileFollowsState._();
 
+  factory ProfileFollowsState.mock() => ProfileFollowsState(
+    items: List.generate(10, (_) => Actor.mock()),
+    page: 1,
+    totalPages: 1,
+  );
+
   /// Older backends send no `next`, so they keep the totalPages test.
   @override
   bool get hasMore => cursorPaging ? next != null : page < totalPages;
@@ -64,11 +70,7 @@ class ProfileFollowsNotifier extends _$ProfileFollowsNotifier
     final api = ref.read(apiProvider);
     final response = await api.get(
       '/profile/$handle/follows',
-      queryParameters: {
-        'type': type,
-        'page': page,
-        'cursor': ?cursor,
-      },
+      queryParameters: {'type': type, 'page': page, 'cursor': ?cursor},
     );
 
     final data = response.data as Map<String, dynamic>;

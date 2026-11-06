@@ -42,6 +42,14 @@ abstract class ProfileTrailsState
   }) = _ProfileTrailsState;
 
   const ProfileTrailsState._();
+
+  factory ProfileTrailsState.mock() => ProfileTrailsState(
+    trails: List.generate(5, (_) => Trail.mock()),
+    page: 1,
+    perPage: 5,
+    totalPages: 1,
+  );
+
   @override
   bool get hasMore => page < totalPages;
 }
@@ -89,9 +97,8 @@ class ProfileTrailsNotifier extends _$ProfileTrailsNotifier
     // compare equal and do not reload. Only an actual filter change reaches
     // this provider now.
     final filter = ref.watch(
-      trailFilterProvider(
-        'profile_trail_$handle',
-      ).select((async) => async.value),
+      trailFilterProvider('profile_trail_$handle')
+          .select((async) => async.value),
     );
 
     final store = ref.watch(objectBoxProvider);

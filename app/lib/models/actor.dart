@@ -33,5 +33,23 @@ abstract class Actor with _$Actor, RecordFunctions implements IRecord {
     required String user,
   }) = _Actor;
 
+  /// Placeholder that sizes Skeletonizer's bones while real actors load
+  /// (`AsyncLoader.mockData`). The literal strings are never visible.
+  factory Actor.mock() => Actor(
+    id: 'mock-actor-id',
+    collectionId: '',
+    collectionName: '',
+    created: DateTime(2024, 1, 1),
+    updated: DateTime(2024, 1, 1),
+    username: 'Mock Username',
+    preferredUsername: 'mock_username',
+    domain: 'wanderer.example',
+    iri: '',
+    inbox: '',
+    publicKey: '',
+    lastFetched: '',
+    user: '',
+  );
+
   factory Actor.fromJson(Map<String, dynamic> json) => _$ActorFromJson(json);
 }

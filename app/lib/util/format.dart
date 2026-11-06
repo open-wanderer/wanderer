@@ -226,3 +226,8 @@ String formatHtmlAsText(String? html) {
     truncated: true,
   );
 }
+
+/// The username in a profile handle: `@alice` or `@alice@example.com` gives
+/// `alice`.
+String usernameFromHandle(String handle) =>
+    handle.replaceFirst('@', '').split('@').first;

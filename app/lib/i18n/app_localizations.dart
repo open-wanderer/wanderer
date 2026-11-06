@@ -1774,18 +1774,6 @@ abstract class AppLocalizations {
   /// **'Filter'**
   String get filter;
 
-  /// No description provided for @no_label_yet.
-  ///
-  /// In en, this message translates to:
-  /// **'No {label} yet.'**
-  String no_label_yet(String label);
-
-  /// No description provided for @no_lists_yet.
-  ///
-  /// In en, this message translates to:
-  /// **'No lists yet.'**
-  String get no_lists_yet;
-
   /// No description provided for @no_bio_yet.
   ///
   /// In en, this message translates to:
@@ -1822,11 +1810,83 @@ abstract class AppLocalizations {
   /// **'{username} has no activity yet.'**
   String profile_feed_empty_other(String username);
 
-  /// No description provided for @no_trails_yet.
+  /// No description provided for @find_people.
   ///
   /// In en, this message translates to:
-  /// **'No trails yet.'**
-  String get no_trails_yet;
+  /// **'Find people'**
+  String get find_people;
+
+  /// No description provided for @profile_trails_empty_other_title.
+  ///
+  /// In en, this message translates to:
+  /// **'No public trails yet'**
+  String get profile_trails_empty_other_title;
+
+  /// No description provided for @profile_trails_empty_other_body.
+  ///
+  /// In en, this message translates to:
+  /// **'Trails {username} makes public will appear here.'**
+  String profile_trails_empty_other_body(String username);
+
+  /// No description provided for @profile_lists_empty_own_title.
+  ///
+  /// In en, this message translates to:
+  /// **'No lists yet'**
+  String get profile_lists_empty_own_title;
+
+  /// No description provided for @profile_lists_empty_own_body.
+  ///
+  /// In en, this message translates to:
+  /// **'Lists group trails into collections, like a multi-day trek or your local favorites. You can create them in the web app.'**
+  String get profile_lists_empty_own_body;
+
+  /// No description provided for @profile_lists_empty_other_title.
+  ///
+  /// In en, this message translates to:
+  /// **'No public lists yet'**
+  String get profile_lists_empty_other_title;
+
+  /// No description provided for @profile_lists_empty_other_body.
+  ///
+  /// In en, this message translates to:
+  /// **'Lists {username} makes public will appear here.'**
+  String profile_lists_empty_other_body(String username);
+
+  /// No description provided for @profile_following_empty_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Not following anyone yet'**
+  String get profile_following_empty_title;
+
+  /// No description provided for @profile_following_empty_own_body.
+  ///
+  /// In en, this message translates to:
+  /// **'Follow people to stay up to date with their newest public trails, including people on other instances.'**
+  String get profile_following_empty_own_body;
+
+  /// No description provided for @profile_following_empty_other_body.
+  ///
+  /// In en, this message translates to:
+  /// **'Accounts {username} follows will appear here.'**
+  String profile_following_empty_other_body(String username);
+
+  /// No description provided for @profile_followers_empty_title.
+  ///
+  /// In en, this message translates to:
+  /// **'No followers yet'**
+  String get profile_followers_empty_title;
+
+  /// No description provided for @profile_followers_empty_own_body.
+  ///
+  /// In en, this message translates to:
+  /// **'People who follow you will appear here and stay up to date with your newest public trails.'**
+  String get profile_followers_empty_own_body;
+
+  /// No description provided for @profile_followers_empty_other_body.
+  ///
+  /// In en, this message translates to:
+  /// **'People who follow {username} will appear here.'**
+  String profile_followers_empty_other_body(String username);
 
   /// No description provided for @library_empty_title.
   ///

@@ -1,10 +1,9 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
-import 'package:wanderer/components/base/wanderer_error.dart';
+import 'package:wanderer/components/async_loader.dart';
+import 'package:wanderer/components/base/wanderer_empty_state.dart';
 import 'package:wanderer/components/base/wanderer_no_results.dart';
 import 'package:wanderer/components/base/wanderer_searchbar.dart';
 import 'package:wanderer/components/trail/trail_list_item.dart';
@@ -14,6 +13,7 @@ import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/models/trail_summary.dart';
 import 'package:wanderer/provider/paged_load_more.dart';
 import 'package:wanderer/provider/profile/profile_trails_provider.dart';
+import 'package:wanderer/util/format.dart';
 import 'package:wanderer/util/trail/route_location.dart';
 
 class ProfileTrailScreen extends ConsumerStatefulWidget {
@@ -84,6 +84,7 @@ class _ProfileTrailScreenState extends ConsumerState<ProfileTrailScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        scrolledUnderElevation: 0,
         leading: BackButton(onPressed: () => context.pop()),
         title: Text(l10n.trail(2)),
         actions: [
@@ -111,27 +112,24 @@ class _ProfileTrailScreenState extends ConsumerState<ProfileTrailScreen> {
           ),
           TrailQuickFilterBar(filterId: 'profile_trail_${widget.handle}'),
           Expanded(
-            child: trailsAsync.when(
-              // The default `false` is what let a dependency-driven reload
-              // (e.g. the filter provider settling after a retry) replace an
-              // already-rendered list with a full-screen
-              // CircularProgressIndicator. This is the only `.when` in this
-              // file.
-              skipLoadingOnReload: true,
-              data: (state) {
+            child: AsyncLoader<ProfileTrailsState>(
+              asyncValue: trailsAsync,
+              mockData: ProfileTrailsState.mock(),
+              // Without this a dependency-driven reload (e.g. the filter
+              // provider settling after a retry) would replace an
+              // already-rendered list with the skeleton.
+              keepValueWhileLoading: true,
+              builder: (state) {
                 // Standing condition, not a one-off event -- a persistent
                 // banner, not a toast.
                 final showOfflineBanner = state.offline && state.isOwnHandle;
 
                 return Column(
                   children: [
-                    // Because a reload is now invisible (skipLoadingOnReload
-                    // above), this thin indicator keeps it perceptible. Only
-                    // rendered here (the "isLoading && hasValue" half) --
-                    // with skipLoadingOnReload: true, this
-                    // `data:` branch only runs when a value exists, so the
-                    // hasValue half is implied.
-                    if (trailsAsync.isLoading)
+                    // A reload keeps the list on screen (see
+                    // keepValueWhileLoading above), so this thin indicator
+                    // keeps it perceptible. The first load has the skeleton.
+                    if (trailsAsync.isLoading && trailsAsync.hasValue)
                       const LinearProgressIndicator(minHeight: 2),
                     if (showOfflineBanner)
                       Container(
@@ -174,14 +172,31 @@ class _ProfileTrailScreenState extends ConsumerState<ProfileTrailScreen> {
                             ? (_query.isNotEmpty
                                   ? WandererNoResults(query: _query)
                                   : state.isOwnHandle
-                                  ? _OwnTrailsEmptyState(
-                                      icon: FontAwesomeIcons.cloudArrowUp,
+                                  ? WandererEmptyState(
+                                      icon: FontAwesomeIcons.route,
                                       title: l10n.own_trails_empty_title,
                                       body: l10n.own_trails_empty_body,
+                                      actionLabel: l10n.new_trail,
+                                      onAction: () => context.pushReplacement(
+                                        '/trail/create',
+                                      ),
                                     )
-                                  : _EmptyState())
+                                  : WandererEmptyState(
+                                      icon: FontAwesomeIcons.route,
+                                      title:
+                                          l10n.profile_trails_empty_other_title,
+                                      body: l10n
+                                          .profile_trails_empty_other_body(
+                                            usernameFromHandle(widget.handle),
+                                          ),
+                                    ))
                             : ListView.builder(
-                                controller: _scrollController,
+                                // Not on the skeleton: it is on screen
+                                // alongside the real list during the
+                                // cross-fade.
+                                controller: trailsAsync.hasValue
+                                    ? _scrollController
+                                    : null,
                                 padding: const EdgeInsets.fromLTRB(
                                   16,
                                   0,
@@ -216,87 +231,9 @@ class _ProfileTrailScreenState extends ConsumerState<ProfileTrailScreen> {
                   ],
                 );
               },
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (err, stack) => WandererError(err: err, stack: stack),
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _EmptyState extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Text(
-        AppLocalizations.of(context)!.no_trails_yet,
-        style: TextStyle(color: Colors.grey[600]),
-      ),
-    );
-  }
-}
-
-/// Own-trails offline/empty-library placeholder.
-///
-/// Duplicates `library_screen.dart`'s `_LibraryEmptyState.icon` structure
-/// exactly (LayoutBuilder/ConstrainedBox/SingleChildScrollView, 24px
-/// horizontal padding) -- the UI-SPEC requires reusing that treatment tier
-/// rather than inventing a third empty-state visual language.
-class _OwnTrailsEmptyState extends StatelessWidget {
-  final FaIconData icon;
-  final String title;
-  final String body;
-
-  const _OwnTrailsEmptyState({
-    required this.icon,
-    required this.title,
-    required this.body,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    // Centred in the space the trail list would have filled, but still
-    // scrollable, matching library_screen.dart's own rationale.
-    return LayoutBuilder(
-      builder: (context, constraints) => SingleChildScrollView(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            minHeight: math.max(0, constraints.maxHeight),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                FaIcon(
-                  icon,
-                  size: 64,
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  title,
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.titleMedium!.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  body,
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.bodyMedium!.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }
