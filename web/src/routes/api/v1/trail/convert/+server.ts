@@ -148,8 +148,9 @@ async function toValidGpx(contentType: string, body: Uint8Array<ArrayBuffer>): P
  *       and returns the equivalent GPX document. It does NOT compute or persist a trail -
  *       clients compute trail metrics themselves. Requires a logged-in user; the body may be
  *       at most what the gpx field of the trails collection allows. Files that would take too
- *       much memory to parse are refused with a 413: at the field's default of 5 MiB, a KML
- *       document (also inside a KMZ) over 4 MiB, or a file with too many elements or points.
+ *       much memory to parse are refused with a 413: at the field's default of 25 MiB, a KML
+ *       document (also inside a KMZ) over 4 MiB, a KMZ or FIT file over 8 MiB, or a file with
+ *       too many elements or points.
  *       These limits grow with the field.
  *     tags:
  *       - Trails

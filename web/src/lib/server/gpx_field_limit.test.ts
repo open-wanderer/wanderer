@@ -24,11 +24,11 @@ describe("track limits from the gpx field", () => {
     afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers(); });
 
     it("keeps the measured limits at the field's default", async () => {
-        vi.stubGlobal("fetch", answer(5 * MiB));
+        vi.stubGlobal("fetch", answer(25 * MiB));
         const { gpxFieldLimit, serverLimits } = await load();
 
-        expect(await gpxFieldLimit()).toBe(5 * MiB);
-        expect(serverLimits()).toMatchObject({ fileBytes: 5 * MiB, kmlBytes: 4 * MiB, gpxPoints: 150_000, convertedPoints: 60_000 });
+        expect(await gpxFieldLimit()).toBe(25 * MiB);
+        expect(serverLimits()).toMatchObject({ fileBytes: 25 * MiB, kmlBytes: 4 * MiB, gpxPoints: 150_000, convertedPoints: 60_000 });
     });
 
     it("follows a field raised to 2 GiB", async () => {
@@ -38,8 +38,8 @@ describe("track limits from the gpx field", () => {
         await gpxFieldLimit();
 
         expect(serverLimits().fileBytes).toBe(2 * GiB);
-        expect(serverLimits().kmlBytes).toBeGreaterThan(GiB);
-        expect(serverLimits().convertedPoints).toBe(60_000 * (2 * GiB) / (5 * MiB));
+        expect(serverLimits().kmlBytes).toBe(4 * MiB * (2 * GiB) / (25 * MiB));
+        expect(serverLimits().convertedPoints).toBe(60_000 * (2 * GiB) / (25 * MiB));
     });
 
     it("lowers the file limit without loosening the others", async () => {
@@ -98,7 +98,7 @@ describe("track limits from the gpx field", () => {
         vi.stubGlobal("fetch", fetch);
         const { gpxFieldLimit } = await load();
 
-        expect(await gpxFieldLimit()).toBe(5 * MiB);
+        expect(await gpxFieldLimit()).toBe(25 * MiB);
     });
 
     it("keeps the last known value while the backend cannot say", async () => {

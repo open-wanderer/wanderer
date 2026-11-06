@@ -1,8 +1,7 @@
 const MiB = 1024 * 1024;
 
-// PocketBase's default for a file field, and what the gpx field of the trails
-// collection is set to on a new instance.
-export const DEFAULT_GPX_FIELD_LIMIT = 5 * MiB;
+// What the gpx field of the trails collection is set to on a new instance.
+export const DEFAULT_GPX_FIELD_LIMIT = 25 * MiB;
 
 // What one file may cost on the server, where parsing runs in the same process
 // as everything else and running out of heap kills it. Measured on a production
