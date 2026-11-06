@@ -1,11 +1,12 @@
 import * as xml2js from 'isomorphic-xml2js';
 import { parseGpxXml } from './parse-xml';
 import Metadata from './metadata';
+import Person from './person';
 import Route from './route';
 import Track from './track';
-import TrackSegment from './track-segment';
+import TrackSegment, { segmentDurationMs } from './track-segment';
 import { allDatesToISOString, haversineDistance, removeEmpty } from './utils';
-import Waypoint from './waypoint';
+import Waypoint, { hasUsablePosition } from './waypoint';
 import GpxMetricsComputation from './gpx-metrics-computation';
 import { encodePolyline } from '#lib/util/polyline_util.ts';
 import { APIError } from '#lib/util/api_util.ts';
@@ -80,6 +81,11 @@ export default class GPX {
 
     if (object.metadata) {
       this.metadata = object.metadata;
+      // Files can carry the plain-text <email> form, which GPX 1.1 does not allow.
+      const author = this.metadata.author;
+      if (author && typeof author === 'object') {
+        this.metadata.author = new Person(author);
+      }
     }
     if (object.wpt) {
       if (!Array.isArray(object.wpt)) {
@@ -122,14 +128,7 @@ export default class GPX {
         const points = segment.trkpt ?? [];
         allPoints.push(...points);
 
-        if (points.length >= 2) {
-          const startTime = points[0].time;
-          const endTime = points[points.length - 1].time
-
-          if (startTime && endTime) {
-            totalDuration += endTime.getTime() - startTime.getTime();
-          }
-        }
+        totalDuration += segmentDurationMs(segment);
 
         const pointLength = points.length
         for (let i = 0; i < pointLength; i++) {
@@ -198,7 +197,7 @@ export default class GPX {
         extensions: route.extensions,
       });
       const segment = new TrackSegment({});
-      segment.trkpt = route.rtept;
+      segment.trkpt = route.rtept?.filter(hasUsablePosition);
       track.trkseg = [segment];
       return track;
     });
@@ -206,6 +205,11 @@ export default class GPX {
     this.rte = undefined;
     this._features = undefined;
     return true;
+  }
+
+  /** Whether any track or route point has a position, as the app decides what it can import. */
+  hasPositions(): boolean {
+    return this.flatten().length > 0 || (this.rte?.some(route => route.rtept?.some(hasUsablePosition)) ?? false);
   }
 
   flatten() {
@@ -243,9 +247,9 @@ export default class GPX {
 
     const heightResponse: ValhallaHeightResponse = await r2.json()
     const heights = heightResponse.height ?? [];
-    const finiteHeights = heights.filter((height) => Number.isFinite(height)).length;
 
-    if (heights.length > 0 && finiteHeights === 0) {
+    // Anything else would write `undefined` over the file's own elevations.
+    if (heights.length !== coordinates.length || !heights.some((height) => Number.isFinite(height))) {
       return;
     }
 
@@ -315,7 +319,8 @@ export default class GPX {
 
     const builder = new xml2js.Builder(options)
     const gpx = new GPX(this);
-    (gpx as any).features = undefined
+    // Deleted, not cleared: the builder writes an element for every own key.
+    delete (gpx as any)._features;
     allDatesToISOString(gpx);
 
     let xmlString = builder.buildObject(gpx);

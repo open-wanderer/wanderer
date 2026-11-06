@@ -68,6 +68,19 @@ function normalizedIsoString(match: RegExpExecArray): string {
   return `${date}T${hour}:${minute ?? "00"}:${second ?? "00"}${millis}${offset}`;
 }
 
+/** How the extension that marks a leg boundary of a drawn route is read back. */
+export const routeAnchorElement = "wanderer:anchor";
+
+export function hasRouteAnchor(point: Waypoint): boolean {
+  const extensions = point.extensions as unknown;
+  return typeof extensions === "object" && extensions !== null && Object.prototype.hasOwnProperty.call(extensions, routeAnchorElement);
+}
+
+/** The app's rule for a real point; anything else is discarded, never placed at 0/0. */
+export function hasUsablePosition(point: Waypoint): boolean {
+  return point.$.lat !== undefined && point.$.lon !== undefined;
+}
+
 export default class Waypoint {
   $: {
     lat?: number;

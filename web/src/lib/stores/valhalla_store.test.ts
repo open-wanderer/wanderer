@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import GPX from "#lib/models/gpx/gpx.ts";
-import { deleteFromRoute, setRoute, valhallaStore } from "./valhalla_store.svelte";
+import { clearUndoRedoStack, deleteFromRoute, redo, rememberMovingDuration, reverseRoute, setRoute, undo, valhallaStore } from "./valhalla_store.svelte";
 
 /**
  * `features` is a cache refreshed by `getTotals()`, while `flatten()` reads the
@@ -33,6 +33,46 @@ describe("deleteFromRoute — features stay consistent with the mutated route", 
 
     // Stale-cache symptom: the pre-splice total survived the delete unchanged.
     expect(valhallaStore.route.features.distance ?? 0).toBeLessThan(before);
+  });
+});
+
+describe("rememberMovingDuration", () => {
+  beforeEach(() => {
+    clearUndoRedoStack();
+    setRoute(GPX.parse(gpxXml([segmentXml(47.0), segmentXml(47.01)])));
+  });
+
+  it("hands the value back when the edit is undone", () => {
+    reverseRoute();
+    rememberMovingDuration(5000);
+
+    expect(undo()?.movingDurationBefore).toBe(5000);
+  });
+
+  it("keeps the first value through undo and redo", () => {
+    reverseRoute();
+    rememberMovingDuration(5000);
+    undo();
+    redo();
+    rememberMovingDuration(0);
+
+    expect(undo()?.movingDurationBefore).toBe(5000);
+  });
+
+  it("gives each edit the value from before it", () => {
+    reverseRoute();
+    rememberMovingDuration(5000);
+    reverseRoute();
+    rememberMovingDuration(0);
+
+    expect(undo()?.movingDurationBefore).toBe(0);
+    expect(undo()?.movingDurationBefore).toBe(5000);
+  });
+
+  it("does nothing without an edit", () => {
+    rememberMovingDuration(5000);
+
+    expect(valhallaStore.undoStack).toHaveLength(0);
   });
 });
 

@@ -14,11 +14,20 @@ import { get } from "svelte/store";
 
 const emtpyTrack = new Track({ trkseg: [] })
 
+type RouteHistoryEntry = {
+    delta: Changeset,
+    reverseDelta: Changeset,
+    anchorsBefore?: ValhallaAnchor[],
+    anchorsAfter?: ValhallaAnchor[],
+    reversesRoute?: boolean,
+    movingDurationBefore?: number,
+};
+
 class ValhallaStore {
     route: GPX = $state(new GPX({ trk: [emtpyTrack] }));
     anchors: ValhallaAnchor[] = $state([]);
-    undoStack: { delta: Changeset, reverseDelta: Changeset, anchorsBefore?: ValhallaAnchor[], anchorsAfter?: ValhallaAnchor[], reversesRoute?: boolean }[] = $state([]);
-    redoStack: { delta: Changeset, reverseDelta: Changeset, anchorsBefore?: ValhallaAnchor[], anchorsAfter?: ValhallaAnchor[], reversesRoute?: boolean }[] = $state([]);
+    undoStack: RouteHistoryEntry[] = $state([]);
+    redoStack: RouteHistoryEntry[] = $state([]);
 }
 
 export const valhallaStore = new ValhallaStore();
@@ -44,6 +53,17 @@ function pushToUndoStack(delta: Changeset, reverseDelta: Changeset) {
     valhallaStore.redoStack = []
 }
 
+
+/**
+ * Notes the moving time that the latest edit is about to clear, so that undoing
+ * the edit can bring it back. A redone edit keeps the value it noted first.
+ */
+export function rememberMovingDuration(movingDuration: number) {
+    const entry = valhallaStore.undoStack.at(-1);
+    if (entry && entry.movingDurationBefore === undefined) {
+        entry.movingDurationBefore = movingDuration;
+    }
+}
 
 export function setRoute(newRoute: GPX, undoable: boolean = false) {
     const delta = diff(valhallaStore.route, newRoute);

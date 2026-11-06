@@ -109,18 +109,18 @@ it.each([
 });
 
 it.each([
-    ["/api/v1/trail/form/abcdefghijklmn0", "POST", updateTrail],
-    ["/api/v1/list/form/abcdefghijklmn0", "POST", updateList],
-    ["/api/v1/summit-log/form/abcdefghijklmn0", "POST", updateLog],
-    ["/api/v1/trail/upload", "PUT", uploadTrail],
-] as const)("rejects an anonymous upload before consuming its body at %s", async (path, method, route) => {
+    ["/api/v1/trail/form/abcdefghijklmn0", "POST", updateTrail, 1024 ** 3],
+    ["/api/v1/list/form/abcdefghijklmn0", "POST", updateList, 1024 ** 3],
+    ["/api/v1/summit-log/form/abcdefghijklmn0", "POST", updateLog, 1024 ** 3],
+    ["/api/v1/trail/upload", "PUT", uploadTrail, 24 * 1024 ** 2],
+] as const)("rejects an anonymous upload before consuming its body at %s", async (path, method, route, declaredSize) => {
     let reads = 0;
     const body = new ReadableStream<Uint8Array>({
         pull(controller) { reads++; controller.enqueue(new Uint8Array(16 * 1024)); controller.close(); },
     }, { highWaterMark: 0 });
     const request = new Request("https://local.example" + path, {
         method, body, duplex: "half",
-        headers: { "content-type": "multipart/form-data; boundary=test", "content-length": String(1024 ** 3) },
+        headers: { "content-type": "multipart/form-data; boundary=test", "content-length": String(declaredSize) },
     } as RequestInit);
     const parse = vi.spyOn(Request.prototype, "formData");
     const persist = vi.fn();

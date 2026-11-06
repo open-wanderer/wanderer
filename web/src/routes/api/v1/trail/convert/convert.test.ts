@@ -1,5 +1,6 @@
 import type { RequestEvent } from "@sveltejs/kit";
-import { describe, expect, it } from "vitest";
+import JSZip from "jszip";
+import { describe, expect, it, vi } from "vitest";
 import { POST } from "./+server";
 
 // The handler reads only `event.request` and the auth state, so a plain object
@@ -238,5 +239,81 @@ describe("POST /api/v1/trail/convert - limits", () => {
         const response = await POST(makeEvent(new Request(url, { method: "POST", body: form })));
         expect(response.status).toBe(200);
         expect(performance.now() - started).toBeLessThan(2000);
+    });
+});
+
+describe("POST /api/v1/trail/convert - no usable position", () => {
+    const url = "http://localhost/api/v1/trail/convert";
+
+    it.each([
+        ["an empty track", `<gpx version="1.1"><trk><trkseg></trkseg></trk></gpx>`],
+        ["only bad positions", `<gpx version="1.1"><trk><trkseg><trkpt lat="x" lon="y"/></trkseg></trk></gpx>`],
+        ["only waypoints", `<gpx version="1.1"><wpt lat="47" lon="11"/></gpx>`],
+    ])("400s on %s", async (_name, body) => {
+        const response = await POST(makeEvent(new Request(url, { method: "POST", body })));
+
+        expect(response.status).toBe(400);
+    });
+});
+
+describe("POST /api/v1/trail/convert - unreadable uploads", () => {
+    const url = "http://localhost/api/v1/trail/convert";
+
+    function upload(content: BlobPart) {
+        const form = new FormData();
+        form.append("file", new Blob([content]), "track.bin");
+        return new Request(url, { method: "POST", body: form });
+    }
+
+    async function kmzWithout() {
+        const zip = new JSZip();
+        zip.file("other.txt", "no document");
+        return zip.generateAsync({ type: "uint8array" }) as Promise<BlobPart>;
+    }
+
+    const fit = new Uint8Array(64);
+    fit[0] = 14;
+    fit.set(new TextEncoder().encode(".FIT"), 8);
+    fit[4] = 40;
+
+    it.each<[string, () => BlobPart | Promise<BlobPart>]>([
+        ["a corrupt zip", () => new Uint8Array([0x50, 0x4b, 0x03, 0x04, 1, 2, 3, 4, 5, 6, 7, 8])],
+        ["a KMZ without doc.kml", kmzWithout],
+        ["a garbage FIT", () => fit],
+        ["a KML that is not XML", () => `http://www.opengis.net/kml <<<`],
+    ])("answers %s with a generic 400", async (_name, content) => {
+        const log = vi.spyOn(console, "error").mockImplementation(() => {});
+        try {
+            const response = await POST(makeEvent(upload(await content())));
+
+            expect(response.status).toBe(400);
+            expect(JSON.stringify(await response.json())).toMatch(/^\{"message":"Invalid (file|GPX content)"\}$/);
+        } finally {
+            log.mockRestore();
+        }
+    });
+
+    it("answers a broken multipart body with 400 and no parser message", async () => {
+        const log = vi.spyOn(console, "error").mockImplementation(() => {});
+        try {
+            const request = new Request(url, { method: "POST", body: "nonsense", headers: { "content-type": "multipart/form-data; boundary=x" } });
+            const response = await POST(makeEvent(request));
+
+            expect(response.status).toBe(400);
+            expect(await response.json()).toEqual({ message: "Invalid multipart body" });
+        } finally {
+            log.mockRestore();
+        }
+    });
+
+    it("logs what the parser said", async () => {
+        const log = vi.spyOn(console, "error").mockImplementation(() => {});
+        try {
+            await POST(makeEvent(upload(await kmzWithout())));
+
+            expect(log).toHaveBeenCalled();
+        } finally {
+            log.mockRestore();
+        }
     });
 });

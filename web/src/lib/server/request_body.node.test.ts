@@ -63,15 +63,14 @@ it.each([
 });
 
 it.each([
-    ["/api/v1/trail/abcdefghijklmn0/file", "POST", uploadTrailFile],
-    ["/api/v1/list/abcdefghijklmn0/file", "POST", uploadListFile],
-    ["/api/v1/summit-log/abcdefghijklmn0/file", "POST", uploadLogFile],
-    ["/api/v1/trail/form/abcdefghijklmn0", "POST", updateTrail],
-    ["/api/v1/list/form/abcdefghijklmn0", "POST", updateList],
-    ["/api/v1/summit-log/form/abcdefghijklmn0", "POST", updateLog],
-    ["/api/v1/trail/upload", "PUT", uploadTrail],
-] as const)("rejects a native anonymous large upload without buffering it at %s", async (path, method, route) => {
-    const declaredBytes = 1024 ** 3;
+    ["/api/v1/trail/abcdefghijklmn0/file", "POST", uploadTrailFile, 1024 ** 3],
+    ["/api/v1/list/abcdefghijklmn0/file", "POST", uploadListFile, 1024 ** 3],
+    ["/api/v1/summit-log/abcdefghijklmn0/file", "POST", uploadLogFile, 1024 ** 3],
+    ["/api/v1/trail/form/abcdefghijklmn0", "POST", updateTrail, 1024 ** 3],
+    ["/api/v1/list/form/abcdefghijklmn0", "POST", updateList, 1024 ** 3],
+    ["/api/v1/summit-log/form/abcdefghijklmn0", "POST", updateLog, 1024 ** 3],
+    ["/api/v1/trail/upload", "PUT", uploadTrail, 24 * 1024 ** 2],
+] as const)("rejects a native anonymous large upload without buffering it at %s", async (path, method, route, declaredBytes) => {
     let receivedBeforeResponse = 0;
     const server = createServer(async (req, res) => {
         const receivedAtStart = req.socket.bytesRead;
@@ -102,7 +101,7 @@ it.each([
             });
             req.on("error", reject);
             req.setTimeout(2000, () => req.destroy(new Error("upload was read before authentication")));
-            // Keep a declared 1 GiB request open after its first small chunk.
+            // Keep a large declared request open after its first small chunk.
             // Authentication must respond before the remainder is available.
             req.write(Buffer.alloc(8 * 1024, 120));
         });

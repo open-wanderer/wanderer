@@ -12,7 +12,7 @@ function isGpxNamespace(namespace: string | null | undefined): boolean {
 
 function parseAttribute(value: string): string | number {
   if (value.length && isDecimalNumber(value)) {
-    return Number.isInteger(Number(value)) ? parseInt(value, 10) : parseFloat(value);
+    return Number(value);
   }
   return value;
 }

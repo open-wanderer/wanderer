@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { getCoordinateAtDistance, hasCropInterpolationBasis } from "./crop";
+import { cropGPX } from "#lib/util/gpx_util.ts";
+import GPX from "./gpx";
+import Track from "./track";
+import TrackSegment from "./track-segment";
 import Waypoint from "./waypoint";
 
 // Regression tests for VERIFICATION gap 2: the shipped crop-panel guard
@@ -98,3 +102,25 @@ describe("hasCropInterpolationBasis", () => {
 function waypointAt(lat: number, lon: number): Waypoint {
   return new Waypoint({ $: { lat, lon } });
 }
+
+describe("getCoordinateAtDistance — the start of the route", () => {
+  const points = [waypointAt(47.0, 11.0), waypointAt(47.001, 11.0), waypointAt(47.002, 11.0)];
+  const cumulative = [0, 111.19, 222.39];
+
+  it("keeps the first point at 0%", () => {
+    expect(getCoordinateAtDistance(points, cumulative, 0)).toEqual([11, 47, 0]);
+  });
+
+  it("moves on just after the start", () => {
+    expect(getCoordinateAtDistance(points, cumulative, 1)[2]).toBe(1);
+  });
+
+  it("crops nothing away from 0% to 100%", () => {
+    const gpx = new GPX({ trk: [new Track({ trkseg: [new TrackSegment({ trkpt: points })] })] });
+    const flat = gpx.flatten();
+    const [, , start] = getCoordinateAtDistance(flat, cumulative, 0);
+    const [, , end] = getCoordinateAtDistance(flat, cumulative, cumulative[2]);
+
+    expect(cropGPX(flat[start], flat[end], gpx).flatten()).toHaveLength(3);
+  });
+});

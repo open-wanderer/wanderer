@@ -9,10 +9,16 @@ vi.mock('#lib/server/category_preference_filter.ts', () => ({
     withTrailPreferenceMeiliFilter: vi.fn(async (_event: unknown, filter: unknown) => filter),
 }));
 
+vi.mock('#lib/util/secure_fetch_util.ts', () => ({
+    fetchExternalJson: vi.fn(),
+}));
+
 import { getActorResponseForHandle } from '#lib/util/activitypub_server_util.ts';
+import { fetchExternalJson } from '#lib/util/secure_fetch_util.ts';
 import { GET } from './+server';
 
 const mockedGetActor = vi.mocked(getActorResponseForHandle);
+const mockedFetchJson = vi.mocked(fetchExternalJson);
 
 function hit(field: string, value: number) {
     return { hits: [{ [field]: value }] };
@@ -114,46 +120,36 @@ describe('GET /api/v1/trail/bounding-box', () => {
     it('proxies exactly once to a non-local actor origin and returns the proxied coordinates', async () => {
         mockedGetActor.mockResolvedValue({ actor: remoteActor() });
         const event = buildEvent({ handle: 'bob' });
-        const fetchImpl = vi.fn(
-            async () =>
-                new Response(
-                    JSON.stringify({ min_lat: 1, max_lat: 2, min_lon: 3, max_lon: 4, has_trails: true }),
-                    { status: 200 },
-                ),
-        );
-        event.fetch = fetchImpl as unknown as typeof event.fetch;
+        mockedFetchJson.mockResolvedValue({ status: 200, ok: true, json: { min_lat: 1, max_lat: 2, min_lon: 3, max_lon: 4, has_trails: true } });
 
         const response = await GET(event);
         const body = await response.json();
 
         expect(body).toEqual({ min_lat: 1, max_lat: 2, min_lon: 3, max_lon: 4, has_trails: true });
-        expect(fetchImpl).toHaveBeenCalledTimes(1);
-        const [calledUrl, calledOptions] = fetchImpl.mock.calls[0] as unknown as [string, RequestInit];
+        expect(mockedFetchJson).toHaveBeenCalledTimes(1);
+        const [calledUrl, calledOptions] = mockedFetchJson.mock.calls[0];
         expect(calledUrl).toContain('https://remote.example');
         expect(calledUrl).toContain('handle=bob');
-        expect(calledOptions.signal).toBeInstanceOf(AbortSignal);
+        expect(calledOptions).toMatchObject({ deadlineMs: 4000, maxBytes: 16 * 1024 });
+        expect(event.fetch).not.toHaveBeenCalled();
     });
 
     it('degrades to has_trails: false with HTTP 200 on a non-ok remote response', async () => {
         mockedGetActor.mockResolvedValue({ actor: remoteActor() });
-        const event = buildEvent({ handle: 'bob' });
-        event.fetch = vi.fn(async () => new Response('not found', { status: 404 }));
+        mockedFetchJson.mockResolvedValue({ status: 404, ok: false, json: {} });
 
-        const response = await GET(event);
+        const response = await GET(buildEvent({ handle: 'bob' }));
         const body = await response.json();
 
         expect(response.status).toBe(200);
         expect(body.has_trails).toBe(false);
     });
 
-    it('degrades to has_trails: false with HTTP 200 on a rejected fetch', async () => {
+    it('degrades to has_trails: false with HTTP 200 when the guard refuses the request', async () => {
         mockedGetActor.mockResolvedValue({ actor: remoteActor() });
-        const event = buildEvent({ handle: 'bob' });
-        event.fetch = vi.fn(async () => {
-            throw new Error('network down');
-        });
+        mockedFetchJson.mockRejectedValue(new Error('invalid_url'));
 
-        const response = await GET(event);
+        const response = await GET(buildEvent({ handle: 'bob' }));
         const body = await response.json();
 
         expect(response.status).toBe(200);
@@ -162,16 +158,9 @@ describe('GET /api/v1/trail/bounding-box', () => {
 
     it('degrades to has_trails: false with HTTP 200 on a malformed remote payload', async () => {
         mockedGetActor.mockResolvedValue({ actor: remoteActor() });
-        const event = buildEvent({ handle: 'bob' });
-        event.fetch = vi.fn(
-            async () =>
-                new Response(
-                    JSON.stringify({ min_lat: 1, max_lat: 'nope', min_lon: 3, max_lon: 4, has_trails: true }),
-                    { status: 200 },
-                ),
-        );
+        mockedFetchJson.mockResolvedValue({ status: 200, ok: true, json: { min_lat: 1, max_lat: 'nope', min_lon: 3, max_lon: 4, has_trails: true } });
 
-        const response = await GET(event);
+        const response = await GET(buildEvent({ handle: 'bob' }));
         const body = await response.json();
 
         expect(response.status).toBe(200);

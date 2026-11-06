@@ -10,7 +10,7 @@ import type Waypoint from './waypoint';
 /**
  * Binary-search + linear interpolation along a raw cumulative-distance array.
  * Returns `[lon, lat, index]`, where `index` is the point index of the segment's
- * later endpoint.
+ * later endpoint, or 0 at the start of the route.
  *
  * Degenerate-safe (never returns a non-finite number): a coincident-point pair
  * (`nextDist - prevDist === 0`) resolves to `ratio = 0` instead of dividing `0 / 0`,
@@ -28,6 +28,12 @@ export function getCoordinateAtDistance(
   if (points.length < 2 || cumulative.length < 2) {
     const only = points[0];
     return [only.$.lon ?? 0, only.$.lat ?? 0, 0];
+  }
+
+  // The later endpoint of the first pair would drop the first point from a crop.
+  if (target <= cumulative[0]) {
+    const first = points[0];
+    return [first.$.lon ?? 0, first.$.lat ?? 0, 0];
   }
 
   let low = 0,

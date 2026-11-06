@@ -1,6 +1,10 @@
 // Accommodates 99 default-sized photos, a GPX file and multipart headers.
 export const UPLOAD_BODY_LIMIT = 2 * 1024 * 1024 * 1024;
 
+// Recorded tracks of a long day stay well below this; the whole body is held
+// in memory and parsed, so it bounds what one request can cost.
+export const TRACK_BODY_LIMIT = 25 * 1024 * 1024;
+
 /** @param {string | undefined} value */
 export function uploadBodyLimit(value) {
     if (!value) return UPLOAD_BODY_LIMIT;

@@ -1,12 +1,11 @@
 import GPX from "#lib/models/gpx/gpx.ts";
 import TrackSegment from "#lib/models/gpx/track-segment.ts";
-import GPXWaypoint from "#lib/models/gpx/waypoint.ts";
+import GPXWaypoint, { hasRouteAnchor, routeAnchorElement } from "#lib/models/gpx/waypoint.ts";
 
 // The route editor takes its anchors from the boundaries between track
 // segments. When a drawn route is saved or exported, the point where two
 // segments met is marked with this extension so the editor can split it again.
 export const routeAnchorNamespace = "https://wanderer.to/xmlns/gpx/1";
-const routeAnchorElement = "wanderer:anchor";
 
 function markRouteAnchor(point: GPXWaypoint): boolean {
     const extensions = point.extensions as unknown;
@@ -22,11 +21,11 @@ function markRouteAnchor(point: GPXWaypoint): boolean {
 }
 
 function unmarkRouteAnchor(point: GPXWaypoint): boolean {
-    const extensions = point.extensions as unknown;
-    if (typeof extensions !== "object" || extensions === null || !Object.prototype.hasOwnProperty.call(extensions, routeAnchorElement)) {
+    if (!hasRouteAnchor(point)) {
         return false;
     }
-    delete (extensions as Record<string, unknown>)[routeAnchorElement];
+    const extensions = point.extensions as unknown as Record<string, unknown>;
+    delete extensions[routeAnchorElement];
     if (Object.keys(extensions).length === 0) {
         point.extensions = undefined;
     }

@@ -2,9 +2,9 @@ import { BODY_SIZE_LIMIT } from "$app/env/private";
 import { error, isHttpError } from "@sveltejs/kit";
 import type { Handle } from "@sveltejs/kit/hooks";
 import type { IncomingMessage } from "node:http";
-import { UPLOAD_BODY_LIMIT, uploadBodyLimit } from "./upload_body_limit.js";
+import { TRACK_BODY_LIMIT, UPLOAD_BODY_LIMIT, uploadBodyLimit } from "./upload_body_limit.js";
 
-export { UPLOAD_BODY_LIMIT };
+export { TRACK_BODY_LIMIT, UPLOAD_BODY_LIMIT };
 
 export const REQUEST_BODY_LIMIT = 1 << 20;
 export const INBOX_BODY_LIMIT = 2 << 20;
@@ -95,9 +95,11 @@ function requestLimit(url: URL, request: Request): { limit: number; upload: bool
     const path = url.pathname;
     if (/^\/api\/v1\/activitypub\/user\/[^/]+\/inbox\/?$/.test(path)) return { limit: INBOX_BODY_LIMIT, upload: false };
     if (path === "/api/v1/auth/login") return { limit: LOGIN_BODY_LIMIT, upload: false };
+    // Takes a raw GPX body as well as a multipart file.
+    if (request.method === "POST" && /^\/api\/v1\/trail\/convert\/?$/.test(path)) return { limit: TRACK_BODY_LIMIT, upload: true };
     const multipart = request.headers.get("content-type")?.split(";", 1)[0].trim().toLowerCase() === "multipart/form-data";
+    if (multipart && request.method === "PUT" && path === "/api/v1/trail/upload") return { limit: TRACK_BODY_LIMIT, upload: true };
     if (multipart && (request.method === "POST" || request.method === "PUT") && (
-        path === "/api/v1/trail/upload" ||
         /^\/api\/v1\/(trail|list|summit-log)\/form(?:\/[^/]+)?\/?$/.test(path) ||
         /^\/api\/v1\/(trail|list|summit-log|waypoint|user)\/[^/]+\/file\/?$/.test(path)
     )) return { limit: uploadBodyLimit(BODY_SIZE_LIMIT), upload: true };

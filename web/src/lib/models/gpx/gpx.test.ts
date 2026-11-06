@@ -565,3 +565,37 @@ describe("GPX.parse", () => {
     });
 
 });
+
+describe("correctElevation", () => {
+    const stored = `<gpx version="1.1" xmlns="${GPX_NS}"><trk><trkseg>` +
+        `<trkpt lat="47" lon="11"><ele>500</ele></trkpt>` +
+        `<trkpt lat="47.001" lon="11.001"><ele>510</ele></trkpt>` +
+        `<trkpt lat="47.002" lon="11.002"><ele>520</ele></trkpt>` +
+        `</trkseg></trk></gpx>`;
+    const respond = (body: unknown) => async () => Response.json(body);
+    const elevations = (gpx: GPX) => gpx.flatten().map((pt) => pt.ele);
+
+    it.each([
+        ["no height array", {}],
+        ["an empty height array", { height: [] }],
+        ["a short height array", { height: [600, 610] }],
+        ["a long height array", { height: [600, 610, 620, 630] }],
+        ["only null heights", { height: [null, null, null] }],
+    ])("keeps the stored elevation on %s", async (_name, body) => {
+        const gpx = GPX.parse(stored);
+        const before = elevations(gpx);
+
+        await gpx.correctElevation(respond(body));
+
+        expect(elevations(gpx)).toEqual(before);
+        expect(gpx.toString()).toContain("<ele>510</ele>");
+    });
+
+    it("applies a complete answer", async () => {
+        const gpx = GPX.parse(stored);
+
+        await gpx.correctElevation(respond({ height: [600, 610, 620] }));
+
+        expect(elevations(gpx)).toEqual([600, 610, 620]);
+    });
+});

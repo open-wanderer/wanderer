@@ -235,4 +235,45 @@ class GpxMetricsComputation {
   }
 }
 
+export type RouteSegmentMetrics = {
+  distance: number;
+  elevationGain: number;
+  elevationLoss: number;
+};
+
+/**
+ * Per-segment and running metrics of a route. Measured like `getTotals()`, so
+ * that the last running value is the route's total: every point counts, and
+ * only the end of the route includes a still-pending excursion. Earlier values
+ * use the monotonic totals, which is what keeps the differences non-negative.
+ */
+export function routeSegmentMetrics(segments: { trkpt?: unknown[] }[]) {
+  const metrics = new GpxMetricsComputation(5, 5);
+  const segmentMetrics: RouteSegmentMetrics[] = [];
+  const cumulativeMetrics: RouteSegmentMetrics[] = [];
+  let previous: RouteSegmentMetrics = { distance: 0, elevationGain: 0, elevationLoss: 0 };
+
+  segments.forEach((segment, index) => {
+    for (const point of segment.trkpt ?? []) {
+      metrics.addAndFilter(point);
+    }
+
+    const isLast = index === segments.length - 1;
+    const cumulative = {
+      distance: metrics.totalDistance,
+      elevationGain: isLast ? metrics.finalElevationGain : metrics.totalElevationGainSmoothed,
+      elevationLoss: isLast ? metrics.finalElevationLoss : metrics.totalElevationLossSmoothed,
+    };
+    cumulativeMetrics.push(cumulative);
+    segmentMetrics.push({
+      distance: cumulative.distance - previous.distance,
+      elevationGain: cumulative.elevationGain - previous.elevationGain,
+      elevationLoss: cumulative.elevationLoss - previous.elevationLoss,
+    });
+    previous = cumulative;
+  });
+
+  return { segmentMetrics, cumulativeMetrics };
+}
+
 export default GpxMetricsComputation;

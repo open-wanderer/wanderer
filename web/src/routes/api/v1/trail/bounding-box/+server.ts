@@ -2,7 +2,11 @@ import { withTrailPreferenceMeiliFilter } from "#lib/server/category_preference_
 import type { TrailBoundingBox } from "#lib/models/trail.ts";
 import type { Actor } from "#lib/models/activitypub/actor.ts";
 import { getActorResponseForHandle } from "#lib/util/activitypub_server_util.ts";
+import { fetchExternalJson } from "#lib/util/secure_fetch_util.ts";
 import { error, json, type RequestEvent } from "@sveltejs/kit";
+
+// The answer is five small fields.
+const MAX_BOUNDING_BOX_BYTES = 16 * 1024;
 
 const worldViewBoundingBox: TrailBoundingBox = {
     min_lat: 0,
@@ -27,18 +31,18 @@ function isValidBoundingBoxCoordinates(body: any): boolean {
     );
 }
 
-async function boundingBoxForFederatedActor(event: RequestEvent, actor: Actor): Promise<TrailBoundingBox> {
+async function boundingBoxForFederatedActor(actor: Actor): Promise<TrailBoundingBox> {
     const origin = new URL(actor.iri).origin;
     try {
         const url = `${origin}/api/v1/trail/bounding-box?handle=${encodeURIComponent(actor.preferred_username)}`;
-        const response = await event.fetch(url, { signal: AbortSignal.timeout(4000) });
+        const response = await fetchExternalJson(url, { maxBytes: MAX_BOUNDING_BOX_BYTES, deadlineMs: 4000 });
 
         if (!response.ok) {
             console.warn(`profile trail bounding-box: federated proxy to ${origin} responded with ${response.status}`);
             return worldViewBoundingBox;
         }
 
-        const body = await response.json();
+        const body = response.json;
         if (!body?.has_trails || !isValidBoundingBoxCoordinates(body)) {
             console.warn(`profile trail bounding-box: federated proxy to ${origin} returned an unusable payload`);
             return worldViewBoundingBox;
@@ -120,7 +124,7 @@ export async function GET(event: RequestEvent) {
                 const { actor } = await getActorResponseForHandle(event, handle);
 
                 if (!actor.is_local) {
-                    return json(await boundingBoxForFederatedActor(event, actor));
+                    return json(await boundingBoxForFederatedActor(actor));
                 }
 
                 baseFilter = [`author = ${actor.id}`];

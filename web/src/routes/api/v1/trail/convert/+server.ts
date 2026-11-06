@@ -1,12 +1,10 @@
 import GPX from "#lib/models/gpx/gpx.ts";
 import { handleError } from "#lib/util/api_util.ts";
-import { FileTooLargeError, fromFile } from "#lib/util/gpx_util.ts";
+import { withParseSlot } from "#lib/server/parse_slot.ts";
+import { TRACK_BODY_LIMIT } from "#lib/server/upload_body_limit.js";
+import { assertGpxWithinServerLimits, fromUpload } from "#lib/util/gpx_util.ts";
 import { json, type RequestEvent } from "@sveltejs/kit";
 import { ClientResponseError } from "pocketbase";
-
-// Recorded tracks of a long day stay well below this; the whole body is held
-// in memory and parsed, so it bounds what one request can cost.
-const MAX_CONVERT_BYTES = 25 * 1024 * 1024;
 
 function tooLarge() {
     return new ClientResponseError({ status: 413, response: { message: "File too large" } });
@@ -70,20 +68,74 @@ async function readLimitedBody(request: Request, limit: number): Promise<Uint8Ar
  * `<gpx>`, which is exactly the acceptance boundary wanted here.
  */
 function assertParsableGpx(gpxData: string): void {
+    assertGpxWithinServerLimits(gpxData);
+
     const invalid = new ClientResponseError({
         status: 400,
         response: { message: "Invalid GPX content" },
     });
 
-    let parsed: unknown;
+    let parsed: GPX;
     try {
         parsed = GPX.parse(gpxData);
     } catch {
         throw invalid;
     }
-    if (!parsed || typeof parsed !== "object") {
+    // The app imports nothing without a track or route point either.
+    if (!parsed || typeof parsed !== "object" || !parsed.hasPositions()) {
         throw invalid;
     }
+}
+
+async function toValidGpx(contentType: string, body: Uint8Array<ArrayBuffer>): Promise<string> {
+    let gpxData: string = "";
+
+    if (contentType.includes("multipart/form-data")) {
+        // 1. Handle File Upload
+        let data: FormData;
+        try {
+            data = await new Response(body, { headers: { "content-type": contentType } }).formData();
+        } catch (e) {
+            console.error(e);
+            throw new ClientResponseError({ status: 400, response: { message: "Invalid multipart body" } });
+        }
+        const fileBlob = data.get("file");
+
+        if (!(fileBlob instanceof Blob)) {
+            throw new ClientResponseError({ status: 400, response: { message: "Missing file field" } });
+        }
+
+        // Extract the text content from the file blob
+        gpxData = (await fromUpload(fileBlob)).gpxData;
+        // The `name` field is accepted-and-ignored rather than rejected as a 400: the
+        // endpoint no longer names anything, but rejecting it would break older app
+        // builds harder than necessary for no benefit.
+    } else {
+        // 2. Fallback: treat the raw body text as the GPX string directly.
+        //
+        // There is deliberately no `application/json` branch. One existed
+        // (reading `body.gpx`/`body.gpxData`) from the commit that first
+        // made the app call this endpoint, but no client ever sent JSON:
+        // the app posts multipart FormData and the web transcodes
+        // client-side. It was speculative generality, and it was never a
+        // declared request media type in the generated OpenAPI spec, so
+        // removing it narrows nothing that was published. A JSON request
+        // now falls through here and is rejected by assertParsableGpx
+        // below as unparsable GPX.
+        gpxData = new TextDecoder().decode(body);
+    }
+
+    // Validate we actually got something
+    if (!gpxData || !gpxData.trim().length) {
+        throw new ClientResponseError({ status: 400, response: { message: "Empty GPX data" } });
+    }
+
+    // ...and that what we got is actually a GPX document, on every input
+    // branch. Without this the handler is a verbatim echo of arbitrary
+    // unauthenticated request bodies.
+    assertParsableGpx(gpxData);
+
+    return gpxData;
 }
 
 /**
@@ -95,7 +147,9 @@ function assertParsableGpx(gpxData: string): void {
  *       Accepts a GPX/KML/KMZ/TCX/FIT file (multipart), or a GPX string as a raw text body,
  *       and returns the equivalent GPX document. It does NOT compute or persist a trail -
  *       clients compute trail metrics themselves. Requires a logged-in user; the body may be
- *       at most 25 MB, and a KMZ document at most 100 MB once unzipped.
+ *       at most 25 MiB. Files that would take too much memory to parse are refused with a 413:
+ *       a KML document (also inside a KMZ) over 4 MiB, a KMZ or FIT file over 8 MiB, or a file
+ *       with too many elements or points.
  *     tags:
  *       - Trails
  *     requestBody:
@@ -119,12 +173,15 @@ function assertParsableGpx(gpxData: string): void {
  *               type: string
  *       400:
  *         description: >
- *           Bad Request - the body was missing/empty, or its content did not parse as a GPX
- *           document. The response body is never an echo of unvalidated input.
+ *           Bad Request - the body was missing/empty, its content did not parse as a GPX
+ *           document, or it has no track or route point with a valid position. The response
+ *           body is never an echo of unvalidated input.
  *       401:
  *         description: Unauthorized
  *       413:
  *         description: The upload, or the document inside a KMZ, is too large
+ *       503:
+ *         description: Too many files are waiting to be parsed
  *       500:
  *         description: Internal Server Error
  */
@@ -136,57 +193,9 @@ export async function POST(event: RequestEvent) {
             return json({ message: "Unauthorized" }, { status: 401 });
         }
 
-        let gpxData: string = "";
-
         const contentType = event.request.headers.get("content-type") || "";
-        const body = await readLimitedBody(event.request, MAX_CONVERT_BYTES);
-
-        if (contentType.includes("multipart/form-data")) {
-            // 1. Handle File Upload
-            const data = await new Response(body, { headers: { "content-type": contentType } }).formData();
-            const fileBlob = data.get("file");
-
-            if (!(fileBlob instanceof Blob)) {
-                throw new ClientResponseError({ status: 400, response: { message: "Missing file field" } });
-            }
-
-            // Extract the text content from the file blob
-            try {
-                const parsed = await fromFile(fileBlob);
-                gpxData = parsed.gpxData;
-            } catch (e) {
-                if (e instanceof FileTooLargeError) {
-                    throw tooLarge();
-                }
-                throw e;
-            }
-            // The `name` field is accepted-and-ignored rather than rejected as a 400: the
-            // endpoint no longer names anything, but rejecting it would break older app
-            // builds harder than necessary for no benefit.
-        } else {
-            // 2. Fallback: treat the raw body text as the GPX string directly.
-            //
-            // There is deliberately no `application/json` branch. One existed
-            // (reading `body.gpx`/`body.gpxData`) from the commit that first
-            // made the app call this endpoint, but no client ever sent JSON:
-            // the app posts multipart FormData and the web transcodes
-            // client-side. It was speculative generality, and it was never a
-            // declared request media type in the generated OpenAPI spec, so
-            // removing it narrows nothing that was published. A JSON request
-            // now falls through here and is rejected by assertParsableGpx
-            // below as unparsable GPX.
-            gpxData = new TextDecoder().decode(body);
-        }
-
-        // Validate we actually got something
-        if (!gpxData || !gpxData.trim().length) {
-            throw new ClientResponseError({ status: 400, response: { message: "Empty GPX data" } });
-        }
-
-        // ...and that what we got is actually a GPX document, on every input
-        // branch. Without this the handler is a verbatim echo of arbitrary
-        // unauthenticated request bodies.
-        assertParsableGpx(gpxData);
+        const body = await readLimitedBody(event.request, TRACK_BODY_LIMIT);
+        const gpxData = await withParseSlot(() => toValidGpx(contentType, body));
 
         return new Response(gpxData, {
             headers: {

@@ -1,4 +1,5 @@
 import GPX from "#lib/models/gpx/gpx.ts";
+import Person from "#lib/models/gpx/person.ts";
 import { Trail } from "#lib/models/trail.ts";
 import { kml, tcx } from "#lib/vendor/toGeoJSON/toGeoJSON.js";
 import cryptoRandomString from "crypto-random-string";
@@ -6,7 +7,7 @@ import cryptoRandomString from "crypto-random-string";
 import { browser } from "$app/env";
 import Track from "#lib/models/gpx/track.ts";
 import TrackSegment from "#lib/models/gpx/track-segment.ts";
-import GPXWaypoint from "#lib/models/gpx/waypoint.ts";
+import GPXWaypoint, { hasUsablePosition } from "#lib/models/gpx/waypoint.ts";
 import { Waypoint } from "#lib/models/waypoint.ts";
 import { trails_show } from "#lib/stores/trail_store.ts";
 import FitParser from "#lib/vendor/fit-parser/fit_parser.ts";
@@ -46,7 +47,10 @@ export async function gpx2trail(gpxString: string, fallbackName?: string, correc
     trail.description = gpx.metadata?.desc;
 
     for (const wpt of gpx.wpt ?? []) {
-        const wp = new Waypoint(wpt.$.lat ?? 0, wpt.$.lon ?? 0);
+        if (!hasUsablePosition(wpt)) {
+            continue;
+        }
+        const wp = new Waypoint(wpt.$.lat!, wpt.$.lon!);
         wp.id = cryptoRandomString({ length: 15 });
         wp.name = wpt.name ?? ""
         wp.description = wpt.desc;
@@ -58,8 +62,9 @@ export async function gpx2trail(gpxString: string, fallbackName?: string, correc
 
     const totals = gpx.features
 
-    const trackPoints = gpx.trk?.at(0)?.trkseg?.at(0)?.trkpt
-    const routePoints = gpx.rte?.at(0)?.rtept;
+    const firstSegment = gpx.trk?.at(0)?.trkseg?.at(0);
+    const trackPoints = firstSegment?.trkpt
+    const routePoints = gpx.rte?.at(0)?.rtept?.filter(hasUsablePosition);
 
     const startPoint = trackPoints?.at(0) ?? routePoints?.at(0);
     if (startPoint) {
@@ -67,8 +72,8 @@ export async function gpx2trail(gpxString: string, fallbackName?: string, correc
         trail.lon = startPoint.$.lon
     }
 
-    const startTime = trackPoints?.at(0)?.time;
-    const endTime = trackPoints?.at((trackPoints?.length ?? 1) - 1)?.time
+    const startTime = firstSegment?.fileTimes ? firstSegment.fileTimes.start : trackPoints?.at(0)?.time;
+    const endTime = firstSegment?.fileTimes ? firstSegment.fileTimes.end : trackPoints?.at(-1)?.time;
 
     if (startTime && endTime) {
         trail.date = startTime.toISOString()
@@ -112,12 +117,13 @@ export async function trail2gpx(trail: Trail, user?: AuthRecord) {
         throw gpx;
     }
 
+    // In the element order of the GPX 1.1 schema.
     gpx.metadata = {
         name: trail.name,
         desc: trail.description ?? "",
+        author: new Person({ name: trail.author ?? "", email: user?.email ?? "" }),
         time: trail.date ? new Date(trail.date) : new Date(),
         keywords: `${trail.category ?? ""}, ${trail.location ?? ""}`,
-        author: { name: trail.author ?? "", email: user?.email ?? "" }
     }
 
     if (gpx.trk && gpx.trk.length > 0) {
@@ -163,10 +169,13 @@ export async function applyGpxToForm(data: FormData, fields: readonly (typeof tr
     let gpx: GPX;
     let trail: Trail;
     try {
-        const converted = await fromFile(file);
+        const converted = await fromUpload(file);
         gpxFile = converted.gpxFile;
         ({ gpx, trail } = await gpx2trail(converted.gpxData, undefined, correctElevation, f));
     } catch (e) {
+        if (e instanceof FileTooLargeError || e instanceof ClientResponseError) {
+            throw e;
+        }
         console.error(e);
         throw new ClientResponseError({ status: 400, response: { message: "Invalid file" } });
     }
@@ -180,6 +189,12 @@ export async function applyGpxToForm(data: FormData, fields: readonly (typeof tr
     // (<rte>/<rtept>) yields zeros, which must not replace the stored values.
     const hasTrackPoints = gpx.trk?.some((trk) => trk.trkseg?.some((seg) => (seg.trkpt?.length ?? 0) > 0)) ?? false;
 
+    // Moving time describes the track that was replaced, and nothing here can
+    // compute a new one. Cleared as 0 because only a value overwrites the record.
+    if (fields === trailGpxFields && !data.has("moving_duration")) {
+        data.set("moving_duration", "0");
+    }
+
     for (const field of fields) {
         if (!hasTrackPoints && !positionFields.includes(field)) {
             continue;
@@ -190,30 +205,56 @@ export async function applyGpxToForm(data: FormData, fields: readonly (typeof tr
     }
 }
 
+/**
+ * `fromFile` for a request: a file that cannot be read is the client's error,
+ * and what the parsers have to say about it stays in the log.
+ */
+export async function fromUpload(file: File | Blob) {
+    try {
+        return await fromFile(file);
+    } catch (e) {
+        if (e instanceof FileTooLargeError) {
+            throw e;
+        }
+        console.error(e);
+        throw new ClientResponseError({ status: 400, response: { message: "Invalid file" } });
+    }
+}
+
 // A cheap check on the raw text, so that ordinary track files are not parsed twice.
 function isRouteOnlyGPX(content: string) {
     return /<(?:[\w.-]+:)?rte[\s>]/.test(content) && !/<(?:[\w.-]+:)?trk[\s>]/.test(content);
 }
 
 export async function fromFile(file: File | Blob) {
+    assertServerLimit(file.size, SERVER_LIMITS.fileBytes);
+
     let gpxData = "";
     let gpxFile: Blob;
-    const fileContent = await file.text();
     const fileBuffer = await file.arrayBuffer();
 
     if (isFITFile(fileBuffer)) {
+        assertServerLimit(file.size, SERVER_LIMITS.fitBytes);
         gpxData = await fromFIT(fileBuffer);
         gpxFile = new Blob([gpxData], {
             type: "application/gpx+xml",
         });
+        return { gpxData, gpxFile };
+    }
 
-    } else if (isKMZFile(fileBuffer)) {
+    if (isKMZFile(fileBuffer)) {
+        assertServerLimit(file.size, SERVER_LIMITS.kmzBytes);
         gpxData = await fromKMZ(fileBuffer);
         gpxFile = new Blob([gpxData], {
             type: "application/gpx+xml",
         });
+        return { gpxData, gpxFile };
+    }
 
-    } else if (fileContent.includes("http://www.opengis.net/kml")) {
+    const fileContent = new TextDecoder().decode(fileBuffer);
+
+    if (fileContent.includes("http://www.opengis.net/kml")) {
+        assertServerLimit(file.size, SERVER_LIMITS.kmlBytes);
         gpxData = fromKML(fileContent);
         gpxFile = new Blob([gpxData], {
             type: "application/gpx+xml",
@@ -224,15 +265,18 @@ export async function fromFile(file: File | Blob) {
             type: "application/gpx+xml",
         });
     } else if (isRouteOnlyGPX(fileContent)) {
+        assertGpxWithinServerLimits(fileContent);
         // GaiaGPS and similar planners export saved routes as <rte> with no
         // <trk>. Store them as tracks so metrics, the map and export work (#1356).
         const gpx = GPX.parse(fileContent);
         gpx.convertRoutesToTracks();
+        assertServerLimit(gpx.flatten().length, SERVER_LIMITS.convertedPoints);
         gpxData = gpx.toString();
         gpxFile = new Blob([gpxData], {
             type: "application/gpx+xml",
         });
     } else {
+        assertGpxWithinServerLimits(fileContent);
         gpxData = fileContent;
         gpxFile = file;
     }
@@ -242,6 +286,7 @@ export async function fromFile(file: File | Blob) {
 }
 
 export function fromKML(kmlData: string) {
+    assertServerLimit(countTags(kmlData), SERVER_LIMITS.domTags);
     const parser = browser ? new DOMParser() : new XMLDOMParser();
     const nodes = parser.parseFromString(kmlData, "text/xml")
     const geojson = kml(nodes) as Feature | FeatureCollection
@@ -251,29 +296,106 @@ export function fromKML(kmlData: string) {
     return gpx
 }
 
-// A KMZ is a zip, so a small upload can expand into a huge doc.kml.
-const MAX_KMZ_DOCUMENT_BYTES = 100 * 1024 * 1024;
+const MiB = 1024 * 1024;
 
-export class FileTooLargeError extends Error {}
+// What one file may cost on the server, where parsing runs in the same process
+// as everything else and running out of heap kills it. Measured on a production
+// build with --max-old-space-size=512; see the numbers in PR #1397. Browsers
+// parse their own uploads, so only the KMZ bound applies to them.
+const SERVER_LIMITS = {
+    fileBytes: 25 * MiB,
+    // JSZip keeps an object per zip entry, and an empty entry costs ~80 bytes.
+    kmzBytes: 8 * MiB,
+    // Every "1,2 " in a KML becomes an array in toGeoJSON.
+    kmlBytes: 4 * MiB,
+    fitBytes: 8 * MiB,
+    // Elements in the xmldom tree that KML and TCX are read from.
+    domTags: 400_000,
+    // Elements and points in xml2js' objects, which GPX is read into.
+    gpxTags: 750_000,
+    gpxPoints: 150_000,
+    // Points that a conversion may hand to the GPX serializer.
+    convertedPoints: 60_000,
+};
+const MAX_BROWSER_KMZ_DOCUMENT_BYTES = 100 * MiB;
 
-export async function fromKMZ(kmzData: ArrayBuffer, maxDocumentBytes = MAX_KMZ_DOCUMENT_BYTES) {
+export class FileTooLargeError extends Error {
+    status = 413;
+
+    constructor(message = "File too large") {
+        super(message);
+    }
+}
+
+function assertServerLimit(value: number, limit: number) {
+    if (!browser && value > limit) {
+        throw new FileTooLargeError();
+    }
+}
+
+function countTags(xml: string) {
+    let count = 0;
+    for (let i = xml.indexOf("<"); i !== -1; i = xml.indexOf("<", i + 1)) {
+        count++;
+    }
+    return count;
+}
+
+/** Rejects a GPX document that the server could not parse without running out of memory. */
+export function assertGpxWithinServerLimits(gpxData: string) {
+    assertServerLimit(countTags(gpxData), SERVER_LIMITS.gpxTags);
+    let points = 0;
+    for (const _ of gpxData.matchAll(/<(?:[\w.-]+:)?(?:trkpt|rtept|wpt)[\s/>]/g)) {
+        points++;
+    }
+    assertServerLimit(points, SERVER_LIMITS.gpxPoints);
+}
+
+type ZipStream = {
+    on(event: "data", listener: (chunk: Uint8Array) => void): ZipStream;
+    on(event: "error", listener: (error: Error) => void): ZipStream;
+    on(event: "end", listener: () => void): ZipStream;
+    pause(): void;
+    resume(): void;
+};
+
+// Counts the bytes as they inflate, because the size in the zip directory is
+// whatever the uploader wrote. Not nodeStream: this also runs in the browser.
+function inflateEntry(entry: JSZip.JSZipObject, maxBytes: number) {
+    return new Promise<string>((resolve, reject) => {
+        const decoder = new TextDecoder();
+        const stream = (entry as unknown as { internalStream(type: "uint8array"): ZipStream }).internalStream("uint8array");
+        let total = 0;
+        let text = "";
+        stream
+            .on("data", (chunk) => {
+                total += chunk.length;
+                if (total > maxBytes) {
+                    stream.pause();
+                    text = "";
+                    reject(new FileTooLargeError());
+                    return;
+                }
+                text += decoder.decode(chunk, { stream: true });
+            })
+            .on("error", reject)
+            .on("end", () => resolve(text + decoder.decode()))
+            .resume();
+    });
+}
+
+export async function fromKMZ(kmzData: ArrayBuffer, maxDocumentBytes = browser ? MAX_BROWSER_KMZ_DOCUMENT_BYTES : SERVER_LIMITS.kmlBytes) {
     const zip = new JSZip()
     await zip.loadAsync(kmzData)
     const entry = zip.file('doc.kml');
-    // JSZip exposes the size from the zip directory only on this internal
-    // field; checking it avoids inflating the document to find out.
-    const declaredSize = (entry as unknown as { _data?: { uncompressedSize?: number } } | null)?._data?.uncompressedSize;
-    if (declaredSize !== undefined && declaredSize > maxDocumentBytes) {
-        throw new FileTooLargeError("KMZ document is too large");
+    if (!entry) {
+        throw new Error("KMZ has no doc.kml");
     }
-    const kmlFile = await entry?.async('string');
-    if (kmlFile !== undefined && kmlFile.length > maxDocumentBytes) {
-        throw new FileTooLargeError("KMZ document is too large");
-    }
-    return fromKML(kmlFile ?? "")
+    return fromKML(await inflateEntry(entry, maxDocumentBytes))
 }
 
 export function fromTCX(tcxData: string) {
+    assertServerLimit(countTags(tcxData), SERVER_LIMITS.domTags);
     const parser = browser ? new DOMParser() : new XMLDOMParser();
     const nodes = parser.parseFromString(tcxData, "text/xml")
     const geojson = tcx(nodes) as Feature | FeatureCollection
@@ -291,6 +413,8 @@ export async function fromFIT(fitData: ArrayBuffer) {
             console.error(error);
             reject(error)
         }
+
+        assertServerLimit(data?.records?.length ?? 0, SERVER_LIMITS.convertedPoints);
 
         const gpx = new GPX({
             metadata: {
@@ -418,6 +542,8 @@ export function fromGeoJSON(geoJson: Feature | FeatureCollection) {
         default:
             break;
     }
+
+    assertServerLimit(gpx.flatten().length + (gpx.wpt?.length ?? 0), SERVER_LIMITS.convertedPoints);
 
     return gpx.toString()
 }

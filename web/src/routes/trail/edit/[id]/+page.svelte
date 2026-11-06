@@ -47,6 +47,7 @@
         insertIntoRoute,
         normalizeRouteTime,
         recalculateHeight,
+        rememberMovingDuration,
         resetRoute,
         reverseRoute,
         setRoute,
@@ -64,6 +65,7 @@
         formatTimeHHMM,
     } from "#lib/util/format_util.ts";
     import { cropGPX, fromFile, gpx2trail } from "#lib/util/gpx_util.ts";
+    import { invalidFields } from "#lib/util/form_util.ts";
     import { getCoordinateAtDistance, hasCropInterpolationBasis } from "#lib/models/gpx/crop.ts";
     import { routeToStoredGpx, splitTrackSegmentsAtAnchors } from "#lib/util/gpx_segment_util.ts";
 
@@ -307,9 +309,21 @@
         setFields,
     } = createForm<z.infer<typeof ClientTrailCreateSchema>>({
         initialValues: getInitialFormValues(),
-        extend: validator({
-            schema: ClientTrailCreateSchema,
-        }),
+        extend: [
+            validator({
+                schema: ClientTrailCreateSchema,
+            }),
+            // Felte only fills $errors, and not every field shows its error.
+            () => ({
+                onSubmitError: ({ errors }) => {
+                    show_toast({
+                        type: "error",
+                        icon: "close",
+                        text: `${$_("error-saving-trail")}: ${invalidFields(errors).join(", ")}`,
+                    });
+                },
+            }),
+        ],
         onSubmit: async (form) => {
             loading = true;
             try {
@@ -338,18 +352,11 @@
                     });
                 }
 
-                if (
-                    (!form.lat || !form.lon) &&
-                    valhallaStore.route.trk?.at(0)?.trkseg?.at(0)?.trkpt?.at(0)
-                ) {
-                    form.lat = valhallaStore.route.trk
-                        ?.at(0)
-                        ?.trkseg?.at(0)
-                        ?.trkpt?.at(0)?.$.lat;
-                    form.lon = valhallaStore.route.trk
-                        ?.at(0)
-                        ?.trkseg?.at(0)
-                        ?.trkpt?.at(0)?.$.lon;
+                // A crop, reverse or deleted leg moves the start of the route.
+                const startPoint = valhallaStore.route.flatten().at(0);
+                if (startPoint) {
+                    form.lat = startPoint.$.lat;
+                    form.lon = startPoint.$.lon;
                 }
 
                 if (page.params.id === "new" && !savedAtLeastOnce) {
@@ -1492,7 +1499,8 @@
     async function recalculateElevationData() {
         await recalculateHeight();
 
-        updateTrailWithRouteData();
+        // New heights do not change how long the track took.
+        updateTrailWithRouteData($formData.moving_duration ?? 0);
     }
 
     // Sole entry point for the crop panel's open/closed state. Marker
@@ -1641,11 +1649,11 @@
         initRouteAnchors(confirmedCrop, true);
     }
 
-    function updateTrailWithRouteData() {
+    function updateTrailWithRouteData(movingDuration?: number) {
         cropPreview = null;
         overwriteGPX = true;
         routeSegments = [...(valhallaStore.route.trk?.at(0)?.trkseg ?? [])];
-        updateTotals(valhallaStore.route);
+        updateTotals(valhallaStore.route, movingDuration);
 
         if (!$formData.id) {
             $formData.id = cryptoRandomString({ length: 15 });
@@ -1653,18 +1661,32 @@
         updateTrailOnMap();
     }
 
-    function updateTotals(gpx: GPX) {
+    // Legs that meet are stored as one marked segment, and the time between
+    // them is then measured differently. Metrics must match the stored file.
+    function storedDuration(gpx: GPX) {
+        const segmented = (gpx.trk?.at(0)?.trkseg?.length ?? 0) > 1;
+        const totals = segmented
+            ? GPX.parse(routeToStoredGpx(gpx)).getTotals()
+            : gpx.features;
+        return totals.duration / 1000;
+    }
+
+    function updateTotals(gpx: GPX, movingDuration?: number) {
         const totals = gpx.features;
+        if (movingDuration === undefined) {
+            rememberMovingDuration($formData.moving_duration ?? 0);
+        }
         formData.set({
             ...$formData,
             distance: totals.distance,
-            duration: totals.duration / 1000,
+            duration: storedDuration(gpx),
             elevation_gain: totals.elevationGain,
             elevation_loss: totals.elevationLoss,
             // This function is the single choke point for every route
             // mutation (nudge/undo/redo/crop/reverse/reset), so it is also the
             // one place that can guarantee a replaced track does not keep a
-            // recording's `moving_duration`. Moving time describes a traversal
+            // recording's `moving_duration`, unless the caller passes the value
+            // that still applies (an undo, or new heights on the same track). Moving time describes a traversal
             // of a specific geometry; once the geometry is replaced it
             // describes nothing, yet `trailDisplayDuration` would keep
             // PREFERRING it over the `duration` just recomputed above -
@@ -1673,7 +1695,7 @@
             // `undefined`: `buildFormData` skips null/undefined outright, so
             // only an explicit `0` overwrites the stored value - and `0` is
             // exactly what the display rule reads as "no moving time".
-            moving_duration: 0,
+            moving_duration: movingDuration ?? 0,
         });
     }
 
@@ -2169,7 +2191,9 @@
             clearAnchors();
             initRouteAnchors(valhallaStore.route, true);
         }
-        updateTrailWithRouteData();
+        updateTrailWithRouteData(
+            entry?.movingDurationBefore ?? $formData.moving_duration ?? 0,
+        );
     }
 
     function redoRouteEdit() {
@@ -2325,7 +2349,6 @@
         {/if}
         <input
             type="file"
-            name="gpx"
             id="fileInput"
             accept=".gpx,.GPX,.tcx,.TCX,.kml,.KML,.kmz,.KMZ,.fit,.FIT"
             style="display: none;"

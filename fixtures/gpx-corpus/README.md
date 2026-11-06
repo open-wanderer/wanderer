@@ -141,7 +141,7 @@ algorithmic divergence, not floating-point noise.
 
 Every `expected.json` records how its values were produced, in its `derivation` field:
 
-- **`"hand"`** (fixtures `01` through `09`, plus `11`): every expected value was derived **from first
+- **`"hand"`** (fixtures `01` through `09`, plus `11` through `16`): every expected value was derived **from first
   principles**, independently of the implementation under test, and the derivation is written
   down in that fixture's own `DERIVATION.md`. Distance figures come from a haversine formula
   transcribed fresh in a scratch `node -e` one-liner (`R = 6371000`), never from calling
@@ -173,6 +173,10 @@ Every `expected.json` records how its values were produced, in its `derivation` 
 | `10-realistic-track` | end-to-end-pipeline | A plausible, realistic multi-point hike with metadata, waypoints, and timestamps exercises the whole pipeline end to end |
 | `11-malformed-time` | unparseable-time | A non-empty but unparseable `<time>` body is "no time" in BOTH languages — the TS side used to build an `Invalid Date`, which is truthy, and so reported a `NaN` duration where Dart reported `0` |
 | `12-dense-switchback` | raw-vs-smoothed-distance | Real-watch-density guard (~3.852 m mean hop, 41 points): pins the raw ~154 m total against the retired 5 m gate's ~77 m counterfactual, so re-introducing the gate fails loudly |
+| `13-exponent-coordinates` | exponent-coordinates | An integer-valued coordinate in exponent form (`4.7E1`) is read in full, not truncated to `4` |
+| `14-positionless-ends` | positionless-point-time, bad-waypoint-position | A first or last trkpt without a position still bounds the duration; a `<wpt>` without a usable position is discarded |
+| `15-route-anchor` | route-anchor-legs | A marked `wanderer:anchor` opens a new leg: duration is the sum of the legs, not last minus first |
+| `16-out-of-range-coordinates` | out-of-range-coordinates | Distance clips latitude and wraps longitude like geobase's `Geographic`; bounds, centroid and start keep the file's values |
 
 ## How to add a fixture
 

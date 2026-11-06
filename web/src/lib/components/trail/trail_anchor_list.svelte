@@ -1,7 +1,7 @@
 <script lang="ts">
     import { tick } from "svelte";
     import { _ } from "svelte-i18n";
-    import GpxMetricsComputation from "#lib/models/gpx/gpx-metrics-computation.ts";
+    import { routeSegmentMetrics } from "#lib/models/gpx/gpx-metrics-computation.ts";
     import type TrackSegment from "#lib/models/gpx/track-segment.ts";
     import type { ValhallaAnchor } from "#lib/models/valhalla.ts";
     import {
@@ -210,51 +210,7 @@
         return valhallaAnchorDisplay(index, anchors.length).icon;
     }
 
-    interface SegmentMetrics {
-        distance: number;
-        elevationGain: number;
-        elevationLoss: number;
-    }
-
-    function snapshotMetrics(metrics: GpxMetricsComputation): SegmentMetrics {
-        return {
-            distance: metrics.totalDistance,
-            elevationGain: metrics.totalElevationGainSmoothed,
-            elevationLoss: metrics.totalElevationLossSmoothed,
-        };
-    }
-
-    function subtractMetrics(metrics: SegmentMetrics, previous: SegmentMetrics): SegmentMetrics {
-        return {
-            distance: metrics.distance - previous.distance,
-            elevationGain: metrics.elevationGain - previous.elevationGain,
-            elevationLoss: metrics.elevationLoss - previous.elevationLoss,
-        };
-    }
-
-    const routeMetrics = $derived.by(() => {
-        const metrics = new GpxMetricsComputation(5, 5);
-        const segmentMetrics: SegmentMetrics[] = [];
-        const cumulativeMetrics: SegmentMetrics[] = [];
-        let previous = snapshotMetrics(metrics);
-
-        for (const segment of segments) {
-            const points = segment.trkpt ?? [];
-            for (let i = 1; i < points.length; i++) {
-                metrics.addAndFilter(points[i]);
-            }
-
-            const cumulative = snapshotMetrics(metrics);
-            cumulativeMetrics.push(cumulative);
-            segmentMetrics.push(subtractMetrics(cumulative, previous));
-            previous = cumulative;
-        }
-
-        return {
-            segmentMetrics,
-            cumulativeMetrics,
-        };
-    });
+    const routeMetrics = $derived(routeSegmentMetrics(segments));
 
     const allSegmentMetrics = $derived(routeMetrics.segmentMetrics);
     const allCumulativeMetrics = $derived(routeMetrics.cumulativeMetrics);

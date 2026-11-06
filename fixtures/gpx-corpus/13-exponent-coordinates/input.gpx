@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="wanderer-corpus" xmlns="http://www.topografix.com/GPX/1/1">
+  <metadata>
+    <name>Exponent Coordinates</name>
+  </metadata>
+  <trk>
+    <trkseg>
+      <trkpt lat="4.7E1" lon="1.1e1"></trkpt>
+      <trkpt lat="4.71E1" lon="1.1e1"></trkpt>
+      <trkpt lat="47.1" lon="1.11E1"></trkpt>
+    </trkseg>
+  </trk>
+</gpx>

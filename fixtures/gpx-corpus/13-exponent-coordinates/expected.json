@@ -1,0 +1,41 @@
+{
+  "id": "13-exponent-coordinates",
+  "covers": [
+    "exponent-coordinates"
+  ],
+  "derivation": "hand",
+  "notes": "An integer-valued coordinate in exponent form is a decimal number. parseInt read \"4.7E1\" as 4; Dart reads 47.",
+  "metrics": {
+    "distance": 18688.76285784502,
+    "elevationGain": 0,
+    "elevationLoss": 0,
+    "durationMs": 0,
+    "pointCount": 3,
+    "boundingBox": {
+      "minLat": 47.0,
+      "maxLat": 47.1,
+      "minLon": 11.0,
+      "maxLon": 11.1
+    },
+    "centroid": {
+      "lat": 47.06666666666666,
+      "lon": 11.033333333333333
+    }
+  },
+  "trail": {
+    "name": "Exponent Coordinates",
+    "description": null,
+    "lat": 47.0,
+    "lon": 11.0,
+    "date": null,
+    "distance": 18688.76285784502,
+    "elevationGain": 0,
+    "elevationLoss": 0,
+    "duration": 0.0,
+    "minLat": 47.0,
+    "maxLat": 47.1,
+    "minLon": 11.0,
+    "maxLon": 11.1,
+    "waypoints": []
+  }
+}
