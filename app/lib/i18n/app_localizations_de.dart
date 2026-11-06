@@ -870,6 +870,33 @@ class AppLocalizationsDe extends AppLocalizations {
       'Falscher Nutzername oder falsches Passwort';
 
   @override
+  String get oauth_provider_unavailable =>
+      'This server no longer offers this sign-in option.';
+
+  @override
+  String get oauth_login_rate_limited =>
+      'Too many sign-in attempts from your network. Try again in a minute.';
+
+  @override
+  String oauth_login_rate_limited_seconds(int seconds) {
+    String _temp0 = intl.Intl.pluralLogic(
+      seconds,
+      locale: localeName,
+      other: '$seconds seconds',
+      one: '1 second',
+    );
+    return 'Too many sign-in attempts from your network. Try again in $_temp0.';
+  }
+
+  @override
+  String get oauth_login_server_unavailable =>
+      'The server is temporarily unavailable. Try signing in again later.';
+
+  @override
+  String get oauth_login_rejected =>
+      'The server could not start this sign-in. Try again, and update the app if it keeps failing.';
+
+  @override
   String get server_incompatible_title => 'Server nicht unterstützt';
 
   @override

@@ -12,6 +12,7 @@ import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/auth_methods_provider.dart';
 import 'package:wanderer/provider/toast_provider.dart';
 import 'package:wanderer/provider/welcome/server_compatibility_provider.dart';
+import 'package:wanderer/util/oauth_app_state.dart';
 import 'package:wanderer/util/server_compatibility.dart';
 
 /// Renders an "or" divider followed by one button per OAuth2 provider
@@ -50,7 +51,11 @@ class _OAuthProviderButtonsState extends ConsumerState<OAuthProviderButtons> {
           // Already on screen as the selected server's alert, which stays put.
           if (error is IncompatibleServerException) return;
 
-          if (error is DioException) {
+          if (error is OAuthAppStateException) {
+            displayMessage = error.localizedMessage(
+              AppLocalizations.of(context)!,
+            );
+          } else if (error is DioException) {
             try {
               displayMessage = ApiError.fromJson(error.response?.data).message;
             } catch (_) {

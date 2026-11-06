@@ -1570,6 +1570,36 @@ abstract class AppLocalizations {
   /// **'Wrong username or password'**
   String get wrong_username_or_password;
 
+  /// No description provided for @oauth_provider_unavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'This server no longer offers this sign-in option.'**
+  String get oauth_provider_unavailable;
+
+  /// No description provided for @oauth_login_rate_limited.
+  ///
+  /// In en, this message translates to:
+  /// **'Too many sign-in attempts from your network. Try again in a minute.'**
+  String get oauth_login_rate_limited;
+
+  /// No description provided for @oauth_login_rate_limited_seconds.
+  ///
+  /// In en, this message translates to:
+  /// **'Too many sign-in attempts from your network. Try again in {seconds, plural, =1{1 second} other{{seconds} seconds}}.'**
+  String oauth_login_rate_limited_seconds(int seconds);
+
+  /// No description provided for @oauth_login_server_unavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'The server is temporarily unavailable. Try signing in again later.'**
+  String get oauth_login_server_unavailable;
+
+  /// No description provided for @oauth_login_rejected.
+  ///
+  /// In en, this message translates to:
+  /// **'The server could not start this sign-in. Try again, and update the app if it keeps failing.'**
+  String get oauth_login_rejected;
+
   /// No description provided for @server_incompatible_title.
   ///
   /// In en, this message translates to:
