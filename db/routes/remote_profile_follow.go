@@ -109,7 +109,9 @@ func RemoteProfileFollowsList(e *core.RequestEvent) error {
 				defer recoverBackgroundSync(e.App, "activitypub_actors", actorIRI)
 				// Pass false to sync to prevent deep recursion/heavy syncing if possible
 				res, err := federation.GetActorByIRI(e.App, timeoutCtx, actorIRI, false)
-				if err == nil {
+				// An unreachable instance keeps its followers listed from the
+				// stored copy, so the list matches the follower count.
+				if err == nil || (errors.Is(err, federation.ErrActorUnreachable) && federation.CachedActorIdentityMatchesOrigin(res)) {
 					found = res
 				}
 			}()
