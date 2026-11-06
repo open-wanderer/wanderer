@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:tracelet/tracelet.dart' as tl;
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/provider/local_settings_provider.dart';
 
@@ -27,8 +29,10 @@ import 'package:wanderer/provider/local_settings_provider.dart';
 /// most once ([LocalSettingsEntity.backgroundLocationAsked]); re-offering it
 /// every recording would nag anyone who chose not to go to settings.
 ///
-/// iOS is unaffected: re-requesting there raises the "Change to Always Allow?"
-/// prompt directly, and its Info.plist usage string serves as the disclosure.
+/// iOS raises its "Change to Always Allow?" prompt directly, and the Info.plist
+/// usage string serves as the disclosure. It has to go through tracelet:
+/// [Geolocator.requestPermission] returns without prompting once the status is
+/// anything but `notDetermined`. The system shows this prompt at most once.
 ///
 /// Best-effort throughout. Declining leaves tracking fully working; it just
 /// won't survive task removal. Returns the resulting permission so callers can
@@ -43,7 +47,7 @@ Future<LocationPermission> requestBackgroundLocation(
   // resolve before this makes sense.
   if (permission != LocationPermission.whileInUse) return permission;
 
-  if (Platform.isIOS) return Geolocator.requestPermission();
+  if (Platform.isIOS) return _requestAlwaysOnIos(permission);
   if (!Platform.isAndroid) return permission;
 
   if (ref.read(localSettingsProvider).backgroundLocationAsked) {
@@ -82,4 +86,38 @@ Future<LocationPermission> requestBackgroundLocation(
   // Granting there applies to the next task removal.
   await Geolocator.openAppSettings();
   return permission;
+}
+
+/// Raises the iOS Always prompt and completes once it has been answered, so
+/// the caller never navigates underneath the system dialog.
+///
+/// tracelet's own result can't signal that: it resolves after a 1.5s fallback
+/// timer whenever the status hasn't changed, which is what happens while the
+/// dialog is still up. The dialog makes the app inactive, so waiting for
+/// `resumed` is what actually covers the user's answer.
+Future<LocationPermission> _requestAlwaysOnIos(
+  LocationPermission permission,
+) async {
+  try {
+    await tl.Tracelet.requestLocationAuthorization();
+  } catch (_) {
+    return permission;
+  }
+  await _untilResumed();
+  return Geolocator.checkPermission();
+}
+
+Future<void> _untilResumed() {
+  if (WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) {
+    return Future.value();
+  }
+  final resumed = Completer<void>();
+  late final AppLifecycleListener listener;
+  listener = AppLifecycleListener(
+    onResume: () {
+      listener.dispose();
+      resumed.complete();
+    },
+  );
+  return resumed.future;
 }
