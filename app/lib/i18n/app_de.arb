@@ -160,6 +160,10 @@
   "stop_recording": "Aufnahme stoppen",
   "stop_recording_confirm": "Aufnahme stoppen?",
   "search_this_area": "In diesem Bereich suchen",
+  "filter_category_deselect_hint": "Press and hold to deselect a category",
+  "@filter_category_deselect_hint": {
+    "description": "Hint above the category chips on the trail filter screen. A long press removes a category from the selection."
+  },
   "filter_tags": "Tags filtern",
   "filter_trails": "Routen filtern",
   "finish": "Ziel",
@@ -481,7 +485,10 @@
   "auto_routing": "Auto-Routing aktivieren",
   "auto_routing_hint": "Automatisch den Straßen und Pfaden zwischen den Ankerpunkten folgen.",
   "travel_profile": "Fortbewegungsmittel",
-  "no_track_data": "Keine Pfad-Daten",
+  "no_elevation_data": "No elevation data",
+  "@no_elevation_data": {
+    "description": "Shown in place of the elevation chart when a trail has too few points with elevation. The track itself may still exist."
+  },
   "available_offline": "Offline verfügbar",
   "no_lists_found": "Keine Listen gefunden",
   "search_lists": "Liste suchen…",
@@ -499,16 +506,6 @@
   "@filter": {
     "description": "Button label that opens the filter options for a trail collection. Verb or noun, whichever reads better as a short button."
   },
-  "no_label_yet": "Noch kein {label}.",
-  "@no_label_yet": {
-    "placeholders": {
-      "label": {
-        "type": "String",
-        "description": "The already-localized noun describing what's missing, e.g. 'followers' or 'following'"
-      }
-    }
-  },
-  "no_lists_yet": "Noch keine Listen vorhanden.",
   "no_bio_yet": "Noch keine Biografie.",
   "show_more": "Mehr anzeigen",
   "@show_more": {
@@ -533,7 +530,47 @@
       }
     }
   },
-  "no_trails_yet": "Noch keine Routen.",
+  "find_people": "Find people",
+  "profile_trails_empty_other_title": "No public trails yet",
+  "profile_trails_empty_other_body": "Trails {username} makes public will appear here.",
+  "@profile_trails_empty_other_body": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "profile_lists_empty_own_title": "No lists yet",
+  "profile_lists_empty_own_body": "Lists group trails into collections, like a multi-day trek or your local favorites. You can create them in the web app.",
+  "profile_lists_empty_other_title": "No public lists yet",
+  "profile_lists_empty_other_body": "Lists {username} makes public will appear here.",
+  "@profile_lists_empty_other_body": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "profile_following_empty_title": "Not following anyone yet",
+  "profile_following_empty_own_body": "Follow people to stay up to date with their newest public trails, including people on other instances.",
+  "profile_following_empty_other_body": "Accounts {username} follows will appear here.",
+  "@profile_following_empty_other_body": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "profile_followers_empty_title": "No followers yet",
+  "profile_followers_empty_own_body": "People who follow you will appear here and stay up to date with your newest public trails.",
+  "profile_followers_empty_other_body": "People who follow {username} will appear here.",
+  "@profile_followers_empty_other_body": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
   "library_empty_title": "Keine heruntergeladenen Routen",
   "library_empty_body": "Routen, die du herunterlädst, werden hier gespeichert, damit du sie offline öffnen kannst.",
   "library_empty_search_body": "Versuche einen anderen Suchbegriff oder setze die Filter zurück.",
