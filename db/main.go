@@ -340,6 +340,7 @@ func onBeforeServeHandler(client meilisearch.ServiceManager) func(se *core.Serve
 
 func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 	se.Router.GET("/health", routes.Health)
+	se.Router.GET("/trail/gpx-limit", routes.TrailGpxLimit)
 
 	se.Router.POST("/auth/token", routes.AuthToken)
 	se.Router.POST("/user/email", routes.UserEmailChange)

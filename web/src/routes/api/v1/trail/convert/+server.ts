@@ -1,7 +1,7 @@
 import GPX from "#lib/models/gpx/gpx.ts";
 import { handleError } from "#lib/util/api_util.ts";
 import { withParseSlot } from "#lib/server/parse_slot.ts";
-import { TRACK_BODY_LIMIT } from "#lib/server/upload_body_limit.js";
+import { trackBodyLimit } from "#lib/server/gpx_field_limit.ts";
 import { assertGpxWithinServerLimits, fromUpload } from "#lib/util/gpx_util.ts";
 import { json, type RequestEvent } from "@sveltejs/kit";
 import { ClientResponseError } from "pocketbase";
@@ -147,9 +147,10 @@ async function toValidGpx(contentType: string, body: Uint8Array<ArrayBuffer>): P
  *       Accepts a GPX/KML/KMZ/TCX/FIT file (multipart), or a GPX string as a raw text body,
  *       and returns the equivalent GPX document. It does NOT compute or persist a trail -
  *       clients compute trail metrics themselves. Requires a logged-in user; the body may be
- *       at most 25 MiB. Files that would take too much memory to parse are refused with a 413:
- *       a KML document (also inside a KMZ) over 4 MiB, a KMZ or FIT file over 8 MiB, or a file
- *       with too many elements or points.
+ *       at most what the gpx field of the trails collection allows. Files that would take too
+ *       much memory to parse are refused with a 413: at the field's default of 5 MiB, a KML
+ *       document (also inside a KMZ) over 4 MiB, or a file with too many elements or points.
+ *       These limits grow with the field.
  *     tags:
  *       - Trails
  *     requestBody:
@@ -194,7 +195,7 @@ export async function POST(event: RequestEvent) {
         }
 
         const contentType = event.request.headers.get("content-type") || "";
-        const body = await readLimitedBody(event.request, TRACK_BODY_LIMIT);
+        const body = await readLimitedBody(event.request, await trackBodyLimit());
         const gpxData = await withParseSlot(() => toValidGpx(contentType, body));
 
         return new Response(gpxData, {

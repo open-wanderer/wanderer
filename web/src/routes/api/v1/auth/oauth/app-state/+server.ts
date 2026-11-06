@@ -1,7 +1,12 @@
+import { clientAddress } from "#lib/server/http.ts";
 import { APP_STATE_TTL_SECONDS, issueAppState } from "#lib/server/oauth_app_state.ts";
+import { createRateLimiter } from "#lib/server/rate_limit.ts";
 import { handleError } from "#lib/util/api_util.ts";
 import type { RequestEvent } from "@sveltejs/kit";
 import { z } from "zod";
+
+// The app asks once per login attempt, and the endpoint needs no login.
+const limiter = createRateLimiter(30, 60_000);
 
 /**
  * @swagger
@@ -41,10 +46,17 @@ import { z } from "zod";
  *                   description: Seconds until `/login/redirect` refuses the state.
  *       400:
  *         description: Bad Request - malformed body or unknown provider
+ *       429:
+ *         description: Too many requests from this address; see the Retry-After header
  *       500:
  *         description: Internal Server Error
  */
 export async function POST(event: RequestEvent) {
+    const retryAfter = limiter(clientAddress(event) ?? "unknown");
+    if (retryAfter !== undefined) {
+        return Response.json({ message: "too_many_requests" }, { status: 429, headers: { "Retry-After": String(retryAfter) } });
+    }
+
     try {
         const { provider: name } = z.object({ provider: z.string() }).parse(await event.request.json());
         const methods = await event.locals.pb.collection("users").listAuthMethods();

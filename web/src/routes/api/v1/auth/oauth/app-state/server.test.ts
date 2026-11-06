@@ -15,6 +15,18 @@ function event(body: string) {
 }
 
 describe("POST /api/v1/auth/oauth/app-state", () => {
+    it("refuses an address that asks too often, and only that one", async () => {
+        const from = (address: string) => ({ ...event(`{"provider":"google"}`), getClientAddress: () => address } as unknown as RequestEvent);
+        for (let i = 0; i < 30; i++) expect((await POST(from("192.0.2.7"))).status).toBe(200);
+
+        const refused = await POST(from("192.0.2.7"));
+
+        expect(refused.status).toBe(429);
+        expect(await refused.json()).toEqual({ message: "too_many_requests" });
+        expect(Number(refused.headers.get("Retry-After"))).toBeGreaterThan(0);
+        expect((await POST(from("192.0.2.8"))).status).toBe(200);
+    });
+
     it("issues a state naming the provider", async () => {
         const response = await POST(event(`{"provider":"google"}`));
 

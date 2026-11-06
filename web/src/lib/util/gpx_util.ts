@@ -18,6 +18,7 @@ import { ClientResponseError, type AuthRecord } from "pocketbase";
 import { handleFromRecordWithIRI } from "./activitypub_util";
 import { joinContiguousTrackSegments } from "./gpx_segment_util";
 import { icons } from "./icon_util";
+import { serverLimits } from "./track_limits.ts";
 
 
 export async function gpx2trail(gpxString: string, fallbackName?: string, correctElevation: boolean = false, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch) {
@@ -227,14 +228,14 @@ function isRouteOnlyGPX(content: string) {
 }
 
 export async function fromFile(file: File | Blob) {
-    assertServerLimit(file.size, SERVER_LIMITS.fileBytes);
+    assertServerLimit(file.size, serverLimits().fileBytes);
 
     let gpxData = "";
     let gpxFile: Blob;
     const fileBuffer = await file.arrayBuffer();
 
     if (isFITFile(fileBuffer)) {
-        assertServerLimit(file.size, SERVER_LIMITS.fitBytes);
+        assertServerLimit(file.size, serverLimits().fitBytes);
         gpxData = await fromFIT(fileBuffer);
         gpxFile = new Blob([gpxData], {
             type: "application/gpx+xml",
@@ -243,7 +244,7 @@ export async function fromFile(file: File | Blob) {
     }
 
     if (isKMZFile(fileBuffer)) {
-        assertServerLimit(file.size, SERVER_LIMITS.kmzBytes);
+        assertServerLimit(file.size, serverLimits().kmzBytes);
         gpxData = await fromKMZ(fileBuffer);
         gpxFile = new Blob([gpxData], {
             type: "application/gpx+xml",
@@ -254,7 +255,7 @@ export async function fromFile(file: File | Blob) {
     const fileContent = new TextDecoder().decode(fileBuffer);
 
     if (fileContent.includes("http://www.opengis.net/kml")) {
-        assertServerLimit(file.size, SERVER_LIMITS.kmlBytes);
+        assertServerLimit(file.size, serverLimits().kmlBytes);
         gpxData = fromKML(fileContent);
         gpxFile = new Blob([gpxData], {
             type: "application/gpx+xml",
@@ -270,7 +271,7 @@ export async function fromFile(file: File | Blob) {
         // <trk>. Store them as tracks so metrics, the map and export work (#1356).
         const gpx = GPX.parse(fileContent);
         gpx.convertRoutesToTracks();
-        assertServerLimit(gpx.flatten().length, SERVER_LIMITS.convertedPoints);
+        assertServerLimit(gpx.flatten().length, serverLimits().convertedPoints);
         gpxData = gpx.toString();
         gpxFile = new Blob([gpxData], {
             type: "application/gpx+xml",
@@ -286,7 +287,7 @@ export async function fromFile(file: File | Blob) {
 }
 
 export function fromKML(kmlData: string) {
-    assertServerLimit(countTags(kmlData), SERVER_LIMITS.domTags);
+    assertServerLimit(countTags(kmlData), serverLimits().domTags);
     const parser = browser ? new DOMParser() : new XMLDOMParser();
     const nodes = parser.parseFromString(kmlData, "text/xml")
     const geojson = kml(nodes) as Feature | FeatureCollection
@@ -296,28 +297,7 @@ export function fromKML(kmlData: string) {
     return gpx
 }
 
-const MiB = 1024 * 1024;
-
-// What one file may cost on the server, where parsing runs in the same process
-// as everything else and running out of heap kills it. Measured on a production
-// build with --max-old-space-size=512; see the numbers in PR #1397. Browsers
-// parse their own uploads, so only the KMZ bound applies to them.
-const SERVER_LIMITS = {
-    fileBytes: 25 * MiB,
-    // JSZip keeps an object per zip entry, and an empty entry costs ~80 bytes.
-    kmzBytes: 8 * MiB,
-    // Every "1,2 " in a KML becomes an array in toGeoJSON.
-    kmlBytes: 4 * MiB,
-    fitBytes: 8 * MiB,
-    // Elements in the xmldom tree that KML and TCX are read from.
-    domTags: 400_000,
-    // Elements and points in xml2js' objects, which GPX is read into.
-    gpxTags: 750_000,
-    gpxPoints: 150_000,
-    // Points that a conversion may hand to the GPX serializer.
-    convertedPoints: 60_000,
-};
-const MAX_BROWSER_KMZ_DOCUMENT_BYTES = 100 * MiB;
+const MAX_BROWSER_KMZ_DOCUMENT_BYTES = 100 * 1024 * 1024;
 
 export class FileTooLargeError extends Error {
     status = 413;
@@ -343,12 +323,12 @@ function countTags(xml: string) {
 
 /** Rejects a GPX document that the server could not parse without running out of memory. */
 export function assertGpxWithinServerLimits(gpxData: string) {
-    assertServerLimit(countTags(gpxData), SERVER_LIMITS.gpxTags);
+    assertServerLimit(countTags(gpxData), serverLimits().gpxTags);
     let points = 0;
     for (const _ of gpxData.matchAll(/<(?:[\w.-]+:)?(?:trkpt|rtept|wpt)[\s/>]/g)) {
         points++;
     }
-    assertServerLimit(points, SERVER_LIMITS.gpxPoints);
+    assertServerLimit(points, serverLimits().gpxPoints);
 }
 
 type ZipStream = {
@@ -384,7 +364,7 @@ function inflateEntry(entry: JSZip.JSZipObject, maxBytes: number) {
     });
 }
 
-export async function fromKMZ(kmzData: ArrayBuffer, maxDocumentBytes = browser ? MAX_BROWSER_KMZ_DOCUMENT_BYTES : SERVER_LIMITS.kmlBytes) {
+export async function fromKMZ(kmzData: ArrayBuffer, maxDocumentBytes = browser ? MAX_BROWSER_KMZ_DOCUMENT_BYTES : serverLimits().kmlBytes) {
     const zip = new JSZip()
     await zip.loadAsync(kmzData)
     const entry = zip.file('doc.kml');
@@ -395,7 +375,7 @@ export async function fromKMZ(kmzData: ArrayBuffer, maxDocumentBytes = browser ?
 }
 
 export function fromTCX(tcxData: string) {
-    assertServerLimit(countTags(tcxData), SERVER_LIMITS.domTags);
+    assertServerLimit(countTags(tcxData), serverLimits().domTags);
     const parser = browser ? new DOMParser() : new XMLDOMParser();
     const nodes = parser.parseFromString(tcxData, "text/xml")
     const geojson = tcx(nodes) as Feature | FeatureCollection
@@ -414,7 +394,7 @@ export async function fromFIT(fitData: ArrayBuffer) {
             reject(error)
         }
 
-        assertServerLimit(data?.records?.length ?? 0, SERVER_LIMITS.convertedPoints);
+        assertServerLimit(data?.records?.length ?? 0, serverLimits().convertedPoints);
 
         const gpx = new GPX({
             metadata: {
@@ -543,7 +523,7 @@ export function fromGeoJSON(geoJson: Feature | FeatureCollection) {
             break;
     }
 
-    assertServerLimit(gpx.flatten().length + (gpx.wpt?.length ?? 0), SERVER_LIMITS.convertedPoints);
+    assertServerLimit(gpx.flatten().length + (gpx.wpt?.length ?? 0), serverLimits().convertedPoints);
 
     return gpx.toString()
 }

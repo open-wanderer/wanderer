@@ -122,11 +122,9 @@ export default class GPX {
 
     let minLat = Infinity, maxLat = -Infinity, minLon = Infinity, maxLon = -Infinity;
 
-    const allPoints: Waypoint[] = []
     for (const track of this.trk ?? []) {
       for (const segment of track.trkseg ?? []) {
         const points = segment.trkpt ?? [];
-        allPoints.push(...points);
 
         totalDuration += segmentDurationMs(segment);
 

@@ -2,9 +2,10 @@ import { BODY_SIZE_LIMIT } from "$app/env/private";
 import { error, isHttpError } from "@sveltejs/kit";
 import type { Handle } from "@sveltejs/kit/hooks";
 import type { IncomingMessage } from "node:http";
-import { TRACK_BODY_LIMIT, UPLOAD_BODY_LIMIT, uploadBodyLimit } from "./upload_body_limit.js";
+import { gpxFieldLimit, trackBodyLimit } from "./gpx_field_limit.ts";
+import { UPLOAD_BODY_LIMIT, uploadBodyLimit } from "./upload_body_limit.js";
 
-export { TRACK_BODY_LIMIT, UPLOAD_BODY_LIMIT };
+export { UPLOAD_BODY_LIMIT };
 
 export const REQUEST_BODY_LIMIT = 1 << 20;
 export const INBOX_BODY_LIMIT = 2 << 20;
@@ -91,14 +92,16 @@ function limitedUpload(request: Request, limit: number, cancelBody: CancelBodyRe
     return new Request(request, init);
 }
 
-function requestLimit(url: URL, request: Request): { limit: number; upload: boolean } {
+async function requestLimit(url: URL, request: Request): Promise<{ limit: number; upload: boolean }> {
     const path = url.pathname;
     if (/^\/api\/v1\/activitypub\/user\/[^/]+\/inbox\/?$/.test(path)) return { limit: INBOX_BODY_LIMIT, upload: false };
     if (path === "/api/v1/auth/login") return { limit: LOGIN_BODY_LIMIT, upload: false };
     // Takes a raw GPX body as well as a multipart file.
-    if (request.method === "POST" && /^\/api\/v1\/trail\/convert\/?$/.test(path)) return { limit: TRACK_BODY_LIMIT, upload: true };
+    if (request.method === "POST" && /^\/api\/v1\/trail\/convert\/?$/.test(path)) return { limit: await trackBodyLimit(), upload: true };
     const multipart = request.headers.get("content-type")?.split(";", 1)[0].trim().toLowerCase() === "multipart/form-data";
-    if (multipart && request.method === "PUT" && path === "/api/v1/trail/upload") return { limit: TRACK_BODY_LIMIT, upload: true };
+    if (multipart && request.method === "PUT" && path === "/api/v1/trail/upload") return { limit: await trackBodyLimit(), upload: true };
+    // A gpx part is parsed here too; the body also carries photos.
+    if (multipart && /^\/api\/v1\/trail\/form(?:\/[^/]+)?\/?$/.test(path)) await gpxFieldLimit();
     if (multipart && (request.method === "POST" || request.method === "PUT") && (
         /^\/api\/v1\/(trail|list|summit-log)\/form(?:\/[^/]+)?\/?$/.test(path) ||
         /^\/api\/v1\/(trail|list|summit-log|waypoint|user)\/[^/]+\/file\/?$/.test(path)
@@ -112,7 +115,7 @@ function requestLimit(url: URL, request: Request): { limit: number; upload: bool
 export const limitRequestBodies: Handle = async ({ event, resolve }) => {
     // Internal event.fetch requests carry server-generated bodies.
     if (!event.request.body || event.isSubRequest) return resolve(event);
-    const { limit, upload } = requestLimit(event.url, event.request);
+    const { limit, upload } = await requestLimit(event.url, event.request);
     const nodeRequest = (event.platform as { req?: IncomingMessage } | undefined)?.req;
     let cancellationDeferred = false;
     const cancelBody: CancelBodyReader = (reader) => {

@@ -36,6 +36,17 @@ const multiLegGpx = `<gpx><trk>` +
     `</trk></gpx>`;
 
 describe("joinContiguousTrackSegments", () => {
+    it("merges legs with more points than a call may have arguments", () => {
+        const long = Array.from({ length: 200_000 }, () => pt(47.2, 11.2));
+        const gpx = new GPX({
+            trk: [new Track({ trkseg: [segment([pt(47.1, 11.1), pt(47.2, 11.2)]), segment(long)] })],
+        });
+
+        joinContiguousTrackSegments(gpx);
+
+        expect(gpx.trk?.[0].trkseg?.[0].trkpt?.length).toBe(200_001);
+    }, 30_000);
+
     it("merges meeting legs into one segment and keeps the closing point", () => {
         const gpx = new GPX({
             trk: [new Track({

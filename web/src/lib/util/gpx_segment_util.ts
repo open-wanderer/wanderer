@@ -50,7 +50,8 @@ export function joinContiguousTrackSegments(gpx: GPX) {
             const meets = last != null && Number(last.$.lat) === Number(first.$.lat) && Number(last.$.lon) === Number(first.$.lon);
 
             if (current?.trkpt && !current.extensions && !segment.extensions && meets && markRouteAnchor(last)) {
-                current.trkpt.push(...points.slice(1));
+                // Not a spread: a long track exceeds the argument limit.
+                for (let i = 1; i < points.length; i++) current.trkpt.push(points[i]);
                 marked = true;
             } else {
                 joined.push(segment);

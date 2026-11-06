@@ -5,6 +5,14 @@ import TrackSegment from "./track-segment";
 import Waypoint from "./waypoint";
 import { haversineDistance } from "./utils";
 
+describe("GPX.getTotals — a long track", () => {
+  it("handles a segment with more points than a call may have arguments", () => {
+    const points = Array.from({ length: 200_000 }, (_, i) => waypointAt(47 + (i % 100) / 10_000, 11));
+
+    expect(gpxFromSegments([points]).getTotals().distance).toBeGreaterThan(0);
+  }, 30_000);
+});
+
 describe("GPX.getTotals — first point of a segment", () => {
   it("reports the full hop length of a 2-point segment instead of 0", () => {
     const a = waypointAt(47.0, 11.0);

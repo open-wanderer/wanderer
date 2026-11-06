@@ -19,6 +19,8 @@ This can lead to non-intuitive errors such as: editing and creating a trail, whi
 The `BODY_SIZE_LIMIT` setting controls both the frontend adapter's request ceiling and the multipart upload limit. The provided Docker Compose configuration defaults to `2G`, which accommodates 99 photos at the default 20 MiB field limit, a GPX file and multipart headers in one request. The provided image and `npm start` launch the web server through `server.js`, which uses `2G` when the variable is unset. An invalid value logs a warning and also uses `2G` at this startup step. Set `Infinity` to allow uploads of any size by signed-in users, as in previous Compose configurations.
 Upload routes authenticate before reading or parsing multipart bodies. Other route limits remain fixed: login 64 KiB, ActivityPub inbox 2 MiB and ordinary requests 1 MiB.
 
+Track files sent to `/api/v1/trail/upload` and `/api/v1/trail/convert` are limited by the `Max File Size` of the `gpx` field of the `trails` collection, which is 5 MiB by default, and `BODY_SIZE_LIMIT` still caps them. A change to the field applies within a minute, without a restart. The web server parses these files in memory, and its other parsing limits grow with the field. On a server with little memory, a large value lets one upload exhaust it.
+
 When raising the backend file limits, set the single `BODY_SIZE_LIMIT` [Environment Variable](../../environment-configuration.md) high enough for all files in a request plus multipart headers. For Docker Compose, set it in the `.env` file beside `docker-compose.yml`; source deployments can export it before starting the web server. Check the reverse proxy's request limit as well.
 
 ```sh

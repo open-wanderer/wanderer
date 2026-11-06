@@ -13,8 +13,12 @@ vi.mock("@sveltejs/kit/hooks", () => ({ sequence: (...handlers: Handle[]): Handl
 } }));
 
 import { handle } from "./hooks.server";
-import { TRACK_BODY_LIMIT, LOGIN_BODY_LIMIT, REQUEST_BODY_LIMIT } from "#lib/server/request_body.ts";
+import { LOGIN_BODY_LIMIT, REQUEST_BODY_LIMIT } from "#lib/server/request_body.ts";
+import { DEFAULT_GPX_FIELD_LIMIT } from "#lib/util/track_limits.ts";
 import { POST as convert } from "./routes/api/v1/trail/convert/+server";
+
+// No backend answers here, so the limit is the field's default plus multipart headers.
+const TRACK_BODY_LIMIT = DEFAULT_GPX_FIELD_LIMIT + 64 * 1024;
 
 it("rejects an anonymous chunked body before auth and route execution in the installed hook", async () => {
     const bytes = new TextEncoder().encode(JSON.stringify({ username: "alice", password: "password123", extra: "x".repeat(LOGIN_BODY_LIMIT) }));

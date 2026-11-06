@@ -69,7 +69,7 @@ it.each([
     ["/api/v1/trail/form/abcdefghijklmn0", "POST", updateTrail, 1024 ** 3],
     ["/api/v1/list/form/abcdefghijklmn0", "POST", updateList, 1024 ** 3],
     ["/api/v1/summit-log/form/abcdefghijklmn0", "POST", updateLog, 1024 ** 3],
-    ["/api/v1/trail/upload", "PUT", uploadTrail, 24 * 1024 ** 2],
+    ["/api/v1/trail/upload", "PUT", uploadTrail, 4 * 1024 ** 2],
 ] as const)("rejects a native anonymous large upload without buffering it at %s", async (path, method, route, declaredBytes) => {
     let receivedBeforeResponse = 0;
     const server = createServer(async (req, res) => {
