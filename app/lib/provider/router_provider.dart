@@ -63,6 +63,23 @@ part 'router_provider.g.dart';
 
 final navigatorKey = GlobalKey<NavigatorState>();
 
+/// [GoRoute.pageBuilder] for the shell's root tabs: swaps them instantly.
+///
+/// Each tab replaces the shell Navigator's only page, so the default page
+/// plays a full push: the outgoing tab can't be removed until that finishes,
+/// and stays visible under the incoming one for all 500ms on iOS.
+GoRouterPageBuilder _tabPageBuilder(GoRouterWidgetBuilder builder) =>
+    (context, state) => NoTransitionPage<void>(
+      key: state.pageKey,
+      name: state.name ?? state.path,
+      arguments: <String, String>{
+        ...state.pathParameters,
+        ...state.uri.queryParameters,
+      },
+      restorationId: state.pageKey.value,
+      child: builder(context, state),
+    );
+
 class RouterNotifier extends ChangeNotifier {
   void notify() => notifyListeners();
 }
@@ -234,7 +251,7 @@ class Router extends _$Router {
           routes: [
             GoRoute(
               path: '/map',
-              builder: (context, state) {
+              pageBuilder: _tabPageBuilder((context, state) {
                 Geographic? initialCenter;
                 double? initialZoom;
                 if (state.extra is Map<String, dynamic>) {
@@ -251,15 +268,19 @@ class Router extends _$Router {
                   initialZoom: initialZoom,
                   focusRequest: state.extra,
                 );
-              },
+              }),
             ),
             GoRoute(
               path: '/list',
-              builder: (context, state) => const ListScreen(),
+              pageBuilder: _tabPageBuilder(
+                (context, state) => const ListScreen(),
+              ),
             ),
             GoRoute(
               path: '/profile',
-              builder: (context, state) => const ProfileScreen(handle: null),
+              pageBuilder: _tabPageBuilder(
+                (context, state) => const ProfileScreen(handle: null),
+              ),
             ),
             // No nested detail route here: library cards navigate to
             // trailDetailLocation(trail) ('/trail/<id>'), so a second detail
@@ -267,11 +288,13 @@ class Router extends _$Router {
             // re-applied to it.
             GoRoute(
               path: '/library',
-              builder: (context, state) => LibraryScreen(),
+              pageBuilder: _tabPageBuilder((context, state) => LibraryScreen()),
             ),
             GoRoute(
               path: '/trail/create',
-              builder: (context, state) => const TrailSourceSelectScreen(),
+              pageBuilder: _tabPageBuilder(
+                (context, state) => const TrailSourceSelectScreen(),
+              ),
             ),
           ],
         ),
