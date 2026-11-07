@@ -201,9 +201,13 @@ jobs:
             exit 0
           fi
 
+          # Changes to tests alone do not need a new SDK version. The glob magic
+          # lets **/ also match test files directly in plugins/sdk.
           BASE=$(git tag -l 'plugins/sdk/v*' --sort=-v:refname | head -n1)
-          if git diff --quiet "$BASE" HEAD -- plugins/sdk; then
-            echo "Plugin SDK unchanged since $BASE, no new SDK version."
+          if git diff --quiet "$BASE" HEAD -- plugins/sdk \
+              ':(exclude,glob)plugins/sdk/**/*_test.go' \
+              ':(exclude,glob)plugins/sdk/**/testdata/**'; then
+            echo "Plugin SDK unchanged since $BASE apart from tests, no new SDK version."
             exit 0
           fi
 
