@@ -52,7 +52,7 @@ export async function GET(event: RequestEvent) {
 
         const id = `${ORIGIN}/api/v1/activitypub/user/${username}`
 
-        const r: APRoot<APActor & { publicKey: { id: string, owner: string, publicKeyPem: string } }> = {
+        const r: APRoot<APActor & { manuallyApprovesFollowers: boolean, publicKey: { id: string, owner: string, publicKeyPem: string } }> = {
             "@context": [
                 "https://www.w3.org/ns/activitystreams",
                 "https://w3id.org/security/v1",
@@ -66,6 +66,7 @@ export async function GET(event: RequestEvent) {
             preferredUsername: actor.preferred_username,
             followers: id + '/followers',
             following: id + '/following',
+            manuallyApprovesFollowers: false,
             url: `${ORIGIN}/profile/@${username}`,
             published: new Date(user.created ?? "").toISOString(),
             icon: {
