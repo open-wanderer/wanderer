@@ -607,3 +607,23 @@ describe("correctElevation", () => {
         expect(elevations(gpx)).toEqual([600, 610, 620]);
     });
 });
+
+describe("an author link that breaks the schema", () => {
+    const withLink = (links: string) => `<?xml version="1.0"?><gpx xmlns="http://www.topografix.com/GPX/1/1" version="1.1" creator="x"><metadata><author><name>a</name>${links}</author></metadata><trk><trkseg><trkpt lat="1" lon="2"/></trkseg></trk></gpx>`;
+
+    it.each([
+        ["no href", `<link><text>a</text></link>`],
+        ["only text", `<link>a</link>`],
+    ])("is dropped when it has %s", (_name, link) => {
+        const parsed = GPX.parse(withLink(link));
+
+        expect(parsed.flatten()).toHaveLength(1);
+        expect(parsed.metadata?.author?.link).toBeUndefined();
+    });
+
+    it("is reduced to the first of two links", () => {
+        const parsed = GPX.parse(withLink(`<link href="https://a.example"/><link href="https://b.example"/>`));
+
+        expect(parsed.metadata?.author?.link?.$.href).toBe("https://a.example");
+    });
+});

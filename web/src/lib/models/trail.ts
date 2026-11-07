@@ -381,6 +381,7 @@ export const defaultTrailSearchAttributes = [
     "elevation_gain",
     "elevation_loss",
     "duration",
+    "moving_duration",
     "difficulty",
     "category",
     "category_id",

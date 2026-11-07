@@ -23,8 +23,10 @@ export default class Person {
         this.email = object.email;
       }
     }
-    if (object.link) {
-      this.link = new Link(object.link);
+    // GPX allows one link with an href. Files that break this still have to load.
+    const link = new Link(Array.isArray(object.link) ? object.link[0] : object.link);
+    if (link.$.href) {
+      this.link = link;
     }
   }
 }

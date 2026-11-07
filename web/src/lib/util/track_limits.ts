@@ -18,7 +18,7 @@ function limitsFor(gpxFieldLimit: number) {
         // Every "1,2 " in a KML becomes an array in toGeoJSON.
         kmlBytes: 4 * MiB * scale,
         fitBytes: 8 * MiB * scale,
-        // Elements in the xmldom tree that KML and TCX are read from.
+        // Elements in the xmldom tree that KML is read from. TCX is streamed.
         domTags: 400_000 * scale,
         // Elements and points in xml2js' objects, which GPX is read into.
         gpxTags: 750_000 * scale,

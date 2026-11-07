@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import GPX from "./gpx";
 import { routeSegmentMetrics } from "./gpx-metrics-computation";
 import { gpx2trail } from "#lib/util/gpx_util.ts";
-import { routeToStoredGpx, splitTrackSegmentsAtAnchors } from "#lib/util/gpx_segment_util.ts";
+import { routeToStoredGpx, splitTrackSegmentsAtAnchors, storedDurationMs } from "#lib/util/gpx_segment_util.ts";
 
 // Inputs the shared corpus does not cover, where the web used to compute
 // different metrics than the app's Dart reader (app/lib/vendor/gpx).
@@ -152,6 +152,36 @@ describe("hasPositions", () => {
         file.convertRoutesToTracks();
 
         expect(file.flatten()).toHaveLength(1);
+    });
+});
+
+describe("storedDurationMs", () => {
+    const at = (minute: number) => `2024-05-01T10:${String(minute).padStart(2, "0")}:00Z`;
+    const pt = (lat: number, minute: number, extensions = "") =>
+        `<trkpt lat="${lat}" lon="11"><time>${at(minute)}</time>${extensions}</trkpt>`;
+    const route = (...segments: string[]) =>
+        GPX.parse(`<gpx version="1.1" xmlns="http://www.topografix.com/GPX/1/1"><trk>${segments.map((s) => `<trkseg>${s}</trkseg>`).join("")}</trk></gpx>`);
+
+    it.each([
+        ["legs that meet", [pt(47, 0) + pt(47.1, 10), pt(47.1, 20) + pt(47.2, 30), pt(47.2, 35) + pt(47.3, 50)]],
+        ["legs that do not meet", [pt(47, 0) + pt(47.1, 10), pt(47.5, 20) + pt(47.6, 30)]],
+        ["a mix", [pt(47, 0) + pt(47.1, 10), pt(47.1, 20) + pt(47.2, 30), pt(47.7, 40) + pt(47.8, 50)]],
+        ["a point with other extensions", [pt(47, 0) + pt(47.1, 10, "<extensions><a>1</a></extensions>"), pt(47.1, 20) + pt(47.2, 30)]],
+        ["a point without a time", [pt(47, 0) + `<trkpt lat="47.1" lon="11"/>`, pt(47.1, 20) + pt(47.2, 30)]],
+    ])("matches the stored file with %s", (_name, segments) => {
+        const gpx = route(...segments);
+
+        expect(storedDurationMs(gpx)).toBe(GPX.parse(routeToStoredGpx(gpx)).getTotals().duration);
+    });
+
+    it("leaves the route as it is", () => {
+        const gpx = route(pt(47, 0) + pt(47.1, 10), pt(47.1, 20) + pt(47.2, 30));
+        const before = gpx.toString();
+
+        storedDurationMs(gpx);
+
+        expect(gpx.toString()).toBe(before);
+        expect(gpx.trk![0].trkseg).toHaveLength(2);
     });
 });
 

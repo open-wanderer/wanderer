@@ -67,7 +67,7 @@
     import { cropGPX, fromFile, gpx2trail } from "#lib/util/gpx_util.ts";
     import { invalidFields } from "#lib/util/form_util.ts";
     import { getCoordinateAtDistance, hasCropInterpolationBasis } from "#lib/models/gpx/crop.ts";
-    import { routeToStoredGpx, splitTrackSegmentsAtAnchors } from "#lib/util/gpx_segment_util.ts";
+    import { routeToStoredGpx, splitTrackSegmentsAtAnchors, storedDurationMs } from "#lib/util/gpx_segment_util.ts";
 
     import { page } from "$app/state";
     import emptyStateTrailDark from "#lib/assets/svgs/empty_states/empty_state_trail_dark.svg";
@@ -1665,10 +1665,7 @@
     // them is then measured differently. Metrics must match the stored file.
     function storedDuration(gpx: GPX) {
         const segmented = (gpx.trk?.at(0)?.trkseg?.length ?? 0) > 1;
-        const totals = segmented
-            ? GPX.parse(routeToStoredGpx(gpx)).getTotals()
-            : gpx.features;
-        return totals.duration / 1000;
+        return (segmented ? storedDurationMs(gpx) : gpx.features.duration) / 1000;
     }
 
     function updateTotals(gpx: GPX, movingDuration?: number) {

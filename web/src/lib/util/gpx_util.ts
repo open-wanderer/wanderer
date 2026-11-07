@@ -261,7 +261,7 @@ export async function fromFile(file: File | Blob) {
             type: "application/gpx+xml",
         });
     } else if (fileContent.includes("TrainingCenterDatabase")) {
-        gpxData = fromTCX(fileContent);
+        gpxData = await fromTCX(fileContent);
         gpxFile = new Blob([gpxData], {
             type: "application/gpx+xml",
         });
@@ -374,15 +374,14 @@ export async function fromKMZ(kmzData: ArrayBuffer, maxDocumentBytes = browser ?
     return fromKML(await inflateEntry(entry, maxDocumentBytes))
 }
 
-export function fromTCX(tcxData: string) {
-    assertServerLimit(countTags(tcxData), serverLimits().domTags);
-    const parser = browser ? new DOMParser() : new XMLDOMParser();
-    const nodes = parser.parseFromString(tcxData, "text/xml")
-    const geojson = tcx(nodes) as Feature | FeatureCollection
+export async function fromTCX(tcxData: string) {
+    if (browser) {
+        const nodes = new DOMParser().parseFromString(tcxData, "text/xml");
+        return fromGeoJSON(tcx(nodes) as Feature | FeatureCollection);
+    }
 
-    const gpx = fromGeoJSON(geojson);
-
-    return gpx
+    const { tcxToGeoJSON } = await import("./tcx_stream.ts");
+    return fromGeoJSON(tcxToGeoJSON(tcxData, (points) => assertServerLimit(points, serverLimits().convertedPoints)));
 }
 
 export async function fromFIT(fitData: ArrayBuffer) {

@@ -1,5 +1,5 @@
 import GPX from "#lib/models/gpx/gpx.ts";
-import TrackSegment from "#lib/models/gpx/track-segment.ts";
+import TrackSegment, { segmentDurationMs } from "#lib/models/gpx/track-segment.ts";
 import GPXWaypoint, { hasRouteAnchor, routeAnchorElement } from "#lib/models/gpx/waypoint.ts";
 
 // The route editor takes its anchors from the boundaries between track
@@ -104,4 +104,35 @@ export function routeToStoredGpx(gpx: GPX): string {
     const stored = GPX.parse(gpx.toString());
     joinContiguousTrackSegments(stored);
     return stored.toString();
+}
+
+/**
+ * The duration of the file routeToStoredGpx writes, for use on every edit, where
+ * serializing and parsing a long route is too slow. Joining marks the last point
+ * of a leg, so those are copied to leave the route as it is.
+ */
+export function storedDurationMs(gpx: GPX): number {
+    const joined = {
+        $: {},
+        trk: (gpx.trk ?? []).map((track) => ({
+            trkseg: (track.trkseg ?? []).map((segment) => {
+                const trkpt = [...(segment.trkpt ?? [])];
+                const last = trkpt.at(-1);
+                if (last) {
+                    const extensions = last.extensions as unknown;
+                    trkpt[trkpt.length - 1] = {
+                        ...last,
+                        extensions: typeof extensions === "object" && extensions !== null ? { ...extensions } : extensions,
+                    } as GPXWaypoint;
+                }
+                return { trkpt, extensions: segment.extensions };
+            }),
+        })),
+    } as unknown as GPX;
+    joinContiguousTrackSegments(joined);
+
+    return (joined.trk ?? []).reduce(
+        (total, track) => (track.trkseg ?? []).reduce((sum, segment) => sum + segmentDurationMs(segment), total),
+        0,
+    );
 }

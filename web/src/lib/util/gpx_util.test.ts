@@ -516,6 +516,7 @@ describe("server limits of fromFile", () => {
     const MiB = 1024 * 1024;
     const kml = (body: string) => `<kml xmlns="http://www.opengis.net/kml/2.2"><Document>${body}</Document></kml>`;
     const line = (coordinates: string) => kml(`<Placemark><LineString><coordinates>${coordinates}</coordinates></LineString></Placemark>`);
+    const tcxFile = (body: string) => `<TrainingCenterDatabase><Activities><Activity><Lap><Track>${body}</Track></Lap></Activity></Activities></TrainingCenterDatabase>`;
     const gpx = (body: string) => `<gpx version="1.1" xmlns="http://www.topografix.com/GPX/1/1"><trk><trkseg>${body}</trkseg></trk></gpx>`;
 
     function fit(size: number) {
@@ -538,7 +539,7 @@ describe("server limits of fromFile", () => {
         ["a file over 25 MiB", () => " ".repeat(25 * MiB + 1)],
         ["a KML over 4 MiB", () => kml(" ".repeat(4 * MiB))],
         ["a KML with too many elements", () => kml("<a/>".repeat(400_001))],
-        ["a TCX with too many elements", () => `<TrainingCenterDatabase>${"<a/>".repeat(400_001)}</TrainingCenterDatabase>`],
+        ["a TCX with too many points", () => tcxFile(`<Trackpoint><Position><LatitudeDegrees>47</LatitudeDegrees><LongitudeDegrees>11</LongitudeDegrees></Position></Trackpoint>`.repeat(60_001))],
         ["a KML with too many points", () => line("1,2 ".repeat(60_001))],
         ["a GPX with too many points", () => gpx(`<trkpt lat="1" lon="2"/>`.repeat(150_001))],
         ["a GPX with too many elements", () => gpx("<a/>".repeat(750_001))],
