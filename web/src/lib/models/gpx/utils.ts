@@ -20,7 +20,26 @@ function allDatesToISOString(obj: Record<string, any>) {
   });
 }
 
+// Dart's % is never negative for a positive divisor, unlike JavaScript's.
+function wrapLongitude(lon: number): number {
+  if (lon >= -180 && lon <= 180) {
+    return lon;
+  }
+  const remainder = (lon + 180) % 360;
+  return (remainder < 0 ? remainder + 360 : remainder) - 180;
+}
+
+function clipLatitude(lat: number): number {
+  return Math.min(Math.max(lat, -90), 90);
+}
+
 function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  // The app measures through geobase's Geographic, which normalizes like this.
+  // Only the distance is affected: bounds and the start keep the file's values.
+  lat1 = clipLatitude(lat1);
+  lat2 = clipLatitude(lat2);
+  lon1 = wrapLongitude(lon1);
+  lon2 = wrapLongitude(lon2);
   const R = 6371; // Radius of the Earth in km
   const dLat = (lat2 - lat1) * (Math.PI / 180); // Convert degrees to radians
   const dLon = (lon2 - lon1) * (Math.PI / 180);

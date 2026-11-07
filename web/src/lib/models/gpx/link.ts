@@ -6,8 +6,8 @@ export default class Link {
   type: string;
   constructor(object: any) {
     this.$ = {};
-    this.$.href = object.$.href || object.href;
-    this.text = object.text;
-    this.type = object.type;
+    this.$.href = object?.$?.href || object?.href;
+    this.text = object?.text;
+    this.type = object?.type;
   }
 }

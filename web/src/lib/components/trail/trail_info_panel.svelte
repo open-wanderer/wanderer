@@ -22,6 +22,7 @@
         formatElevation,
         formatHTMLAsTextPreview,
         formatTimeHHMM,
+        trailDisplayDuration,
     } from "#lib/util/format_util.ts";
     import {
         displayCategoryIcon,
@@ -760,7 +761,7 @@
                         <i class="fa fa-clock"></i>
                     {/if}</span
                 >
-                <span class="">{formatTimeHHMM(trail.duration)}</span>
+                <span class="">{formatTimeHHMM(trailDisplayDuration(trail))}</span>
             </div>
             <div class="flex flex-col items-center">
                 <span class="font-medium text-center"

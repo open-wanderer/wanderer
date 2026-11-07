@@ -2,9 +2,13 @@ import { withTrailPreferenceMeiliFilter } from '#lib/server/category_preference_
 import type { TrailSearchResult } from '#lib/models/trail.ts';
 import { getActorResponseForHandle } from '#lib/util/activitypub_server_util.ts';
 import { handleError } from '#lib/util/api_util.ts';
+import { DownloadError, fetchExternalJson } from '#lib/util/secure_fetch_util.ts';
 import { error, type RequestEvent } from '@sveltejs/kit';
 import type { SearchResponse } from 'meilisearch';
 import { ClientResponseError } from 'pocketbase';
+
+// A page of search hits, with room for what an instance adds to them.
+const MAX_REMOTE_SEARCH_BYTES = 8 * 1024 * 1024;
 
 /**
  * @swagger
@@ -46,6 +50,8 @@ import { ClientResponseError } from 'pocketbase';
  *         description: Not Found
  *       500:
  *         description: Internal Server Error
+ *       502:
+ *         description: The instance of a federated profile could not be reached safely
  */
 export async function POST(event: RequestEvent) {
     const handle = event.params.handle;
@@ -68,13 +74,12 @@ export async function POST(event: RequestEvent) {
         } else {
             const origin = new URL(actor.iri).origin
             const url = `${origin}/api/v1/profile/${actor.preferred_username}/trails?` + event.url.searchParams
-            const response = await event.fetch(url, { method: 'POST', body: JSON.stringify(data) })
+            const response = await fetchExternalJson(url, { method: 'POST', body: data, maxBytes: MAX_REMOTE_SEARCH_BYTES })
 
             if (!response.ok) {
-                const errorResponse = await response.json()
-                throw new ClientResponseError({ status: response.status, response: errorResponse });
+                throw new ClientResponseError({ status: response.status, response: response.json });
             }
-            r = await response.json()
+            r = response.json
 
             r.hits.forEach(h => {
                 h.thumbnail = `${origin}/api/v1/files/trails/${h.id}/${h.thumbnail}`;
@@ -88,6 +93,10 @@ export async function POST(event: RequestEvent) {
 
         return Response.json(r)
     } catch (e) {
+        if (e instanceof DownloadError) {
+            console.warn(`federated search for ${handle} failed`, e);
+            return Response.json({ message: "remote_instance_unavailable" }, { status: 502 });
+        }
         return handleError(e)
     }
 }

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="wanderer-corpus" xmlns="http://www.topografix.com/GPX/1/1" xmlns:wanderer="https://wanderer.to/xmlns/gpx/1">
+  <metadata>
+    <name>Route Anchor</name>
+  </metadata>
+  <trk>
+    <trkseg>
+      <trkpt lat="47.0" lon="11.0"><time>2024-05-01T10:00:00Z</time></trkpt>
+      <trkpt lat="47.001" lon="11.0"><time>2024-05-01T10:01:40Z</time></trkpt>
+      <trkpt lat="47.002" lon="11.0"><time>2024-05-01T10:05:00Z</time><extensions><wanderer:anchor/></extensions></trkpt>
+      <trkpt lat="47.003" lon="11.0"><time>2024-05-01T10:06:40Z</time></trkpt>
+    </trkseg>
+  </trk>
+</gpx>

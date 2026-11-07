@@ -8,7 +8,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 
 const external = vi.hoisted(() => ({ gpx2trail: vi.fn(), trails_create: vi.fn() }));
 vi.mock("#lib/util/gpx_util.ts", () => ({
-    fromFile: async () => ({ gpxData: "<gpx/>", gpxFile: new Blob(["<gpx/>"]) }),
+    fromUpload: async () => ({ gpxData: "<gpx/>", gpxFile: new Blob(["<gpx/>"]) }),
     gpx2trail: external.gpx2trail,
 }));
 vi.mock("#lib/stores/search_store.ts", () => ({ searchLocationReverse: async () => "Test location" }));
@@ -75,7 +75,7 @@ describe.skipIf(!host || !apiKey)("duplicate search against Meilisearch", () => 
     });
 
     async function upload(measurements: Measurements) {
-        external.gpx2trail.mockResolvedValue({ trail: { name: "New upload", ...measurements } });
+        external.gpx2trail.mockResolvedValue({ trail: { name: "New upload", ...measurements }, gpx: { hasPositions: () => true } });
         const search = vi.fn((q: string, options: SearchParams) => tenantIndex.search(q, options));
         const form = new FormData();
         form.set("file", new File(["<gpx/>"], "upload.gpx"));

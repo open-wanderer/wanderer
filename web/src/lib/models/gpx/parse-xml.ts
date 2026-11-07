@@ -1,4 +1,5 @@
 import { Parser } from 'isomorphic-xml2js';
+import { isDecimalNumber } from './number';
 
 type BrowserXmlParser = Parser & {
   domToObject(node: Node): any;
@@ -10,8 +11,8 @@ function isGpxNamespace(namespace: string | null | undefined): boolean {
 }
 
 function parseAttribute(value: string): string | number {
-  if (value.length && !isNaN(Number(value))) {
-    return Number.isInteger(Number(value)) ? parseInt(value, 10) : parseFloat(value);
+  if (value.length && isDecimalNumber(value)) {
+    return Number(value);
   }
   return value;
 }
