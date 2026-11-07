@@ -1,4 +1,5 @@
 import type { SummitLog } from "#lib/models/summit_log.ts";
+import { elevationFetch, withParseSlot } from "#lib/server/parse_slot.ts";
 import { Collection, handleError, uploadUpdate } from "#lib/util/api_util.ts";
 import { applyGpxToForm, summitLogGpxFields } from "#lib/util/gpx_util.ts";
 import { RecordIdSchema } from "#lib/models/api/base_schema.ts";
@@ -39,8 +40,12 @@ import type { RequestEvent } from "@sveltejs/kit";
  *         description: Unauthorized
  *       404:
  *         description: Not Found
+ *       413:
+ *         description: The `gpx` file is too large to parse
  *       500:
  *         description: Internal Server Error
+ *       503:
+ *         description: Too many files are waiting to be parsed
  */
 export async function POST(event: RequestEvent) {
     if (!event.locals.user) {
@@ -49,7 +54,9 @@ export async function POST(event: RequestEvent) {
     try {
         RecordIdSchema.parse(event.params);
         const data = await event.request.formData();
-        await applyGpxToForm(data, summitLogGpxFields, true, event.fetch);
+        if (data.has("gpx")) {
+            await withParseSlot(() => applyGpxToForm(data, summitLogGpxFields, true, elevationFetch(event.fetch)));
+        }
         const r = await uploadUpdate<SummitLog>(event, Collection.summit_logs, data)
         r.date = r.date?.substring(0, 10) ?? "";
         return Response.json(r);

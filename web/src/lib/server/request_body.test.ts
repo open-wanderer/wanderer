@@ -95,7 +95,7 @@ describe("request body limits", () => {
     });
 
     it("rejects a declared multipart body above the upload limit", async () => {
-        const request = new Request("https://local.example/api/v1/trail/upload", { method: "POST", body: "small", headers: { "content-type": "multipart/form-data; boundary=test", "content-length": String(UPLOAD_BODY_LIMIT + 1) } });
+        const request = new Request("https://local.example/api/v1/trail/form/abcdefghijklmn0", { method: "POST", body: "small", headers: { "content-type": "multipart/form-data; boundary=test", "content-length": String(UPLOAD_BODY_LIMIT + 1) } });
         const resolve = vi.fn();
         expect((await limitRequestBodies({ event: event(request), resolve })).status).toBe(413);
         expect(resolve).not.toHaveBeenCalled();
@@ -103,7 +103,7 @@ describe("request body limits", () => {
 
     it("bounds actual multipart bytes when the upload parser reads them", async () => {
         env.BODY_SIZE_LIMIT = "64K";
-        const { request, cancelled } = streamedRequest("/api/v1/trail/upload", 128 * 1024, { "content-type": "multipart/form-data; boundary=test" });
+        const { request, cancelled } = streamedRequest("/api/v1/trail/form/abcdefghijklmn0", 128 * 1024, { "content-type": "multipart/form-data; boundary=test" });
         const resolve = vi.fn(async (input: RequestEvent) => {
             const reader = input.request.body!.getReader();
             while (!(await reader.read()).done) { /* drain without retaining */ }
@@ -118,7 +118,7 @@ describe("request body limits", () => {
 it("uses the adapter setting for the upload route limit", async () => {
     for (const [setting, status] of [["64M", 413], ["128M", 200]] as const) {
         env.BODY_SIZE_LIMIT = setting;
-        const request = new Request("https://local.example/api/v1/trail/upload", { method: "POST", body: "small", headers: { "content-type": "multipart/form-data; boundary=test", "content-length": String(70 * 1024 * 1024) } });
+        const request = new Request("https://local.example/api/v1/trail/form/abcdefghijklmn0", { method: "POST", body: "small", headers: { "content-type": "multipart/form-data; boundary=test", "content-length": String(70 * 1024 * 1024) } });
         expect((await limitRequestBodies({ event: event(request), resolve: async () => new Response("accepted") })).status).toBe(status);
     }
 });
@@ -136,7 +136,7 @@ it.each([
     for (const [length, status] of Number.isFinite(limit)
         ? [[limit, 200], [limit + 1, 413]]
         : [[UPLOAD_BODY_LIMIT + 1, 200], [4 * UPLOAD_BODY_LIMIT, 200]]) {
-        const request = new Request("https://local.example/api/v1/trail/upload", {
+        const request = new Request("https://local.example/api/v1/trail/form/abcdefghijklmn0", {
             method: "POST", body: "small",
             headers: { "content-type": "multipart/form-data; boundary=test", "content-length": String(length) },
         });

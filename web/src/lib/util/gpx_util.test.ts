@@ -5,7 +5,10 @@ import TrackSegment from "#lib/models/gpx/track-segment.ts";
 import GPXWaypoint from "#lib/models/gpx/waypoint.ts";
 import { Trail } from "#lib/models/trail.ts";
 import { trails_show } from "#lib/stores/trail_store.ts";
-import { fromFile, trail2gpx } from "./gpx_util";
+import { DOMParser as XMLDOMParser } from "@xmldom/xmldom";
+import JSZip from "jszip";
+import type { AuthRecord } from "pocketbase";
+import { applyGpxToForm, FileTooLargeError, fromFile, fromKMZ, summitLogGpxFields, trail2gpx, trailGpxFields } from "./gpx_util";
 import { joinContiguousTrackSegments, routeAnchorNamespace, routeToStoredGpx, splitTrackSegmentsAtAnchors } from "./gpx_segment_util";
 
 vi.mock("#lib/stores/trail_store.ts", () => ({ trails_show: vi.fn() }));
@@ -33,6 +36,17 @@ const multiLegGpx = `<gpx><trk>` +
     `</trk></gpx>`;
 
 describe("joinContiguousTrackSegments", () => {
+    it("merges legs with more points than a call may have arguments", () => {
+        const long = Array.from({ length: 200_000 }, () => pt(47.2, 11.2));
+        const gpx = new GPX({
+            trk: [new Track({ trkseg: [segment([pt(47.1, 11.1), pt(47.2, 11.2)]), segment(long)] })],
+        });
+
+        joinContiguousTrackSegments(gpx);
+
+        expect(gpx.trk?.[0].trkseg?.[0].trkpt?.length).toBe(200_001);
+    }, 30_000);
+
     it("merges meeting legs into one segment and keeps the closing point", () => {
         const gpx = new GPX({
             trk: [new Track({
@@ -334,6 +348,48 @@ describe("trail2gpx", () => {
         expect(fetchSpy).not.toHaveBeenCalled();
         fetchSpy.mockRestore();
     });
+
+    it("writes the author's email in the GPX 1.1 attribute form", async () => {
+        const trail = new Trail("Alpine loop", { gpx_data: multiLegGpx });
+
+        const exported = await trail2gpx(trail, { email: "me.myself@mail.host.org" } as unknown as AuthRecord);
+
+        expect(exported).toMatch(/<email id="me\.myself" domain="mail\.host\.org"\/>/);
+        expect(exported).not.toContain("@");
+    });
+
+    it("writes metadata in schema order", async () => {
+        const exported = await trail2gpx(new Trail("Alpine loop", { gpx_data: multiLegGpx }), { email: "a@b.de" } as unknown as AuthRecord);
+
+        const order = ["<name>", "<desc", "<author>", "<time>", "<keywords>"].map((tag) => exported.indexOf(tag));
+        expect(order).toEqual([...order].sort((a, b) => a - b));
+    });
+
+    it("leaves the email out when the user has none", async () => {
+        const exported = await trail2gpx(new Trail("Alpine loop", { gpx_data: multiLegGpx }));
+
+        expect(exported).not.toContain("<email");
+    });
+});
+
+describe("author email in a stored GPX", () => {
+    const stored = (email: string) => `<gpx version="1.1" xmlns="http://www.topografix.com/GPX/1/1"><metadata><author><name>A</name>${email}</author></metadata></gpx>`;
+
+    it("rewrites the plain-text form to the attribute form", () => {
+        expect(GPX.parse(stored("<email>a@b.de</email>")).toString()).toContain(`<email id="a" domain="b.de"/>`);
+    });
+
+    it("writes nothing the schema does not know", () => {
+        expect(GPX.parse(stored("<email>a@b.de</email>")).toString()).not.toContain("_features");
+    });
+
+    it("keeps the attribute form", () => {
+        expect(GPX.parse(stored(`<email id="a" domain="b.de"/>`)).toString()).toContain(`<email id="a" domain="b.de"/>`);
+    });
+
+    it("drops a plain-text value that is no address", () => {
+        expect(GPX.parse(stored("<email>nobody</email>")).toString()).not.toContain("<email");
+    });
 });
 
 describe("fromFile", () => {
@@ -387,5 +443,193 @@ describe("fromFile", () => {
         const { gpxFile } = await fromFile(original);
 
         expect(gpxFile).toBe(original);
+    });
+});
+
+describe("fromKMZ", () => {
+    it("refuses a document that unzips beyond the limit", async () => {
+        const zip = new JSZip();
+        zip.file("doc.kml", `<kml xmlns="http://www.opengis.net/kml/2.2">${" ".repeat(10_000)}</kml>`);
+        const kmz = await zip.generateAsync({ type: "arraybuffer", compression: "DEFLATE" });
+
+        await expect(fromKMZ(kmz, 1_000)).rejects.toBeInstanceOf(FileTooLargeError);
+    });
+
+    // Sets the sizes in the local header and the zip directory to `size`.
+    function forgeDeclaredSize(kmz: ArrayBuffer, size: number) {
+        const bytes = new Uint8Array(kmz);
+        const view = new DataView(kmz);
+        for (let i = 0; i + 4 <= bytes.length; i++) {
+            const signature = view.getUint32(i, true);
+            if (signature === 0x04034b50) view.setUint32(i + 22, size, true);
+            if (signature === 0x02014b50) view.setUint32(i + 24, size, true);
+        }
+        return kmz;
+    }
+
+    it("counts the inflated bytes instead of trusting the zip directory", async () => {
+        const zip = new JSZip();
+        zip.file("doc.kml", " ".repeat(5_000_000));
+        const kmz = forgeDeclaredSize(await zip.generateAsync({ type: "arraybuffer", compression: "DEFLATE" }), 10);
+
+        await expect(fromKMZ(kmz, 1_000)).rejects.toBeInstanceOf(FileTooLargeError);
+    });
+
+    it("stops inflating at the limit", async () => {
+        // Incompressible, because JSZip can only stop between 16 KiB of input.
+        const content = new Uint8Array(2_000_000);
+        for (let i = 0; i < content.length; i += 65_536) crypto.getRandomValues(content.subarray(i, i + 65_536));
+        const zip = new JSZip();
+        zip.file("doc.kml", content);
+        const kmz = await zip.generateAsync({ type: "arraybuffer", compression: "DEFLATE" });
+
+        let inflated = 0;
+        const entryPrototype = Object.getPrototypeOf(zip.file("doc.kml"));
+        const internalStream = entryPrototype.internalStream;
+        const spy = vi.spyOn(entryPrototype, "internalStream").mockImplementation(function (this: unknown, type: unknown) {
+            return internalStream.call(this, type).on("data", (chunk: Uint8Array) => {
+                inflated += chunk.length;
+            });
+        });
+
+        try {
+            await expect(fromKMZ(kmz, 1_000)).rejects.toBeInstanceOf(FileTooLargeError);
+            await new Promise((resolve) => setTimeout(resolve, 100));
+            expect(inflated).toBeLessThan(200_000);
+        } finally {
+            spy.mockRestore();
+        }
+    });
+
+    it("keeps multibyte text that a chunk boundary splits", async () => {
+        const name = `${"ä".repeat(40_000)}€`;
+        const zip = new JSZip();
+        zip.file("doc.kml", `<kml xmlns="http://www.opengis.net/kml/2.2"><Document><Placemark><name>${name}</name><LineString><coordinates>11,47 11.001,47.001</coordinates></LineString></Placemark></Document></kml>`);
+
+        const gpx = await fromKMZ(await zip.generateAsync({ type: "arraybuffer", compression: "DEFLATE" }));
+
+        expect(gpx).toContain(name);
+    });
+});
+
+describe("server limits of fromFile", () => {
+    const MiB = 1024 * 1024;
+    const kml = (body: string) => `<kml xmlns="http://www.opengis.net/kml/2.2"><Document>${body}</Document></kml>`;
+    const line = (coordinates: string) => kml(`<Placemark><LineString><coordinates>${coordinates}</coordinates></LineString></Placemark>`);
+    const gpx = (body: string) => `<gpx version="1.1" xmlns="http://www.topografix.com/GPX/1/1"><trk><trkseg>${body}</trkseg></trk></gpx>`;
+
+    function fit(size: number) {
+        const bytes = new Uint8Array(size);
+        bytes[0] = 14;
+        bytes.set(new TextEncoder().encode(".FIT"), 8);
+        return bytes;
+    }
+
+    async function kmz(size: number) {
+        const zip = new JSZip();
+        const noise = new Uint8Array(size);
+        for (let i = 0; i < size; i += 65_536) crypto.getRandomValues(noise.subarray(i, Math.min(i + 65_536, size)));
+        zip.file("doc.kml", line("11,47 11.001,47.001"));
+        zip.file("photo.jpg", noise);
+        return zip.generateAsync({ type: "uint8array" });
+    }
+
+    it.each<[string, () => BlobPart | Promise<BlobPart>]>([
+        ["a file over 25 MiB", () => " ".repeat(25 * MiB + 1)],
+        ["a KML over 4 MiB", () => kml(" ".repeat(4 * MiB))],
+        ["a KML with too many elements", () => kml("<a/>".repeat(400_001))],
+        ["a TCX with too many elements", () => `<TrainingCenterDatabase>${"<a/>".repeat(400_001)}</TrainingCenterDatabase>`],
+        ["a KML with too many points", () => line("1,2 ".repeat(60_001))],
+        ["a GPX with too many points", () => gpx(`<trkpt lat="1" lon="2"/>`.repeat(150_001))],
+        ["a GPX with too many elements", () => gpx("<a/>".repeat(750_001))],
+        ["a route-only GPX with too many points", () => `<gpx version="1.1"><rte>${`<rtept lat="1" lon="2"/>`.repeat(60_001)}</rte></gpx>`],
+        ["a FIT over 8 MiB", () => fit(8 * MiB + 1) as BlobPart],
+        ["a KMZ over 8 MiB", async () => (await kmz(8 * MiB + 1)) as BlobPart],
+    ])("refuses %s with a 413", async (_name, content) => {
+        const error = await fromFile(new Blob([await content()])).catch((e) => e);
+
+        expect(error).toBeInstanceOf(FileTooLargeError);
+        expect(error.status).toBe(413);
+    });
+
+    it("refuses a FIT with too many records", async () => {
+        const definition = new Uint8Array([0x40, 0, 0, 20, 0, 3, 253, 4, 0x86, 0, 4, 0x85, 1, 4, 0x85]);
+        const record = 13;
+        const data = new Uint8Array(definition.length + 60_001 * record);
+        data.set(definition);
+        const file = new Uint8Array(14 + data.length + 2);
+        const view = new DataView(file.buffer);
+        file[0] = 14;
+        file[1] = 0x10;
+        view.setUint32(4, data.length, true);
+        file.set(new TextEncoder().encode(".FIT"), 8);
+        file.set(data, 14);
+
+        await expect(fromFile(new Blob([file]))).rejects.toBeInstanceOf(FileTooLargeError);
+    });
+
+    it("accepts a file at the limits", async () => {
+        const { gpxData } = await fromFile(new Blob([line("11,47 ".repeat(59_999) + "11.001,47.001")]));
+
+        expect(gpxData).toContain("<trkpt");
+    });
+
+    it("does not limit a browser upload that the server would refuse", async () => {
+        vi.resetModules();
+        vi.doMock("$app/env", () => ({ browser: true }));
+        vi.stubGlobal("DOMParser", XMLDOMParser);
+        try {
+            const browserUtil = await import("./gpx_util");
+            const zip = new JSZip();
+            zip.file("doc.kml", line("11,47 11.001,47.001") + " ".repeat(5 * MiB));
+
+            await expect(browserUtil.fromKMZ(await zip.generateAsync({ type: "arraybuffer", compression: "DEFLATE" }))).resolves.toContain("<trkpt");
+        } finally {
+            vi.unstubAllGlobals();
+            vi.doUnmock("$app/env");
+            vi.resetModules();
+        }
+    });
+});
+
+describe("applyGpxToForm and moving_duration", () => {
+    const file = (points: string) => new File([`<gpx version="1.1" xmlns="http://www.topografix.com/GPX/1/1"><trk><trkseg>${points}</trkseg></trk></gpx>`], "track.gpx");
+    const twoPoints = `<trkpt lat="47" lon="11"/><trkpt lat="47.001" lon="11.001"/>`;
+
+    it("clears it when a GPX replaces the track", async () => {
+        const form = new FormData();
+        form.set("gpx", file(`<trkpt lat="47" lon="11"/>`));
+
+        await applyGpxToForm(form, trailGpxFields, false);
+
+        expect(form.get("moving_duration")).toBe("0");
+        expect(form.get("distance")).toBe("0");
+    });
+
+    it("keeps an explicit value", async () => {
+        const form = new FormData();
+        form.set("gpx", file(twoPoints));
+        form.set("moving_duration", "5000");
+
+        await applyGpxToForm(form, trailGpxFields, false);
+
+        expect(form.get("moving_duration")).toBe("5000");
+    });
+
+    it("leaves it alone without a GPX", async () => {
+        const form = new FormData();
+
+        await applyGpxToForm(form, trailGpxFields, false);
+
+        expect(form.has("moving_duration")).toBe(false);
+    });
+
+    it("does not add it to a summit log", async () => {
+        const form = new FormData();
+        form.set("gpx", file(twoPoints));
+
+        await applyGpxToForm(form, summitLogGpxFields, false);
+
+        expect(form.has("moving_duration")).toBe(false);
     });
 });

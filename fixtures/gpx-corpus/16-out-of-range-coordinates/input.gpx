@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="wanderer-corpus" xmlns="http://www.topografix.com/GPX/1/1">
+  <metadata>
+    <name>Out Of Range</name>
+  </metadata>
+  <trk>
+    <trkseg>
+      <trkpt lat="89.0" lon="0.0"></trkpt>
+      <trkpt lat="95.5" lon="0.0"></trkpt>
+      <trkpt lat="10.0" lon="179.0"></trkpt>
+      <trkpt lat="10.0" lon="190.0"></trkpt>
+    </trkseg>
+  </trk>
+</gpx>

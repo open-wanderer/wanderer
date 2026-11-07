@@ -1,3 +1,4 @@
+import { dev } from "$app/env";
 import dns from "node:dns/promises";
 import net from "node:net";
 import http from "node:http";
@@ -139,6 +140,10 @@ function isBlockedAddress(ip: string, family: number): boolean {
     return family === 6 ? isBlockedIPv6(ip) : isBlockedIPv4(ip);
 }
 
+function isLoopback(ip: string, family: number): boolean {
+    return family === 6 ? ip === "::1" : ip.startsWith("127.");
+}
+
 // Docker Compose service names for internal-only backends (db:8090, search:7700).
 const BLOCKED_HOSTNAMES = new Set(["localhost", "db", "search"]);
 
@@ -175,7 +180,7 @@ function parseAndCheckUrl(rawUrl: unknown): URL {
  * time-of-check/time-of-use window. Called again for every redirect hop, so a
  * chain can't bounce through validation on the first URL and land elsewhere.
  */
-async function resolveAndValidate(parsed: URL): Promise<ValidatedTarget> {
+async function resolveAndValidate(parsed: URL, allowLoopback = false): Promise<ValidatedTarget> {
     // URL hostnames wrap IPv6 literals in brackets; strip them for net/dns.
     const host = parsed.hostname.replace(/^\[|\]$/g, "");
 
@@ -194,6 +199,7 @@ async function resolveAndValidate(parsed: URL): Promise<ValidatedTarget> {
     // Strict: reject if ANY resolved address is internal (blocks mixed public/
     // private answers where happy-eyeballs might pick the private one).
     for (const { address, family } of addresses) {
+        if (allowLoopback && isLoopback(address, family)) continue;
         if (isBlockedAddress(address, family)) throw new DownloadError("invalid_url");
     }
 
@@ -202,7 +208,18 @@ async function resolveAndValidate(parsed: URL): Promise<ValidatedTarget> {
 
 export type ExternalFile = { contentType: string | null; body: Buffer };
 
-type HopResult = { type: "redirect"; location: string } | ({ type: "final" } & ExternalFile);
+type HopResult = { type: "redirect"; location: string } | ({ type: "final"; status: number } & ExternalFile);
+
+type HopOptions = {
+    method?: string;
+    body?: string;
+    headers?: Record<string, string>;
+    maxBytes?: number;
+    // Unlike the socket timeout, also ends a response that keeps trickling in.
+    deadlineMs?: number;
+    // Hand a non-2xx response to the caller instead of failing.
+    keepErrorResponses?: boolean;
+};
 
 /**
  * Performs a single request with the socket pinned to `ip` (the validated
@@ -210,22 +227,25 @@ type HopResult = { type: "redirect"; location: string } | ({ type: "final" } & E
  * being followed automatically — the caller re-validates the target and pins
  * a fresh connection for it (see fetchExternalFile).
  */
-function fetchSingleHop(target: ValidatedTarget): Promise<HopResult> {
+function fetchSingleHop(target: ValidatedTarget, options: HopOptions = {}): Promise<HopResult> {
     const { parsed, ip, family } = target;
+    const maxBytes = options.maxBytes ?? MAX_DOWNLOAD_BYTES;
     const isHttps = parsed.protocol === "https:";
     const client = isHttps ? https : http;
 
     return new Promise<HopResult>((resolve, reject) => {
         let settled = false;
+        let deadline: NodeJS.Timeout | undefined;
         const finish = (fn: () => void) => {
             if (settled) return;
             settled = true;
+            clearTimeout(deadline);
             fn();
         };
 
         const req = client.request(
             {
-                method: "GET",
+                method: options.method ?? "GET",
                 protocol: parsed.protocol,
                 hostname: parsed.hostname,
                 port: parsed.port || (isHttps ? 443 : 80),
@@ -242,7 +262,7 @@ function fetchSingleHop(target: ValidatedTarget): Promise<HopResult> {
                         cb(null, ip, family);
                     }
                 },
-                headers: { host: parsed.host, accept: "*/*", "user-agent": "wanderer" },
+                headers: { host: parsed.host, accept: "*/*", "user-agent": "wanderer", ...options.headers },
             },
             (res) => {
                 const status = res.statusCode ?? 0;
@@ -256,7 +276,7 @@ function fetchSingleHop(target: ValidatedTarget): Promise<HopResult> {
                     }
                     return;
                 }
-                if (status < 200 || status >= 300) {
+                if ((status < 200 || status >= 300) && !options.keepErrorResponses) {
                     res.destroy();
                     finish(() => reject(new DownloadError("download_failed")));
                     return;
@@ -266,7 +286,7 @@ function fetchSingleHop(target: ValidatedTarget): Promise<HopResult> {
                 let total = 0;
                 res.on("data", (chunk: Buffer) => {
                     total += chunk.length;
-                    if (total > MAX_DOWNLOAD_BYTES) {
+                    if (total > maxBytes) {
                         res.destroy();
                         finish(() => reject(new DownloadError("file_too_large")));
                         return;
@@ -277,6 +297,7 @@ function fetchSingleHop(target: ValidatedTarget): Promise<HopResult> {
                     finish(() =>
                         resolve({
                             type: "final",
+                            status,
                             contentType: (res.headers["content-type"] as string | undefined) ?? null,
                             body: Buffer.concat(chunks),
                         }),
@@ -289,8 +310,14 @@ function fetchSingleHop(target: ValidatedTarget): Promise<HopResult> {
         req.setTimeout(REQUEST_TIMEOUT_MS, () => {
             req.destroy(new DownloadError("request_timeout", 504));
         });
+        if (options.deadlineMs) {
+            deadline = setTimeout(() => {
+                finish(() => reject(new DownloadError("request_timeout", 504)));
+                req.destroy();
+            }, options.deadlineMs);
+        }
         req.on("error", (e) => finish(() => reject(e)));
-        req.end();
+        req.end(options.body);
     });
 }
 
@@ -303,14 +330,19 @@ function fetchSingleHop(target: ValidatedTarget): Promise<HopResult> {
  * Throws {@link DownloadError} on any validation/transport failure.
  */
 export async function fetchExternalFile(rawUrl: unknown): Promise<ExternalFile> {
+    const { contentType, body } = await fetchValidated(rawUrl);
+    return { contentType, body };
+}
+
+async function fetchValidated(rawUrl: unknown, options?: HopOptions, allowLoopback = false) {
     let parsed = parseAndCheckUrl(rawUrl);
 
     for (let hop = 0; ; hop++) {
-        const target = await resolveAndValidate(parsed);
-        const result = await fetchSingleHop(target);
+        const target = await resolveAndValidate(parsed, allowLoopback);
+        const result = await fetchSingleHop(target, options);
 
         if (result.type === "final") {
-            return { contentType: result.contentType, body: result.body };
+            return result;
         }
 
         if (hop >= MAX_REDIRECTS) {
@@ -327,5 +359,37 @@ export async function fetchExternalFile(rawUrl: unknown): Promise<ExternalFile> 
             throw new DownloadError("invalid_url");
         }
         parsed = parseAndCheckUrl(next.toString());
+    }
+}
+
+type JsonRequest = { method?: "GET" | "POST"; body?: unknown; maxBytes: number; deadlineMs?: number };
+
+/**
+ * SSRF-safe JSON request to another instance, under the same rules as
+ * {@link fetchExternalFile} and with a size limit of its own. Answers with the
+ * status and body of any response that is JSON; a non-2xx answer is not an error
+ * here, because the caller passes it on. Throws {@link DownloadError} otherwise.
+ *
+ * `dev` is a build-time constant: the local two-instance setup runs on loopback,
+ * and a production build has no way of reaching it.
+ */
+export async function fetchExternalJson(rawUrl: unknown, { method, body, maxBytes, deadlineMs = REQUEST_TIMEOUT_MS }: JsonRequest): Promise<{ status: number; ok: boolean; json: any }> {
+    const response = await fetchValidated(rawUrl, {
+        method,
+        body: body === undefined ? undefined : JSON.stringify(body),
+        headers: body === undefined ? undefined : { "content-type": "application/json" },
+        maxBytes,
+        deadlineMs,
+        keepErrorResponses: true,
+    }, dev);
+
+    try {
+        return {
+            status: response.status,
+            ok: response.status >= 200 && response.status < 300,
+            json: JSON.parse(response.body.toString("utf8")),
+        };
+    } catch {
+        throw new DownloadError("invalid_response", 502);
     }
 }

@@ -103,7 +103,7 @@ describe("auth hook with a failing backend", () => {
         return { event, resolve: vi.fn(async () => new Response("resolved")) };
     }
 
-    const session = { cookie: sessionCookie, meiliCookie: `search-token|${user.id}|1` };
+    const session = { cookie: sessionCookie, meiliCookie: `search-token|${user.id}|1|${Date.now() + 3_600_000}` };
 
     // No response may authenticate or change cookies: neither the auth hook's
     // own calls nor the export at its end.
@@ -117,7 +117,7 @@ describe("auth hook with a failing backend", () => {
     }
 
     const failures: [string, string, Parameters<typeof request>[0]][] = [
-        ["API token check", BACKEND_PATHS.apiToken, { authorization: "Bearer wanderer_key_valid", meiliCookie: `search-token|${user.id}|1` }],
+        ["API token check", BACKEND_PATHS.apiToken, { authorization: "Bearer wanderer_key_valid", meiliCookie: `search-token|${user.id}|1|${Date.now() + 3_600_000}` }],
         ["anonymous search token", BACKEND_PATHS.searchToken, {}],
         ["session search token", BACKEND_PATHS.searchToken, { cookie: sessionCookie }],
         ["session refresh", BACKEND_PATHS.refresh, session],
@@ -140,7 +140,7 @@ describe("auth hook with a failing backend", () => {
 
     // A garbage collection can stop undici forwarding the abort through event.fetch.
     it.each([
-        ["API token check", { authorization: "Bearer wanderer_key_valid", meiliCookie: `search-token|${user.id}|1` }],
+        ["API token check", { authorization: "Bearer wanderer_key_valid", meiliCookie: `search-token|${user.id}|1|${Date.now() + 3_600_000}` }],
         ["search token", {}],
     ])("answers 503 even if the abort never reaches event.fetch during the %s", async (_name, options) => {
         const { event, resolve } = request(options);
@@ -229,7 +229,7 @@ describe("auth hook with a failing backend", () => {
 
         it("answers 504 once the proxy gives up, when the hook needs no backend call", async () => {
             frozen = [archive];
-            const { event } = request({ path: "/api/v1/regions/monaco/download", meiliCookie: "search-token|public|1" });
+            const { event } = request({ path: "/api/v1/regions/monaco/download", meiliCookie: `search-token|public|1|${Date.now() + 3_600_000}` });
             const resolve = download(event);
             vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
 
@@ -245,7 +245,7 @@ describe("auth hook with a failing backend", () => {
 
         it.each([
             ["session", BACKEND_PATHS.refresh, session],
-            ["API token", BACKEND_PATHS.apiToken, { authorization: "Bearer wanderer_key_valid", meiliCookie: `search-token|${user.id}|1` }],
+            ["API token", BACKEND_PATHS.apiToken, { authorization: "Bearer wanderer_key_valid", meiliCookie: `search-token|${user.id}|1|${Date.now() + 3_600_000}` }],
             ["anonymous without a search token", BACKEND_PATHS.searchToken, {}],
         ])("answers 503 from the hook before the proxy starts for %s", async (_name, path, options) => {
             frozen = [path, archive];
@@ -274,7 +274,7 @@ describe("auth hook with a failing backend", () => {
             ["no token", ""],
         ])("gets no access during an outage with %s", async (_name, forgedToken) => {
             dropped = Object.values(BACKEND_PATHS);
-            const { event, resolve } = request({ cookie: forged(forgedToken), meiliCookie: `search-token|${victim.id}|1`, path: "/api/v1/settings" });
+            const { event, resolve } = request({ cookie: forged(forgedToken), meiliCookie: `search-token|${victim.id}|1|${Date.now() + 3_600_000}`, path: "/api/v1/settings" });
 
             const response = await handle({ event, resolve });
 
@@ -285,7 +285,7 @@ describe("auth hook with a failing backend", () => {
         it("gets no access while the backend hangs", async () => {
             frozen = Object.values(BACKEND_PATHS);
             const forgedToken = `${b64({ alg: "none" })}.${b64({ exp: hour, id: victim.id })}.`;
-            const { event, resolve } = request({ cookie: forged(forgedToken), meiliCookie: `search-token|${victim.id}|1` });
+            const { event, resolve } = request({ cookie: forged(forgedToken), meiliCookie: `search-token|${victim.id}|1|${Date.now() + 3_600_000}` });
 
             const response = await handle({ event, resolve });
 

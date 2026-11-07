@@ -14,11 +14,20 @@ import { get } from "svelte/store";
 
 const emtpyTrack = new Track({ trkseg: [] })
 
+type RouteHistoryEntry = {
+    delta: Changeset,
+    reverseDelta: Changeset,
+    anchorsBefore?: ValhallaAnchor[],
+    anchorsAfter?: ValhallaAnchor[],
+    reversesRoute?: boolean,
+    movingDurationBefore?: number,
+};
+
 class ValhallaStore {
     route: GPX = $state(new GPX({ trk: [emtpyTrack] }));
     anchors: ValhallaAnchor[] = $state([]);
-    undoStack: { delta: Changeset, reverseDelta: Changeset, anchorsBefore?: ValhallaAnchor[], anchorsAfter?: ValhallaAnchor[], reversesRoute?: boolean }[] = $state([]);
-    redoStack: { delta: Changeset, reverseDelta: Changeset, anchorsBefore?: ValhallaAnchor[], anchorsAfter?: ValhallaAnchor[], reversesRoute?: boolean }[] = $state([]);
+    undoStack: RouteHistoryEntry[] = $state([]);
+    redoStack: RouteHistoryEntry[] = $state([]);
 }
 
 export const valhallaStore = new ValhallaStore();
@@ -44,6 +53,17 @@ function pushToUndoStack(delta: Changeset, reverseDelta: Changeset) {
     valhallaStore.redoStack = []
 }
 
+
+/**
+ * Notes the moving time that the latest edit is about to clear, so that undoing
+ * the edit can bring it back. A redone edit keeps the value it noted first.
+ */
+export function rememberMovingDuration(movingDuration: number) {
+    const entry = valhallaStore.undoStack.at(-1);
+    if (entry && entry.movingDurationBefore === undefined) {
+        entry.movingDurationBefore = movingDuration;
+    }
+}
 
 export function setRoute(newRoute: GPX, undoable: boolean = false) {
     const delta = diff(valhallaStore.route, newRoute);
@@ -104,7 +124,7 @@ export async function calculateRouteBetween(startLat: number, startLon: number, 
     const points = decodePolyline(shape);
     const startTime = new Date().getTime();
 
-    const waypoints = points.map((p, i) => new Waypoint({ $: { lat: p[1], lon: p[0] }, ele: heightResponse.height[i], time: new Date(startTime + (((duration * 1000) / points.length) * i)) }))
+    const waypoints = points.map((p, i) => new Waypoint({ $: { lat: p[1], lon: p[0] }, ele: heightResponse.height?.[i], time: new Date(startTime + (((duration * 1000) / points.length) * i)) }))
 
     return waypoints
 }
@@ -149,7 +169,13 @@ export function deleteFromRoute(index: number) {
     const snapshot = new GPX({ ...valhallaStore.route })
 
     snapshot.trk?.at(0)?.trkseg?.splice(index, 1);
-    snapshot.features = valhallaStore.route.getTotals();
+    // snapshot, not valhallaStore.route: the splice above already happened, so
+    // recomputing from the pre-splice route left features (including
+    // cumulativeDistance) describing geometry the route no longer has. Crop
+    // interpolation reads that array against a live flatten(), so a stale one
+    // silently places pins on the wrong points. Every other mutator in this
+    // file already recomputes from the object it just mutated.
+    snapshot.features = snapshot.getTotals();
 
     const delta = diff(valhallaStore.route, snapshot);
     const reverseDelta = diff(snapshot, valhallaStore.route)

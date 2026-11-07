@@ -1,0 +1,41 @@
+{
+  "id": "16-out-of-range-coordinates",
+  "covers": [
+    "out-of-range-coordinates"
+  ],
+  "derivation": "hand",
+  "notes": "The app measures through geobase's Geographic, which clips latitude to +-90 and wraps longitude into +-180. Only the distance is normalized: the bounding box, centroid and start keep the values of the file.",
+  "metrics": {
+    "distance": 10211294.96071456,
+    "elevationGain": 0,
+    "elevationLoss": 0,
+    "durationMs": 0,
+    "pointCount": 4,
+    "boundingBox": {
+      "minLat": 10.0,
+      "maxLat": 95.5,
+      "minLon": 0.0,
+      "maxLon": 190.0
+    },
+    "centroid": {
+      "lat": 51.125,
+      "lon": 92.25
+    }
+  },
+  "trail": {
+    "name": "Out Of Range",
+    "description": null,
+    "lat": 89.0,
+    "lon": 0.0,
+    "date": null,
+    "distance": 10211294.96071456,
+    "elevationGain": 0,
+    "elevationLoss": 0,
+    "duration": 0.0,
+    "minLat": 10.0,
+    "maxLat": 95.5,
+    "minLon": 0.0,
+    "maxLon": 190.0,
+    "waypoints": []
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "id": "15-route-anchor",
+  "covers": [
+    "route-anchor-legs"
+  ],
+  "derivation": "hand",
+  "notes": "A drawn route is stored as one segment with marked anchors. The anchor opens a new leg and the hop into it belongs to neither leg, so the duration is the sum of the legs, not last minus first.",
+  "metrics": {
+    "distance": 333.584779933514,
+    "elevationGain": 0,
+    "elevationLoss": 0,
+    "durationMs": 200000,
+    "pointCount": 4,
+    "boundingBox": {
+      "minLat": 47.0,
+      "maxLat": 47.003,
+      "minLon": 11.0,
+      "maxLon": 11.0
+    },
+    "centroid": {
+      "lat": 47.00150000000001,
+      "lon": 11.0
+    }
+  },
+  "trail": {
+    "name": "Route Anchor",
+    "description": null,
+    "lat": 47.0,
+    "lon": 11.0,
+    "date": "2024-05-01",
+    "distance": 333.584779933514,
+    "elevationGain": 0,
+    "elevationLoss": 0,
+    "duration": 200.0,
+    "minLat": 47.0,
+    "maxLat": 47.003,
+    "minLon": 11.0,
+    "maxLon": 11.0,
+    "waypoints": []
+  }
+}
