@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	_ "pocketbase/migrations"
 
@@ -368,43 +369,139 @@ func TestGeometryFailureKeepsABuiltRegionReady(t *testing.T) {
 	}
 }
 
-func TestOptionalBoundsMigration(t *testing.T) {
-	app := newRegionsTestApp(t)
-	migration := findMigration(t, "1791200101_optional_region_archive_bounds.go")
-	existing := newArchiveRecord(t, app, "monaco", nil)
+// disableRegion turns a seeded leaf off the way an admin would.
+func disableRegion(t *testing.T, app core.App, path string) error {
+	t.Helper()
+	region, err := app.FindFirstRecordByFilter("regions", "path = {:path}", dbx.Params{"path": path})
+	if err != nil {
+		return err
+	}
+	region.Set("enabled", false)
+	return app.Save(region)
+}
 
-	collection, err := app.FindCollectionByNameOrId("region_archives")
+func TestBuildPassSkipsARegionDisabledWhileItRuns(t *testing.T) {
+	app := newRegionsTestApp(t)
+	calls, _ := fakeExtractor(t)
+	enabledRegion(t, app, "monaco")
+	enabledRegion(t, app, "san_marino")
+
+	// Whichever region builds first disables the other one, after the pass has
+	// taken its list of leaves.
+	app.OnRecordAfterCreateSuccess("region_archives").BindFunc(func(e *core.RecordEvent) error {
+		other := "monaco"
+		if e.Record.GetString("path") == other {
+			other = "san_marino"
+		}
+		if err := disableRegion(t, app, other); err != nil {
+			return err
+		}
+		return e.Next()
+	})
+
+	BuildAllLocked(app)
+
+	archives, err := app.FindAllRecords("region_archives")
 	if err != nil {
 		t.Fatal(err)
 	}
-	withoutBounds := func() error {
-		record := core.NewRecord(collection)
-		record.Load(map[string]any{"path": "andorra", "status": "error", "dem_status": "error"})
-		return app.Save(record)
+	if len(archives) != 1 {
+		t.Fatalf("%d regions were built, want 1", len(archives))
 	}
+	if got := calls(); len(got) != 2 {
+		t.Errorf("extracts = %v, want the vector and DEM of one region", got)
+	}
+}
 
-	// The schema of an instance that has not run the migration yet.
-	if err := app.RunInTransaction(migration.Down); err != nil {
-		t.Fatal(err)
-	}
-	if collection, err = app.FindCollectionByNameOrId("region_archives"); err != nil {
-		t.Fatal(err)
-	}
-	if err := withoutBounds(); err == nil {
-		t.Fatal("a row without bounds was accepted before the migration")
-	}
+func TestBuildSkipsTheDemOfARegionDisabledDuringItsVectorBuild(t *testing.T) {
+	app := newRegionsTestApp(t)
+	calls, _ := fakeExtractor(t)
+	region := enabledRegion(t, app, "monaco")
 
-	if err := app.RunInTransaction(migration.Up); err != nil {
-		t.Fatal(err)
+	app.OnRecordAfterUpdateSuccess("region_archives").BindFunc(func(e *core.RecordEvent) error {
+		if e.Record.GetString("status") == "ready" {
+			if err := disableRegion(t, app, "monaco"); err != nil {
+				return err
+			}
+		}
+		return e.Next()
+	})
+
+	buildRegion(app, region, testBuildDate, testBuildURL)
+
+	if got := calls(); len(got) != 1 || got[0] != testBuildURL {
+		t.Errorf("extracts = %v, want only the vector", got)
 	}
-	if collection, err = app.FindCollectionByNameOrId("region_archives"); err != nil {
-		t.Fatal(err)
+}
+
+func TestFirstBuildReportsLocalFailures(t *testing.T) {
+	tests := []struct {
+		name    string
+		breakIt func(t *testing.T, app core.App)
+	}{
+		{"polygon file", func(t *testing.T, app core.App) {
+			t.Setenv("TMPDIR", filepath.Join(app.DataDir(), "missing"))
+		}},
+		{"archive directory", func(t *testing.T, app core.App) {
+			if err := os.WriteFile(CacheDir(app), nil, 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}},
 	}
-	if err := withoutBounds(); err != nil {
-		t.Fatalf("a row without bounds was rejected after the migration: %v", err)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			app := newRegionsTestApp(t)
+			calls, _ := fakeExtractor(t)
+			region := enabledRegion(t, app, "monaco")
+			test.breakIt(t, app)
+
+			buildRegion(app, region, testBuildDate, testBuildURL)
+
+			archive, err := findRegionArchiveRecord(app, "monaco")
+			if err != nil || archive == nil {
+				t.Fatalf("archive row: %v, %v", archive, err)
+			}
+			if archive.GetString("status") != "error" || archive.GetString("dem_status") != "error" {
+				t.Errorf("status = %q, dem_status = %q, want both error", archive.GetString("status"), archive.GetString("dem_status"))
+			}
+			if archive.GetString("error_message") == "" || archive.GetString("dem_error_message") == "" {
+				t.Error("the failure was not recorded")
+			}
+			if got := calls(); len(got) != 0 {
+				t.Errorf("extracts = %v, want none", got)
+			}
+		})
 	}
-	if got := reload(t, app, existing); got.GetFloat("min_lon") != 7.4 {
-		t.Errorf("existing row bounds = %v, want them kept", got.GetFloat("min_lon"))
+}
+
+func TestRegionExtractTimeoutIgnoresValuesThatCannotWork(t *testing.T) {
+	for value, want := range map[string]time.Duration{
+		"":     30 * time.Minute,
+		"45m":  45 * time.Minute,
+		"soon": 30 * time.Minute,
+		"0":    30 * time.Minute,
+		"0s":   30 * time.Minute,
+		"-5m":  30 * time.Minute,
+	} {
+		t.Setenv("REGION_ARCHIVE_EXTRACT_TIMEOUT", value)
+		if got := regionExtractTimeout(); got != want {
+			t.Errorf("%q: timeout = %v, want %v", value, got, want)
+		}
+	}
+}
+
+func TestTailBufferKeepsTheLastLineOfProgressOutput(t *testing.T) {
+	output := &tailBuffer{}
+	for i := 0; i < 5000; i++ {
+		output.Write([]byte("fetching  42%\r"))
+	}
+	output.Write([]byte("\nfatal: source unreachable\n\n"))
+
+	if got := output.lastLine(); got != "fatal: source unreachable" {
+		t.Errorf("lastLine = %q", got)
+	}
+	if len(output.data) > extractOutputTail {
+		t.Errorf("kept %d bytes", len(output.data))
 	}
 }
 

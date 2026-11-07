@@ -1,12 +1,14 @@
 package regions
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -29,6 +31,10 @@ const (
 	// archive. Mirrors the per-cell tile generator's own constant — a local,
 	// parallel-path copy, not a shared import.
 	mapterhornSource = "https://download.mapterhorn.com/planet.pmtiles"
+
+	// extractOutputTail is how much pmtiles output is kept for the log when an
+	// extract fails.
+	extractOutputTail = 4 << 10
 )
 
 var (
@@ -85,10 +91,10 @@ func SyncRunning() bool {
 // generator's extractTimeout (5m, tuned for 0.5° grid cells) — a region bbox
 // can cover a metro area or an entire state, which needs much more time.
 // Overridable via REGION_ARCHIVE_EXTRACT_TIMEOUT (a Go duration string,
-// e.g. "45m"); defaults to 30 minutes when unset or unparseable.
+// e.g. "45m"); defaults to 30 minutes when unset, unparseable or not positive.
 func regionExtractTimeout() time.Duration {
 	if v := os.Getenv("REGION_ARCHIVE_EXTRACT_TIMEOUT"); v != "" {
-		if d, err := time.ParseDuration(v); err == nil {
+		if d, err := time.ParseDuration(v); err == nil && d > 0 {
 			return d
 		}
 	}
@@ -112,7 +118,9 @@ func BuildAll(app core.App) {
 // region fully completing before the next starts (bounds subprocess
 // concurrency to 1). A query error or a single region's build failure is
 // logged and never aborts the whole pass. The Protomaps daily build is
-// resolved once per pass rather than once per region.
+// resolved once per pass rather than once per region. A pass can run for hours,
+// so each leaf is read again right before its build: one that was disabled or
+// deleted in the meantime is skipped.
 //
 // Callers MUST already hold the sync slot (via a successful TryStartSync,
 // released with FinishSync) — this function does not claim it itself, so
@@ -135,9 +143,23 @@ func BuildAllLocked(app core.App) {
 	}
 
 	date, url := ValidProtomapsDateAndURL()
-	for _, record := range leafRecords {
+	for _, snapshot := range leafRecords {
+		path := snapshot.GetString("path")
+		record, err := findEnabledLeaf(app, path)
+		if err != nil {
+			log.Printf("[regions] skipping region %s, it is no longer enabled: %v", path, err)
+			continue
+		}
 		buildRegionSafely(app, record, date, url)
 	}
+}
+
+// findEnabledLeaf returns the current record of an enabled leaf. Regions are
+// looked up by path because their record ids change on every re-seed.
+func findEnabledLeaf(app core.App, path string) (*core.Record, error) {
+	return app.FindFirstRecordByFilter("regions",
+		"path = {:path} && kind = 'leaf' && enabled = true",
+		dbx.Params{"path": path})
 }
 
 // buildRegionSafely wraps buildRegion with a recover so a single region's
@@ -179,11 +201,6 @@ func buildRegion(app core.App, record *core.Record, date, url string) {
 		delete(inFlight, regionID)
 		inFlightMu.Unlock()
 	}()
-
-	if err := os.MkdirAll(filepath.Join(CacheDir(app), regionID), 0755); err != nil {
-		log.Printf("[regions] failed to create cache dir for region %s: %v", regionID, err)
-		return
-	}
 
 	// Geometry resolves before anything else, because the bbox lives in
 	// region_geometry rather than on the regions record and a build needs both.
@@ -259,9 +276,25 @@ func buildRegion(app core.App, record *core.Record, date, url string) {
 		return
 	}
 
+	// A first build's row says "building" until something reports otherwise,
+	// so a failure here has to reach it too.
+	setPreparationError := func(err error) {
+		if needsVector {
+			setVectorError(app, archive, regionID, err)
+		}
+		if needsDem {
+			setDemError(app, archive, regionID, err)
+		}
+	}
+
+	if err := os.MkdirAll(filepath.Join(CacheDir(app), regionID), 0755); err != nil {
+		setPreparationError(fmt.Errorf("could not create the archive directory for region %s: %w", regionID, err))
+		return
+	}
+
 	polyPath, err := writePolygonTempFile(geometry)
 	if err != nil {
-		log.Printf("[regions] failed to write polygon temp file for region %s: %v", regionID, err)
+		setPreparationError(fmt.Errorf("could not write the polygon file for region %s: %w", regionID, err))
 		return
 	}
 	defer os.Remove(polyPath)
@@ -270,8 +303,57 @@ func buildRegion(app core.App, record *core.Record, date, url string) {
 		buildVector(app, archive, regionID, polyPath, url, date)
 	}
 	if needsDem {
+		// The vector extract can take as long as the timeout allows.
+		if _, err := findEnabledLeaf(app, regionID); err != nil {
+			log.Printf("[regions] skipping DEM of region %s, it is no longer enabled: %v", regionID, err)
+			return
+		}
 		buildDem(app, archive, regionID, polyPath)
 	}
+}
+
+// runExtract runs a pmtiles extract with its output kept out of the log, where
+// its progress bar would write thousands of lines. Only the last line of a
+// failed run is logged. It stays out of the stored error, which signed-in users
+// can read.
+func runExtract(cmd *exec.Cmd, regionID string) error {
+	output := &tailBuffer{}
+	cmd.Stdout = output
+	cmd.Stderr = output
+	cmd.WaitDelay = 10 * time.Second
+
+	err := cmd.Run()
+	if err != nil {
+		if line := output.lastLine(); line != "" {
+			log.Printf("[regions] pmtiles output for region %s: %s", regionID, line)
+		}
+	}
+	return err
+}
+
+// tailBuffer keeps the last extractOutputTail bytes written to it.
+type tailBuffer struct {
+	data []byte
+}
+
+func (b *tailBuffer) Write(p []byte) (int, error) {
+	b.data = append(b.data, p...)
+	if excess := len(b.data) - extractOutputTail; excess > 0 {
+		b.data = b.data[excess:]
+	}
+	return len(p), nil
+}
+
+// lastLine returns the last non-empty line. A progress bar redraws its line
+// with carriage returns, so those end a line too.
+func (b *tailBuffer) lastLine() string {
+	lines := bytes.FieldsFunc(b.data, func(r rune) bool { return r == '\n' || r == '\r' })
+	for i := len(lines) - 1; i >= 0; i-- {
+		if line := strings.TrimSpace(string(lines[i])); line != "" {
+			return line
+		}
+	}
+	return ""
 }
 
 // findRegionArchiveRecord returns the existing region_archives record for
@@ -357,10 +439,8 @@ func buildVector(app core.App, archive *core.Record, regionID, polyPath, url, da
 		"--region="+polyPath,
 		fmt.Sprintf("--maxzoom=%d", regionVectorMaxZoom),
 	)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
 
-	if err := cmd.Run(); err != nil {
+	if err := runExtract(cmd, regionID); err != nil {
 		os.Remove(tmp)
 		setVectorError(app, archive, regionID, fmt.Errorf("pmtiles extract (vector) failed for region %s: %w", regionID, err))
 		return
@@ -417,10 +497,8 @@ func buildDem(app core.App, archive *core.Record, regionID, polyPath string) {
 		"--region="+polyPath,
 		fmt.Sprintf("--maxzoom=%d", regionDemMaxZoom),
 	)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
 
-	if err := cmd.Run(); err != nil {
+	if err := runExtract(cmd, regionID); err != nil {
 		os.Remove(tmp)
 		setDemError(app, archive, regionID, fmt.Errorf("pmtiles extract (DEM) failed for region %s: %w", regionID, err))
 		return

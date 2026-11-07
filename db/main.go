@@ -401,8 +401,8 @@ func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 	// is bound to apis.RequireAuth() for any logged-in user). Auth is enforced
 	// entirely by the page's own content: it reads the PocketBase
 	// dashboard's own superuser JWT from localStorage and talks directly
-	// to PocketBase's built-in collection REST API, which is superuser-
-	// only by default on regions/region_geometry.
+	// to PocketBase's built-in collection REST API. regions is superuser-only;
+	// any signed-in user can read region_geometry, but only superusers write it.
 	se.Router.GET("/region-catalog/", routes.RegionsDashboard)
 
 	// Destructive, admin-only: unlike the page above (which relies on the

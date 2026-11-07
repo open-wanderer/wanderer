@@ -19,6 +19,13 @@ import (
 // it.
 var regionDownloadStallTimeout = 2 * time.Minute
 
+// regionDownloadMaxDuration bounds a whole archive download, because a client
+// that reads slowly keeps the stall timeout moving, and with it a replaced
+// archive on disk. The app does not resume, so a download cut here starts over
+// from the first byte. The limit has to stay far above the slowest transfer
+// worth finishing. It is a var so tests can shorten it.
+var regionDownloadMaxDuration = 24 * time.Hour
+
 // RegionsList returns the full group+leaf region catalog from the seeded
 // `regions` table, joined with each leaf's build state from
 // `region_archives`. The `regions` table is the source of truth for which
@@ -225,28 +232,42 @@ func serveRegionArchive(e *core.RequestEvent, file, notReady string) error {
 		return e.BadRequestError("invalid region id", nil)
 	}
 
-	info, err := os.Stat(filepath.Join(regions.CacheDir(e.App), id, file))
+	// The ETag has to describe the bytes being served, so both come from the
+	// same open file: a rebuild can rename a new archive into place at any time.
+	archive, err := os.Open(filepath.Join(regions.CacheDir(e.App), id, file))
+	if err != nil {
+		return e.NotFoundError(notReady, nil)
+	}
+	defer archive.Close()
+
+	info, err := archive.Stat()
 	if err != nil || info.IsDir() {
 		return e.NotFoundError(notReady, nil)
 	}
 
 	e.Response.Header().Set("ETag", fmt.Sprintf(`"%x-%x"`, info.Size(), info.ModTime().UnixNano()))
 	useRollingWriteDeadline(e)
-	return e.FileFS(os.DirFS(regions.CacheDir(e.App)), filepath.Join(id, file))
+	http.ServeContent(e.Response, e.Request, file, info.ModTime(), archive)
+	return nil
 }
 
 // useRollingWriteDeadline replaces the server's fixed WriteTimeout for this
 // response with one that moves forward on every write. The fixed timeout would
 // cut any download that takes longer than it, at the same point on every retry
 // of a large archive. Clearing it instead would let a client that stops reading
-// hold the connection forever.
+// hold the connection forever. No deadline moves past regionDownloadMaxDuration.
 func useRollingWriteDeadline(e *core.RequestEvent) {
 	controller := http.NewResponseController(e.Response)
-	if err := controller.SetWriteDeadline(time.Now().Add(regionDownloadStallTimeout)); err != nil {
+	writer := &rollingDeadlineWriter{
+		ResponseWriter: e.Response,
+		controller:     controller,
+		expires:        time.Now().Add(regionDownloadMaxDuration),
+	}
+	if err := controller.SetWriteDeadline(writer.nextDeadline()); err != nil {
 		e.App.Logger().Warn("SetWriteDeadline is not supported, falling back to the default server WriteTimeout", "error", err)
 		return
 	}
-	e.Response = &rollingDeadlineWriter{ResponseWriter: e.Response, controller: controller}
+	e.Response = writer
 }
 
 // rollingDeadlineWriter pushes the write deadline forward before each write.
@@ -256,10 +277,18 @@ func useRollingWriteDeadline(e *core.RequestEvent) {
 type rollingDeadlineWriter struct {
 	http.ResponseWriter
 	controller *http.ResponseController
+	expires    time.Time
+}
+
+func (w *rollingDeadlineWriter) nextDeadline() time.Time {
+	if next := time.Now().Add(regionDownloadStallTimeout); next.Before(w.expires) {
+		return next
+	}
+	return w.expires
 }
 
 func (w *rollingDeadlineWriter) Write(data []byte) (int, error) {
-	if err := w.controller.SetWriteDeadline(time.Now().Add(regionDownloadStallTimeout)); err != nil {
+	if err := w.controller.SetWriteDeadline(w.nextDeadline()); err != nil {
 		return 0, err
 	}
 	return w.ResponseWriter.Write(data)

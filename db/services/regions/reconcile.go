@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 
+	dbx "github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
 )
 
@@ -110,11 +111,16 @@ func removeInterruptedBuilds(app core.App) {
 	}
 }
 
-// WarnIfExtractorMissing logs a warning at startup when the pmtiles CLI that
-// builds region archives is not on PATH. The Docker image ships it; native
-// installs have to provide it themselves, and without it every build fails.
+// WarnIfExtractorMissing logs a warning at startup when a region is enabled but
+// the pmtiles CLI that builds its archives is not on PATH. The Docker image
+// ships it; native installs have to provide it themselves, and without it every
+// build fails.
 func WarnIfExtractorMissing(app core.App) {
 	if _, err := exec.LookPath("pmtiles"); err != nil {
+		enabled, countErr := app.CountRecords("regions", dbx.HashExp{"kind": "leaf", "enabled": true})
+		if countErr != nil || enabled == 0 {
+			return
+		}
 		app.Logger().Warn("pmtiles is not on PATH; offline region archives cannot be built until it is installed", "error", err)
 	}
 }

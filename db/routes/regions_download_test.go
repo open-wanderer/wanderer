@@ -326,3 +326,40 @@ func TestRegionArchiveDownloadDropsAStalledClient(t *testing.T) {
 		t.Fatal("a client that stopped reading still holds the download open")
 	}
 }
+
+func TestRegionArchiveDownloadEndsAtTheOverallLimit(t *testing.T) {
+	previous := regionDownloadMaxDuration
+	regionDownloadMaxDuration = 300 * time.Millisecond
+	t.Cleanup(func() { regionDownloadMaxDuration = previous })
+
+	const size = 64 << 20
+	server, done := archiveDownloadServer(t, size, func(server *httptest.Server) {
+		server.Config.WriteTimeout = time.Hour
+		server.Start()
+	})
+
+	response, err := server.Client().Get(server.URL + "/regions/monaco/download")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+
+	// This client never stalls, so only the overall limit can end the transfer.
+	var received int64
+	for {
+		n, err := io.CopyN(io.Discard, response.Body, 256<<10)
+		received += n
+		if err != nil {
+			break
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	if received >= size {
+		t.Fatalf("received all %d bytes, the limit did not apply", received)
+	}
+	select {
+	case <-done:
+	case <-time.After(30 * time.Second):
+		t.Fatal("the handler is still running after the overall limit")
+	}
+}

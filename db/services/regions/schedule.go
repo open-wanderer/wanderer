@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/pocketbase/pocketbase/tools/cron"
@@ -12,6 +13,9 @@ import (
 // defaultCronSchedule is the region-archive-build schedule when
 // REGION_ARCHIVE_CRON_SCHEDULE is unset or invalid.
 const defaultCronSchedule = "0 3 * * *"
+
+// invalidCronWarning keeps a bad value from being logged on every status poll.
+var invalidCronWarning sync.Once
 
 // CronSchedule resolves the region-archive-build cron expression the same
 // way main.go's registerCronJobs does (REGION_ARCHIVE_CRON_SCHEDULE env
@@ -28,7 +32,9 @@ func CronSchedule() string {
 		return defaultCronSchedule
 	}
 	if _, err := cron.NewSchedule(v); err != nil {
-		log.Printf("[regions] invalid REGION_ARCHIVE_CRON_SCHEDULE %q, using %q: %v", v, defaultCronSchedule, err)
+		invalidCronWarning.Do(func() {
+			log.Printf("[regions] invalid REGION_ARCHIVE_CRON_SCHEDULE %q, using %q: %v", v, defaultCronSchedule, err)
+		})
 		return defaultCronSchedule
 	}
 	return v
