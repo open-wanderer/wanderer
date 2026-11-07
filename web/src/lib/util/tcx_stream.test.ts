@@ -40,6 +40,30 @@ describe("tcxToGeoJSON", () => {
         expect(viaStream(xml)).toBe(viaDom(xml));
     });
 
+    it("reads values that a read chunk splits", () => {
+        const xml = activities(lap(`<Track>${Array.from({ length: 3_000 }, (_, i) => point(i % 10)).join("")}</Track>`));
+
+        expect(xml.length).toBeGreaterThan(3 * 64 * 1024);
+        expect(viaStream(xml)).toBe(viaDom(xml));
+    });
+
+    it.each([
+        ["an element inside a coordinate", point(1).replace("47.01<", "47.01<a/><")],
+        ["an element inside the time", point(1).replace("T10:", "T1<a/>0:")],
+        ["an element inside the altitude", point(1).replace("1000.5", "10<a/>00.5")],
+    ])("reads %s like the DOM reader", (_name, broken) => {
+        const xml = activities(lap(`<Track>${point(0)}${broken}${point(2)}</Track>`));
+
+        expect(xml).toContain("<a/>");
+        expect(viaStream(xml)).toBe(viaDom(xml));
+    });
+
+    it("is not confused by attributes named like object methods", () => {
+        const xml = activities(lap(`<a hasOwnProperty="1" b="2" constructor="3" __proto__="4"/>${track(0, 1)}`));
+
+        expect(viaStream(xml)).toBe(viaDom(xml));
+    });
+
     it("stops reading when onPoint throws", () => {
         const seen: number[] = [];
         const read = () => tcxToGeoJSON(activities(lap(track(0, 1, 2, 3))), (count) => {
@@ -49,6 +73,46 @@ describe("tcxToGeoJSON", () => {
 
         expect(read).toThrow("limit");
         expect(seen).toEqual([1, 2]);
+    });
+});
+
+describe("a file built to be expensive", () => {
+    const points = (read: () => unknown) => gpxOf(read()).match(/<trkpt/g)?.length ?? 0;
+    const stream = (xml: string) => () => tcxToGeoJSON(xml, () => {});
+    const large = 300 * 1024;
+
+    it.each([
+        ["a long comment", activities(lap(`<!--${"x".repeat(large)}-->${track(0, 1)}`))],
+        ["a long attribute value", activities(lap(`<a b="${"x".repeat(large)}"/>${track(0, 1)}`))],
+        ["a long text", activities(lap(`<Notes>${"x".repeat(large)}</Notes>${track(0, 1)}`))],
+        ["long CDATA", activities(lap(`<Notes><![CDATA[${"x".repeat(large)}]]></Notes>${track(0, 1)}`))],
+        ["a long declaration", `<!DOCTYPE ${"x".repeat(large)}>${activities(lap(track(0, 1)))}`],
+        ["a long processing instruction", `<?x ${"x".repeat(large)}?>${activities(lap(track(0, 1)))}`],
+    ])("still reads a file with %s", (_name, xml) => {
+        expect(points(stream(xml))).toBe(2);
+    });
+
+    it("stops at the end of the root, whatever follows it", () => {
+        expect(points(stream(`${activities(lap(track(0, 1)))}${"<&x ".repeat(100_000)}`))).toBe(2);
+    });
+
+    it("gets past some recoverable errors", () => {
+        expect(points(stream(activities(lap(`<Notes>${"& ".repeat(5_000)}</Notes>${track(0, 1)}`))))).toBe(2);
+    });
+
+    it.each([
+        ["ampersands", `<Notes>${"&".repeat(100_000)}</Notes>`],
+        ["attributes without a value", `<a ${"b ".repeat(100_000)}/>`],
+        ["stray brackets", `<Notes>${"< ".repeat(100_000)}</Notes>`],
+    ])("stops at too many %s", (_name, noise) => {
+        expect(stream(activities(lap(noise + track(0, 1))))).toThrow("Too many errors");
+    });
+
+    it("refuses deep nesting, and leaves ordinary depth alone", () => {
+        const nested = (depth: number) => activities(lap(`${"<a>".repeat(depth)}${"</a>".repeat(depth)}${track(0, 1)}`));
+
+        expect(points(stream(nested(900)))).toBe(2);
+        expect(stream(nested(1_000))).toThrow("nested too deeply");
     });
 });
 
