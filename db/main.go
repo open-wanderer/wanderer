@@ -329,6 +329,7 @@ func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 
 	se.Router.GET("/plugins", routes.PluginSystemPluginsList)
 	se.Router.POST("/plugins/trail-send", routes.PluginSystemTrailSend)
+	se.Router.POST("/plugins/sync", routes.PluginSystemSync(client))
 	se.Router.POST("/plugins/auth/validate", routes.PluginSystemSessionAuthValidate)
 	se.Router.POST("/plugins/category-remap/preview", routes.PluginSystemCategoryRemapPreview)
 	se.Router.POST("/plugins/category-remap/apply", routes.PluginSystemCategoryRemapApply)
