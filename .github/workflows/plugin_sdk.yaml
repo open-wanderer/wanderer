@@ -7,6 +7,9 @@ on:
       - '.github/workflows/plugin_sdk.yaml'
       - 'Makefile'
 
+permissions:
+  contents: read
+
 jobs:
   # Reports the SDK API changes since the last SDK version. Incompatible changes
   # are allowed while the SDK is v0, but break plugins outside this repository
