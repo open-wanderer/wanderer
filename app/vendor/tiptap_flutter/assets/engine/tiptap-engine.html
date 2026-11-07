@@ -1,0 +1,64 @@
+<!doctype html>
+<!--
+  Minimal HTML wrapper for WebView-based ports.
+
+  This file is loaded by the native side into a headless (invisible) WebView.
+  It provides two things:
+
+  1. A hidden <div id="editor"> that ProseMirror mounts onto. ProseMirror
+     requires a real DOM element to render its internal state, but since the
+     WebView is invisible, no pixels from this div ever reach the user's eyes.
+
+  2. A <script> tag that loads the engine IIFE bundle. The bundle self-executes,
+     detects the WebView environment, registers the global TiptapEngine.handleCommand
+     function, and starts listening for commands from the native side.
+
+  The native port loads this file via:
+    - iOS:     WKWebView.loadFileURL(bundlePath, allowingReadAccessTo: bundleDir)
+    - Android: WebView.loadUrl("file:///android_asset/tiptap-engine.html")
+    - Flutter: webview_flutter's loadFlutterAsset or loadFile
+
+  During the build, this file is copied to dist/ alongside tiptap-engine.js.
+-->
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <!--
+    Prevent the WebView from applying any viewport scaling or mobile-specific
+    behavior. The WebView is invisible, so viewport configuration doesn't
+    affect rendering, but this avoids any unexpected side effects.
+  -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tiptap Engine</title>
+    <style>
+      /*
+     * Hide everything. The WebView should never be visible, but if it
+     * accidentally becomes visible (debugging, misconfiguration), this
+     * ensures nothing confusing is shown.
+     */
+      body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+      }
+      #editor {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <!--
+    ProseMirror's EditorView requires a DOM element to mount onto. It uses
+    this element for internal DOM operations (rendering, mutation observers,
+    etc.) that are part of its normal operation. Since the WebView is
+    invisible, none of these DOM operations have any visual cost.
+  -->
+    <div id="editor"></div>
+
+    <!--
+    The engine bundle. This is the IIFE output from vite build.
+    It self-executes and registers the global message handlers.
+  -->
+    <script src="tiptap-engine.js"></script>
+  </body>
+</html>

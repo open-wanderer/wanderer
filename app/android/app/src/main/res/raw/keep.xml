@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Resource-shrinker keep list.
+
+  ic_notification_icon is referenced only as a runtime name string, from
+  app/lib/services/tracelet_position_source.dart
+  ("notificationSmallIcon: 'ic_notification_icon'"), never statically from
+  Java/Kotlin/XML. The shrinker therefore marked it reachable=false and
+  substituted its placeholder, which is why the recording notification showed a
+  plain circle instead of the Wanderer icon in release builds.
+
+  The ic_shortcut_* icons are in the same position: lib/services/app_shortcuts.dart
+  hands their names to quick_actions, which resolves them with getIdentifier().
+
+  ic_launcher does not need listing here: the manifest references it statically,
+  so the shrinker already resolves it (resources.txt: reachable=true).
+-->
+<resources
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@drawable/ic_notification_icon,@drawable/ic_shortcut_*" />

@@ -1,0 +1,68 @@
+// GENERATED CODE - DO NOT MODIFY BY HAND
+
+part of 'category_preference_provider.dart';
+
+// **************************************************************************
+// RiverpodGenerator
+// **************************************************************************
+
+// GENERATED CODE - DO NOT MODIFY BY HAND
+// ignore_for_file: type=lint, type=warning
+
+@ProviderFor(CategoryPreferenceNotifier)
+final categoryPreferenceProvider = CategoryPreferenceNotifierProvider._();
+
+final class CategoryPreferenceNotifierProvider
+    extends
+        $AsyncNotifierProvider<
+          CategoryPreferenceNotifier,
+          List<CategoryPreference>
+        > {
+  CategoryPreferenceNotifierProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'categoryPreferenceProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$categoryPreferenceNotifierHash();
+
+  @$internal
+  @override
+  CategoryPreferenceNotifier create() => CategoryPreferenceNotifier();
+}
+
+String _$categoryPreferenceNotifierHash() =>
+    r'537f8410c22c82ceea721eaf26758c2771c55124';
+
+abstract class _$CategoryPreferenceNotifier
+    extends $AsyncNotifier<List<CategoryPreference>> {
+  FutureOr<List<CategoryPreference>> build();
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref =
+        this.ref
+            as $Ref<
+              AsyncValue<List<CategoryPreference>>,
+              List<CategoryPreference>
+            >;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<
+                AsyncValue<List<CategoryPreference>>,
+                List<CategoryPreference>
+              >,
+              AsyncValue<List<CategoryPreference>>,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, build);
+  }
+}

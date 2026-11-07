@@ -1,0 +1,665 @@
+{
+  "@@locale": "eu",
+  "about": "Honi buruz",
+  "@about": {
+    "description": "Standalone heading used in three places: the 'About' tab on the trail detail panel (about the trail), prefixed to a username as 'About <username>' on the account screen, and the settings entry and title of the screen about the app itself. Needs to read as a section heading in all of them."
+  },
+  "about_changelog": "What's new",
+  "@about_changelog": {
+    "description": "About screen: link to the wanderer changelog website."
+  },
+  "about_discord_subtitle": "Chat with the community",
+  "@about_discord_subtitle": {
+    "description": "About screen: subtitle under the 'Discord' link."
+  },
+  "about_github_subtitle": "Source code, issues and contributions",
+  "@about_github_subtitle": {
+    "description": "About screen: subtitle under the 'GitHub' link."
+  },
+  "about_license": "License",
+  "@about_license": {
+    "description": "About screen: link to wanderer's own license on GitHub. Singular, as opposed to 'about_licenses' (the libraries' licenses)."
+  },
+  "about_licenses": "Open source licenses",
+  "@about_licenses": {
+    "description": "About screen: opens the list of licenses of the libraries the app uses."
+  },
+  "about_privacy_policy": "Privacy policy",
+  "@about_privacy_policy": {
+    "description": "About screen: link to the privacy policy website."
+  },
+  "about_report_bug": "Report a bug",
+  "@about_report_bug": {
+    "description": "About screen: opens the app bug report form on GitHub."
+  },
+  "about_version": "Version {version}",
+  "@about_version": {
+    "description": "About screen: the installed app version below the logo. {version} is e.g. '0.1.0 (10)', the number in brackets being the build.",
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "appearance": "Appearance",
+  "account": "Account",
+  "account_delete_confirm": "Zure kontua ezabatzera zoaz. Zure ibilbide guztiak ere ezabatu egingo dira. Jarraitu nahi duzu?",
+  "account_privacy": "Kontuaren pribatutasuna",
+  "add_bio": "Gehitu bio",
+  "add_waypoint": "Gehitu bidepuntua",
+  "after": "Ondoren",
+  "@after": {
+    "description": "Used two ways. (1) Label above the date picker that filters for trails dated after the chosen day. (2) Prefixed to a distance on the waypoint sheet as 'After 2.4 km', meaning how far along the trail the waypoint sits. Pick wording that works for both a date and a distance."
+  },
+  "all": "All",
+  "@all": {
+    "description": "Filter chip in global search meaning 'all result categories' (trails, lists, places and users together), as opposed to one specific category."
+  },
+  "altitude": "Altuera",
+  "author": "Egilea",
+  "@author": {
+    "description": "Noun. Heading and input placeholder for the filter that narrows trails to a specific author's username."
+  },
+  "average_speed": "Batazbesteko abiadura",
+  "background_location_body": "wanderer collects location data in the background so your trail keeps recording when the screen is off or the app is closed. Your recorded track stays on your device until you choose to save the trail.\n\nAndroid only offers this in system settings: open Permissions → Location and choose \"Allow all the time\".",
+  "background_location_confirm": "Open settings",
+  "background_location_title": "Keep recording in the background",
+  "basic_info": "Oinarrizko informazioa",
+  "before": "Aurretik",
+  "@before": {
+    "description": "Label above the date picker that filters for trails dated before the chosen day. Pairs with the 'after' string."
+  },
+  "by": "-",
+  "@by": {
+    "description": "Byline preposition, rendered lowercase and immediately followed by a username: 'by alice'. Appears on trail cards, list cards and summit log entries. Not the standalone word 'by' in any other sense."
+  },
+  "cancel": "Utzi",
+  "discard": "Discard",
+  "discard_trail_confirm": "Discard this trail and its changes?",
+  "card": "{n, plural, =1 {txartel} other {txartel}}",
+  "@card": {
+    "placeholders": {
+      "n": {
+        "type": "num",
+        "description": "The number of cards to pluralize the label for"
+      }
+    }
+  },
+  "categories": "Kategoriak",
+  "category": "Kategoria",
+  "change_email": "Aldatu eposta",
+  "change_password": "Aldatu pasahitza",
+  "clear_all": "Garbitu dena",
+  "close": "Itxi",
+  "comment": "{n, plural, =1 {iruzkin} other {iruzkin}}",
+  "@comment": {
+    "placeholders": {
+      "n": {
+        "type": "num",
+        "description": "The number of comments to pluralize the label for"
+      }
+    }
+  },
+  "completed": "Osatuta",
+  "completion_status": "Betetze-egoera",
+  "confirm_deletion": "Baieztatu ezabapena",
+  "couldnt_start_navigation": "Couldn't start navigation. Check your connection and try again.",
+  "location_services_disabled": "Location services are disabled. Please enable GPS to use navigation.",
+  "location_permission_denied": "Location permission is required for navigation.",
+  "location_permission_permanently_denied": "Location permission is permanently denied. Please enable it in Settings.",
+  "location_unavailable": "Unable to determine your location. Please try again.",
+  "copy_link": "Kopiatu Lotura",
+  "create_waypoint": "Sortu bidepuntua",
+  "creation_date": "Sorrera-data",
+  "current_password": "Oraingo pasahitza",
+  "danger_zone": "Arrisku-eremua",
+  "date": "Data",
+  "@date": {
+    "description": "Noun. Used as a sort option ('sort trails by date'), as the heading of the date-range filter sheet, and as the label of the date field in the trail form. A single neutral noun is needed for all three."
+  },
+  "delete": "Ezabatu",
+  "not_now": "Not now",
+  "open": "Open",
+  "@open": {
+    "description": "Verb. Menu action that opens a downloaded trail from the library. Not the adjective 'open' and not the opposite of 'closed'."
+  },
+  "delete_account": "Ezabako kontua",
+  "delete_trail_confirm": "Ibilbide hau ezabatu nahi duzu? Akzio hau ezin da atzera bota.",
+  "delete_blocked_while_uploading": "This trail is uploading right now. Wait for the upload to finish, then try again.",
+  "delete_unsynced_trail_confirm": "Delete this trail? It hasn't been uploaded yet, so this can't be undone.",
+  "delete_needs_connection": "This trail is already on the server. Connect to the internet to delete it.",
+  "description": "Deskribapena",
+  "difficult": "Zaila",
+  "difficulty": "Zailtasuna",
+  "directions": "Norabideak",
+  "distance": "Distantzia",
+  "download": "Deskargatu",
+  "duration": "Iraupena",
+  "easy": "Erraza",
+  "edit": "Editatu",
+  "edit_needs_connection": "Editing works on the server copy of this trail. Connect to the internet to edit it.",
+  "edit_waypoint": "Editatu bidepuntua",
+  "edited": "editatuta",
+  "@edited": {
+    "description": "Adjective appended in parentheses after a comment's timestamp to mark that the comment was changed after posting: '2 hours ago (edited)'. Rendered lowercase."
+  },
+  "elevation_gain": "Irabazitako altitudea",
+  "elevation_loss": "Galdutako altitudea",
+  "elevation_profile": "Elevation Profile",
+  "email": "Eposta",
+  "email_not_unique": "This email address is already in use.",
+  "email_updated": "Eposta eguneratuta",
+  "error_deleting_trail": "Error deleting trail",
+  "error_reading_file": "Errorea fitxategia irakurtzean",
+  "error_saving_settings": "Error saving settings",
+  "error_saving_trail": "Errorea ibilbidea gordetzean",
+  "error_updating_password": "Errorea pasahitza eguneratzean",
+  "explore": "Arakatu",
+  "exit_navigation": "Exit",
+  "stop_navigation_confirm": "Stop navigation and return to the trail?",
+  "stop_recording": "Stop recording",
+  "stop_recording_confirm": "Stop recording?",
+  "search_this_area": "Search this area",
+  "filter_tags": "Iragazi etiketak",
+  "filter_trails": "Filter trails",
+  "finish": "Amaiera",
+  "@finish": {
+    "description": "Used two ways. (1) Noun: label of the last row in the trail's waypoint timeline, marking the end of the trail. (2) Tooltip on the route planner's confirm action, meaning 'finish planning this route'. Prefer wording that carries both, or the noun sense if it must be one."
+  },
+  "finish_disabled_hint": "Add at least 2 anchors to finish your route.",
+  "follow": "Jarraitu",
+  "followers": "Jarraitzaileak",
+  "following": "Jarraitutakoak",
+  "from_photos": "Argazkietatik",
+  "help": "Laguntza",
+  "hiking": "Mendi-ibilaldia",
+  "home": "Hasiera",
+  "icon": "Ikonoa",
+  "@icon": {
+    "description": "Noun. Label of the icon picker field in the waypoint form — which symbol to show for this waypoint on the map."
+  },
+  "imperial": "Inperiala",
+  "joined": "Sartu da",
+  "language": "Hizkuntza",
+  "latitude": "Latitudea",
+  "like_status": "Atsegin egoera",
+  "liked": "Atseginda",
+  "@liked": {
+    "description": "Adjective. Filter toggle that narrows the list to trails you have liked."
+  },
+  "likes": "Atsegiteak",
+  "list": "{n, plural, =1 {zerrenda} other {zerrenda}}",
+  "@list": {
+    "placeholders": {
+      "n": {
+        "type": "num",
+        "description": "The number of lists to pluralize the label for"
+      }
+    }
+  },
+  "location": "Kokalekua",
+  "locations": "Locations",
+  "center_on_my_location": "Center on my location",
+  "location_tracking_notification_title": "wanderer",
+  "location_tracking_notification_text": "Recording your trail",
+  "location_tracking_notification_text_navigating": "Navigating {trail}",
+  "@location_tracking_notification_text_navigating": {
+    "placeholders": {
+      "trail": {
+        "type": "String"
+      }
+    }
+  },
+  "login": "Hasi saioa",
+  "logout": "Irten",
+  "longitude": "Longitudea",
+  "map": "Mapa",
+  "metric": "Metrikoa",
+  "moderate": "Erdi-bidekoa",
+  "my_account": "Nire kontua",
+  "in_distance": "in {distance}",
+  "@in_distance": {
+    "placeholders": {
+      "distance": {
+        "type": "String"
+      }
+    }
+  },
+  "name": "Izena",
+  "@name": {
+    "description": "Noun. Used as a sort option ('sort by name') and as the label of the trail name field in the trail form."
+  },
+  "navigate": "Navigate",
+  "new_password": "Pasahitz berria",
+  "new_password_success": "Pasahitz berria ezarri da",
+  "new_trail": "Ibilaldi berria",
+  "trail_source_planner": "Open trail planner",
+  "trail_source_planner_description": "Draw a new route on the map, waypoint by waypoint.",
+  "trail_source_record": "Record trail",
+  "trail_source_record_description": "Track your live coordinates and log your journey in real-time.",
+  "trail_source_import": "Import file",
+  "trail_source_import_description": "Upload GPX, KML, KMZ, TCX or FIT files directly from your device storage.",
+  "trail_source_import_error": "Could not import file",
+  "trail_source_offline_import_error": "Only GPX files can be imported offline",
+  "@trail_source_offline_import_error": {
+    "description": "Shown when the user picks a non-GPX file for import while offline. Names the formats that need a connection and points at GPX as the offline-capable alternative."
+  },
+  "no_comments_so_far": "Ez dago iruzkinik",
+  "no_data": "Ez dago daturik",
+  "no_description_for_now": "Ez dago deskribapenik",
+  "no_gps_data_in_image": "Ez dago GPS daturik irudian",
+  "no_preference": "Ez dago lehentasunik",
+  "no_trails_found": "No trails found",
+  "not_completed": "Ez dago osatuta",
+  "notifications": "Jakinarazpenak",
+  "only_me": "Ni bakarrik",
+  "or": "edo",
+  "@or": {
+    "description": "Divider word between the email login form and the OAuth provider buttons on the login screen."
+  },
+  "own_trails_empty_body": "Trails you record or save offline appear here, and upload automatically once you're back online.",
+  "own_trails_empty_title": "Nothing saved yet",
+  "own_trails_offline_banner": "Offline — showing only trails on this device.",
+  "trails_on_device": "Trails (on device)",
+  "@trails_on_device": {
+    "description": "Label of the profile trail count card when the count comes from local storage (unsynced captures plus downloaded trails) because the device is offline."
+  },
+  "pause": "Pause",
+  "password": "Pasahitza",
+  "password_confirm": "Berretsi pasahitza",
+  "passwords_must_match": "Pasahitzek bat etorri behar dute",
+  "photo_copy_failed_toast": "{count, plural, =1 {Trail saved, but 1 photo couldn't be saved.} other {Trail saved, but {count} photos couldn't be saved.}}",
+  "@photo_copy_failed_toast": {
+    "placeholders": {
+      "count": {
+        "type": "num",
+        "description": "The number of photos that failed to copy into app-owned storage while saving a trail"
+      }
+    }
+  },
+  "photos": "Argazkiak eta bideoak",
+  "photos_skipped_no_gps": "{count, plural, =1 {1 photo skipped — no GPS data} other {{count} photos skipped — no GPS data}}",
+  "@photos_skipped_no_gps": {
+    "placeholders": {
+      "count": {
+        "type": "num",
+        "description": "The number of photos skipped because they had no GPS data"
+      }
+    }
+  },
+  "privacy": "Pribatutasuna",
+  "private": "Pribatua",
+  "profile": "Profila",
+  "public": "Publikoa",
+  "reached_end_of_trail": "You've reached the end of the trail.",
+  "register": "Izena eman",
+  "reorder_photos_hint": "Long-press and drag to reorder photos.",
+  "reset": "Berrezarri",
+  "@reset": {
+    "description": "Verb. Button that clears every active filter back to its default. Not 'restart' and not 'reset password'."
+  },
+  "resume": "Resume",
+  "resume_navigation_prompt": "Resume navigation on {trail}?",
+  "@resume_navigation_prompt": {
+    "placeholders": {
+      "trail": {
+        "type": "String"
+      }
+    }
+  },
+  "resume_recording_prompt": "Resume recording?",
+  "route": "{n, plural, =1 {ibilbide} other {ibilbide}}",
+  "@route": {
+    "placeholders": {
+      "n": {
+        "type": "num",
+        "description": "The number of routes to pluralize the label for"
+      }
+    }
+  },
+  "follow_roads": "Follow roads",
+  "follow_roads_description": "Snap the recorded path to the nearest roads and trails.",
+  "recalculate_heights": "Recalculate heights",
+  "recalculate_heights_description": "Replace recorded GPS elevation with more accurate values from the map.",
+  "save": "Gorde",
+  "save_track": "Save track",
+  "search": "Search",
+  "search_for_trails_places": "Bilatu ibilbideak, zerrendak, tokiak",
+  "select_date": "Select date",
+  "settings": "Ezarpenak",
+  "settings_notification_comment_mention": "Norbaitek iruzkin baten aipatu zaitu",
+  "settings_notification_list_share": "Norbaitek zerrenda bat partekatu du zurekin",
+  "settings_notification_new_follower": "Jarraitzaile berri bat duzu",
+  "settings_notification_summit_log_create": "Norbaitek igoeren liburua sortu du zure ibilbidean",
+  "settings_notification_summit_log_mention": "Norbaitek igoeren liburu baten aipatu zaitu",
+  "settings_notification_trail_comment": "Norbaitek iruzkina utzi du zure ibilbide baten",
+  "settings_notification_trail_like": "Somone liked your trail",
+  "settings_notification_trail_mention": "Norbaitek ibilbide baten aipatu zaitu",
+  "settings_notification_trail_share": "Norbaitek ibilbide bat partekatu du zurekin",
+  "settings_privacy_account_private": "Zuk bakarrik ikusi dezakezu zure profila. Ez da bilaketa-emaitzetan agertuko. Beste erabiltzaileek ezin zaitutzte jarraitu edo ibilbiderik zurekin partekatu. Hala ere. ibilbideak edo zerrendak argitaratu ditzakezu.",
+  "settings_privacy_account_public": "Edonork ikusi dezake zure profila. Bilaketa-emaitzetan agertuko zara. Beste erabiltzaileek jarraitu zaitzakete eta ibilbideak zurekin partekatu ditzakete.",
+  "settings_privacy_lists_private": "Zure zerrendak pribatuak dira defektuz. Zuk bakarrik ikusi ditzakezu. Ezarpen hau zerrenda bakoitzean banan-banan aldatu dezakezu.",
+  "settings_privacy_lists_public": "Zure zerrendak publikoak dira defektuz. Edonork ikusi ditzake. Ezarpen hau zerrenda bakoitzean banan-banana aldatu dezakezu.",
+  "settings_privacy_trails_private": "Zure ibilbideak pribatuak dira defektuz. Zuk bakarrik ikusi ditzakezu. Ezarpen hau ibilbide bakoitzean banan-banan aldatu dezakezu.",
+  "settings_privacy_trails_public": "Zure ibilbideak publikoak dira defektuz. Edonork ikusi ditzake. Ezarpen hau ibilbide bakoitzean banan-banana aldatu dezakezu.",
+  "share": "Partekatu",
+  "share_profile": "Partekatu profila",
+  "shared": "Partekatuta",
+  "@shared": {
+    "description": "Adjective. Filter toggle that narrows the list to trails other users have shared with you."
+  },
+  "show_on_map": "Erakutsi mapan",
+  "signout_unsynced_warning": "{count, plural, =1 {You have 1 trail not uploaded yet. Signing out won't delete it — it'll be here when you sign back in — but it won't upload until then.} other {You have {count} trails not uploaded yet. Signing out won't delete them — they'll be here when you sign back in — but they won't upload until then.}}",
+  "@signout_unsynced_warning": {
+    "placeholders": {
+      "count": {
+        "type": "num",
+        "description": "The number of unsynced (not-yet-uploaded) trails owned by the account currently signing out"
+      }
+    }
+  },
+  "slogan": "Zure ibilbideak. Zure datuak. Zure zerbitzaria.",
+  "sort": "Ordenatu",
+  "@sort": {
+    "description": "Button label that opens the sort options for a trail or list collection. Verb or noun, whichever reads better as a short button."
+  },
+  "speed": "Abiadura",
+  "@speed": {
+    "description": "Noun. Label of the current-speed readout on the live navigation screen."
+  },
+  "start": "Hasi",
+  "@start": {
+    "description": "Noun. Label of the first row in the trail's waypoint timeline, marking the trailhead. Not the verb 'to start'."
+  },
+  "subcategories": "Azpikategoriak",
+  "@subcategories": {
+    "description": "Label for the subcategories filter section"
+  },
+  "summit_book": "Igoeren liburua",
+  "sync_discard_draft_confirm": "Delete this recording? It hasn't been uploaded anywhere.",
+  "sync_draft": "Draft",
+  "sync_failed": "Upload failed · Tap to retry",
+  "sync_pending": "Waiting to upload",
+  "sync_section_failed_body": "The upload didn't go through. Try again.",
+  "sync_section_pending_online_body": "Uploads automatically in a moment.",
+  "sync_section_uploading_body": "Sending this trail to your server.",
+  "sync_section_draft_body": "This recording is only on this device.",
+  "sync_section_draft_title": "Not uploaded yet",
+  "sync_section_failed_title": "Upload failed",
+  "sync_section_pending_offline_body": "Uploads when you're back online",
+  "sync_section_retry": "Retry",
+  "sync_section_upload": "Upload",
+  "sync_section_upload_now": "Upload now",
+  "sync_uploading": "Uploading…",
+  "tags": "Etiketak",
+  "theme_dark": "Dark",
+  "theme_light": "Light",
+  "theme_system": "Follow system",
+  "time_in_motion": "Time in Motion",
+  "trail": "{n, plural, =1 {ibilbide} other {ibilbide}}",
+  "@trail": {
+    "placeholders": {
+      "n": {
+        "type": "num",
+        "description": "The number of trails to pluralize the label for"
+      }
+    }
+  },
+  "trail_saved_successfully": "Ibilbidea ondo gorde da",
+  "trail_not_on_this_device": "This trail is no longer on this device.",
+  "trail_uploaded_reopen_to_edit": "This trail finished uploading. Re-open it from your trails to keep editing.",
+  "some_waypoints_failed_to_save": "Trail saved, but some waypoints failed to save",
+  "units": "Unitateak",
+  "users": "Users",
+  "username": "Erabiltzaile-izena",
+  "username_not_unique": "This username is already taken. Please try another.",
+  "visibilty_status": "Ikuspen-egoera",
+  "web": "Web",
+  "@web": {
+    "description": "Noun naming a notification delivery channel: notifications shown in the web app, as opposed to push notifications on the phone. Appears as a toggle label under each notification type."
+  },
+  "waypoints": "{n, plural, =1 {bidepuntu} other {bidepuntu}}",
+  "@waypoints": {
+    "placeholders": {
+      "n": {
+        "type": "num",
+        "description": "The number of waypoints to pluralize the label for"
+      }
+    }
+  },
+  "welcome_to": "Welcome to",
+  "@welcome_to": {
+    "description": "Sentence fragment on the welcome screen, followed by the untranslated product name: 'Welcome to wanderer'. Keep it as a fragment; the brand name is appended in code and must not be included in the translation."
+  },
+  "wrong_username_or_password": "Erabiltzaile izena edo pasahitza okerrak dira",
+  "server_incompatible_title": "Server not supported",
+  "server_incompatible": "This server runs a version of wanderer that the app does not support. Signing in becomes possible once it is updated.",
+  "server_incompatible_version": "Server version: {version}",
+  "@server_incompatible_version": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "server_incompatible_docs": "How to update the server",
+  "you_have_arrived": "You've arrived",
+  "settings_categories_confirm_disable_title": "Hide this category?",
+  "settings_categories_confirm_disable_subcategory_title": "Hide this subcategory?",
+  "settings_categories_confirm_disable_body": "{count} of your trails use this category. They will stay published but this filter will be hidden.",
+  "@settings_categories_confirm_disable_body": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "settings_categories_confirm_view_trails": "View trails",
+  "settings_categories_confirm_disable_confirm": "Disable anyway",
+  "settings_categories_empty_title": "No subcategories",
+  "settings_categories_empty_body": "This category has no subcategories to configure.",
+  "settings_categories_reorder_hint": "Categories control which trail types you see and in what order. Turn one off to hide it as a filter — your trails stay published, they just won't appear under that category. Tap a category to manage its subcategories individually.\n\nTo change the order, press and hold a row, then drag it to a new position. The order you set here is reflected everywhere categories are shown.",
+  "something_went_wrong": "Something went wrong",
+  "technical_details": "Technical Details",
+  "link": "Link",
+  "url": "URL",
+  "open_in_new_tab": "Ireki fitxa berrian",
+  "remove": "Remove",
+  "remove_download_confirm_body": "This removes the downloaded copy from this device. The trail itself is not deleted — you'll need to download it again to use it offline.",
+  "apply": "Apply",
+  "@apply": {
+    "description": "Verb. Confirm button in the rich text editor's link dialog — applies the entered link to the selected text."
+  },
+  "add_at_least_2_anchors_hint": "Add at least 2 anchors to see the elevation profile.",
+  "reverse_direction": "Alderantzikatu norabidea",
+  "delete_all": "Delete all",
+  "auto_routing": "Auto-routing",
+  "auto_routing_hint": "Automatically follow roads and paths between anchors.",
+  "travel_profile": "Travel profile",
+  "no_track_data": "No track data",
+  "available_offline": "Available offline",
+  "no_lists_found": "No lists found",
+  "search_lists": "Search lists…",
+  "search_for_a_location": "Search for a location",
+  "no_results_for_query": "No results for \"{query}\"",
+  "@no_results_for_query": {
+    "placeholders": {
+      "query": {
+        "type": "String",
+        "description": "The search query the user entered, echoed back in the empty-results message"
+      }
+    }
+  },
+  "filter": "Filter",
+  "@filter": {
+    "description": "Button label that opens the filter options for a trail collection. Verb or noun, whichever reads better as a short button."
+  },
+  "no_label_yet": "No {label} yet.",
+  "@no_label_yet": {
+    "placeholders": {
+      "label": {
+        "type": "String",
+        "description": "The already-localized noun describing what's missing, e.g. 'followers' or 'following'"
+      }
+    }
+  },
+  "no_lists_yet": "No lists yet.",
+  "no_bio_yet": "No bio yet.",
+  "show_more": "Show more",
+  "@show_more": {
+    "description": "Button label that expands a truncated profile bio to its full text"
+  },
+  "show_less": "Show less",
+  "@show_less": {
+    "description": "Button label that collapses an expanded profile bio back to its truncated form"
+  },
+  "feed": "Feed",
+  "profile_feed_empty_own": "Ez duzu ekintzarik oraindik.",
+  "@profile_feed_empty_own": {
+    "description": "Shown under the Feed heading on your own profile when it has no activity yet. A New Trail button follows it."
+  },
+  "profile_feed_empty_other": "{username} erabiltzaileak ez du ekintzarik oraindik.",
+  "@profile_feed_empty_other": {
+    "description": "Shown under the Feed heading on another user profile when it has no activity yet.",
+    "placeholders": {
+      "username": {
+        "type": "String",
+        "description": "Preferred username of the profile being viewed, for example alice"
+      }
+    }
+  },
+  "no_trails_yet": "No trails yet.",
+  "library_empty_title": "No downloaded trails",
+  "library_empty_body": "Trails you download are kept here so you can open them offline.",
+  "library_empty_search_body": "Try a different search term or clear your filters.",
+  "search_location": "Search location",
+  "no_servers_match_query": "No servers match \"{query}\"",
+  "@no_servers_match_query": {
+    "placeholders": {
+      "query": {
+        "type": "String",
+        "description": "The search query the user entered, echoed back when no server instances match"
+      }
+    }
+  },
+  "use_custom_url_instead": "Use custom URL instead",
+  "select_instance": "Select Instance",
+  "enter_server_url_hint": "Enter server URL (e.g. wanderer.to)",
+  "last_used": "Last used",
+  "community_instances": "Community instances",
+  "search_library": "Search library…",
+  "language_and_units": "{language} & {units}",
+  "@language_and_units": {
+    "placeholders": {
+      "language": {
+        "type": "String",
+        "description": "The already-localized name of the selected display language"
+      },
+      "units": {
+        "type": "String",
+        "description": "The already-localized name of the selected measurement units (e.g. metric or imperial)"
+      }
+    }
+  },
+  "edit_route": "Editatu ibilbidea",
+  "undo": "Undo",
+  "redo": "Redo",
+  "bold": "Bold",
+  "italic": "Italic",
+  "underline": "Underline",
+  "bullet_list": "Bullet list",
+  "ordered_list": "Ordered list",
+  "blockquote": "Blockquote",
+  "library": "Library",
+  "settings_offline_regions_title": "Offline Maps/Regions",
+  "regions_search_hint": "Search regions",
+  "regions_dem_toggle_label": "Download elevation data (DEM)",
+  "regions_dem_toggle_caption": "Adds hillshading; increases download size",
+  "regions_update_available": "Update available",
+  "regions_update_action": "Update",
+  "regions_retry": "Retry",
+  "regions_not_yet_available": "Not yet available",
+  "regions_build_failed": "Build failed",
+  "regions_delete_confirm_title": "Delete {name}?",
+  "@regions_delete_confirm_title": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "regions_delete_confirm_body": "This removes the downloaded map and elevation data for this region. You'll need to download it again to use it offline.",
+  "regions_delete_confirm_action": "Delete",
+  "regions_disk_usage_summary": "{size} used across {count} downloaded region(s)",
+  "@regions_disk_usage_summary": {
+    "placeholders": {
+      "size": {
+        "type": "String"
+      },
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "regions_empty_search_title": "No matching regions",
+  "regions_empty_search_body": "Try a different search term.",
+  "regions_empty_catalog_title": "No offline regions available",
+  "regions_empty_catalog_body": "Ask your Wanderer instance administrator to configure downloadable regions.",
+  "regions_vector_tile_title": "Vector",
+  "regions_dem_tile_title": "Elevation data",
+  "regions_download_failed": "Download failed",
+  "regions_dem_locked_subtitle": "Download map data first",
+  "regions_offline_unavailable_title": "Can't load regions",
+  "regions_offline_unavailable_body": "Connect to the internet to browse and manage downloadable regions.",
+  "regions_map_geometry_failed": "Could not load region outline",
+  "regions_map_back_label": "Back to regions",
+  "regions_group_expand_label": "Expand {name}",
+  "@regions_group_expand_label": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "regions_group_collapse_label": "Collapse {name}",
+  "@regions_group_collapse_label": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "offline_title": "You're offline",
+  "@offline_title": {
+    "description": "Title shown by the shared offline takeover state (map, list, profile) when the backend is unreachable."
+  },
+  "offline_try_again": "Try again",
+  "@offline_try_again": {
+    "description": "Retry button label on the shared offline takeover state."
+  },
+  "offline_map_body": "Connect to the internet to load the map. Downloaded trails are still available.",
+  "@offline_map_body": {
+    "description": "Body copy for the map screen's offline takeover."
+  },
+  "offline_list_body": "Connect to the internet to load lists.",
+  "@offline_list_body": {
+    "description": "Body copy for the list screen's offline takeover."
+  },
+  "offline_profile_body": "Connect to the internet to load your full profile.",
+  "@offline_profile_body": {
+    "description": "Body copy for the profile screen's offline takeover of network-only sections."
+  },
+  "offline_settings_banner": "You're offline. Settings are read-only until you reconnect.",
+  "offline_action_unavailable": "You're offline — try again once you're back online.",
+  "offline_categories_body": "Connect to the internet to manage categories.",
+  "@offline_categories_body": {
+    "description": "Body copy for the categories and subcategories settings screens' offline state."
+  },
+  "offline_trail_search_body": "Connect to the internet to search for trails. Downloaded trails are still available.",
+  "@offline_trail_search_body": {
+    "description": "Body copy shown inside the map screen's draggable trail-results sheet when offline."
+  },
+  "selected_location": "Selected location",
+  "distance_from_your_location": "{distance} from your location",
+  "plan_route_from_here": "Plan route from here"
+}
