@@ -59,6 +59,8 @@ For UI changes, please include screenshots when helpful.
 
 Contributions to the platform itself are welcome — the SDK (`plugins/sdk/`), the host interface and sync/import runtime, the manifest schema, the bundled first-party plugins under `plugins/`, and the plugin author docs. If the platform is missing something your plugin needs, please open an issue or start a discussion; extending the SDK or host interface is exactly the kind of contribution we're looking for.
 
+The bundled plugins build against `plugins/sdk/` from the same checkout; external plugins use the SDK version tagged with each release that changes it. `make plugins-sdk-api` compares the committed SDK with its last version and shows the version the next release will tag. Pull requests that change the SDK run the same comparison as a check and flag incompatible changes.
+
 New third-party provider plugins, however, are best kept in your own repository. Plugins build into self-contained WASM bundles that install into `data/plugins` at runtime, so you can develop, version, and release them independently, without opening a pull request against this repository.
 
 ## Bug fixes and reproduction steps
