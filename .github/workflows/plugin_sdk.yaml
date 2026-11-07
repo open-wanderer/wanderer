@@ -1,0 +1,40 @@
+name: Plugin SDK
+
+on:
+  pull_request:
+    paths:
+      - 'plugins/sdk/**'
+      - '.github/workflows/plugin_sdk.yaml'
+      - 'Makefile'
+
+jobs:
+  # Reports the SDK API changes since the last SDK version. Incompatible changes
+  # are allowed while the SDK is v0, but break plugins outside this repository
+  # when they update the SDK, so they are flagged. Errors fail the check because
+  # they would also stop the next release from tagging the SDK.
+  api-report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.26'
+          cache-dependency-path: plugins/sdk/go.sum
+
+      - name: Compare with the last SDK version
+        run: |
+          git fetch --quiet --depth=1 origin 'refs/tags/plugins/sdk/*:refs/tags/plugins/sdk/*'
+          BASE=$(git tag -l 'plugins/sdk/v*' --sort=-v:refname | head -n1)
+
+          REPORT=$(make -s plugins-sdk-api) || STATUS=$?
+          echo "$REPORT"
+          printf '### Plugin SDK compared with `%s`\n\n```\n%s\n```\n' "$BASE" "$REPORT" >> "$GITHUB_STEP_SUMMARY"
+          if grep -q '^## incompatible changes' <<< "$REPORT"; then
+            echo "::warning title=Plugin SDK::Incompatible API changes since $BASE. Plugins outside this repository break when they update the SDK."
+          fi
+          if [ -n "${STATUS:-}" ]; then
+            echo "::error title=Plugin SDK::gorelease reported errors. The next release could not tag the SDK."
+            exit 1
+          fi
