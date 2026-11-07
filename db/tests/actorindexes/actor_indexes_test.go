@@ -36,6 +36,7 @@ var upgradeMigrations = []string{
 	"1791200200_correlate_trail_bounds_view.go",
 	userLookupIndexMigration,
 	handleLookupIndexMigration,
+	"1791713197_drop_trails_bounding_box.go",
 }
 
 // The delete-recipient queries join activitypub_actors on inbox; without that
