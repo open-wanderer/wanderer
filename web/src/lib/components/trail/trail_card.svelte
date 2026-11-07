@@ -9,6 +9,7 @@
         formatDistance,
         formatElevation,
         formatTimeHHMM,
+        trailDisplayDuration,
     } from "#lib/util/format_util.ts";
     import {
         displayCategoryName,
@@ -228,7 +229,7 @@
             >
             <span
                 ><i class="fa fa-clock mr-2"></i>{formatTimeHHMM(
-                    trail.duration,
+                    trailDisplayDuration(trail),
                 )}</span
             >
             <span

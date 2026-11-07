@@ -18,6 +18,12 @@ const TrailCreateSchema = z.object({
     elevation_gain: z.coerce.number().nonnegative().optional(),
     elevation_loss: z.coerce.number().nonnegative().optional(),
     duration: z.coerce.number().nonnegative().optional(),
+    // Three OpenAPI response schemas advertise `moving_duration` and the
+    // `Trail` model carries it, but a Zod object strips unknown keys by default -
+    // so a client following the published contract and POSTing/PATCHing
+    // `moving_duration` through the JSON API had it silently discarded. Only the
+    // multipart `/trail/form` route worked, because it bypasses Zod entirely.
+    moving_duration: z.coerce.number().nonnegative().optional(),
     photos: z.array(z.string()).default([]),
     thumbnail: z.number().int().nonnegative().optional(),
     like_count: z.number().int().min(0).optional().default(0),
@@ -44,6 +50,12 @@ const TrailUpdateSchema = z.object({
     elevation_gain: z.coerce.number().nonnegative().optional(),
     elevation_loss: z.coerce.number().nonnegative().optional(),
     duration: z.coerce.number().nonnegative().optional(),
+    // Three OpenAPI response schemas advertise `moving_duration` and the
+    // `Trail` model carries it, but a Zod object strips unknown keys by default -
+    // so a client following the published contract and POSTing/PATCHing
+    // `moving_duration` through the JSON API had it silently discarded. Only the
+    // multipart `/trail/form` route worked, because it bypasses Zod entirely.
+    moving_duration: z.coerce.number().nonnegative().optional(),
     photos: z.array(z.string()).optional(),
     "photos-": z.string().optional(),
     "photos+": z.string().optional(),

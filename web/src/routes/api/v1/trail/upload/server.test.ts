@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const external = vi.hoisted(() => ({
     fromFile: vi.fn(), gpx2trail: vi.fn(), searchLocationReverse: vi.fn(), trails_create: vi.fn(),
 }));
-vi.mock("#lib/util/gpx_util.ts", () => ({ fromFile: external.fromFile, gpx2trail: external.gpx2trail }));
+vi.mock("#lib/util/gpx_util.ts", () => ({ fromUpload: external.fromFile, gpx2trail: external.gpx2trail }));
 vi.mock("#lib/stores/search_store.ts", () => ({ searchLocationReverse: external.searchLocationReverse }));
 vi.mock("#lib/stores/trail_store.ts", () => ({ trails_create: external.trails_create }));
 
@@ -31,11 +31,24 @@ function request(hits: unknown[] = [], options: { force?: boolean; authenticated
     return { event, search, index };
 }
 
+describe("upload of a file without positions", () => {
+    it("answers 400 and creates no trail", async () => {
+        vi.resetAllMocks();
+        external.fromFile.mockResolvedValue({ gpxData: "<gpx/>", gpxFile: new Blob(["<gpx/>"]) });
+        external.gpx2trail.mockResolvedValue({ trail: { ...trail }, gpx: { hasPositions: () => false } });
+
+        const response = await PUT(request().event);
+
+        expect(response.status).toBe(400);
+        expect(external.trails_create).not.toHaveBeenCalled();
+    });
+});
+
 describe("targeted upload duplicate detection", () => {
     beforeEach(() => {
         vi.resetAllMocks();
         external.fromFile.mockResolvedValue({ gpxData: "<gpx/>", gpxFile: new Blob(["<gpx/>"]) });
-        external.gpx2trail.mockResolvedValue({ trail: { ...trail } });
+        external.gpx2trail.mockResolvedValue({ trail: { ...trail }, gpx: { hasPositions: () => true } });
         external.searchLocationReverse.mockResolvedValue("Test location");
         external.trails_create.mockResolvedValue({ id: "created" });
     });
@@ -72,7 +85,7 @@ describe("targeted upload duplicate detection", () => {
     });
 
     it.each([{ lat: 0, lon: 8 }, { lat: 47, lon: 0 }])("keeps zero coordinates for %j", async (coordinates) => {
-        external.gpx2trail.mockResolvedValue({ trail: { ...trail, ...coordinates } });
+        external.gpx2trail.mockResolvedValue({ trail: { ...trail, ...coordinates }, gpx: { hasPositions: () => true } });
         const { event, search } = request();
         await PUT(event);
         expect(search).toHaveBeenCalledOnce();
@@ -80,7 +93,7 @@ describe("targeted upload duplicate detection", () => {
     });
 
     it("retains zero defaults for absent track measurements", async () => {
-        external.gpx2trail.mockResolvedValue({ trail: { name: "Missing measurements" } });
+        external.gpx2trail.mockResolvedValue({ trail: { name: "Missing measurements" }, gpx: { hasPositions: () => true } });
         const { event, search } = request();
         await PUT(event);
         expect(search.mock.calls[0][1].filter).toEqual([

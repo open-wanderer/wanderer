@@ -88,18 +88,16 @@ func TestCurrentAdditionalAnonymousReadRules(t *testing.T) {
 		{localFeed, true, false},
 		{apiToken, true, true},
 	}
-	for _, name := range []string{"trails_bounding_box", "trails_filter"} {
-		// These aggregate views exclude actors without local users.
-		if _, err := app.FindRecordById(name, remoteActor.Id); !errors.Is(err, sql.ErrNoRows) {
-			t.Fatalf("%s remote actor row: got %v; want no rows", name, err)
-		}
-		local, err := app.FindRecordById(name, ownerActor.Id)
-		if err != nil {
-			t.Fatal(err)
-		}
-		assertAccess(t, local, nil, false, false)
-		cases = append(cases, ownerAccess{local, false, true})
+	// This aggregate view excludes actors without local users.
+	if _, err := app.FindRecordById("trails_filter", remoteActor.Id); !errors.Is(err, sql.ErrNoRows) {
+		t.Fatalf("trails_filter remote actor row: got %v; want no rows", err)
 	}
+	local, err := app.FindRecordById("trails_filter", ownerActor.Id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertAccess(t, local, nil, false, false)
+	cases = append(cases, ownerAccess{local, false, true})
 
 	for _, test := range cases {
 		t.Run(test.record.Collection().Name, func(t *testing.T) {

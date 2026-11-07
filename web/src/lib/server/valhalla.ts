@@ -1,5 +1,9 @@
-import { resolveBaseUrl } from "#lib/server/url.ts";
+import { resolveBaseUrl, type ExternalServiceUrlKey } from "#lib/server/url.ts";
 
-export function getValhallaBaseUrl(): string {
-    return resolveBaseUrl("VALHALLA_URL");
+function getServiceUrl(key: ExternalServiceUrlKey): string | null {
+    return resolveBaseUrl(key) || null;
+}
+
+export function getValhallaUrl(): string | null {
+    return getServiceUrl("VALHALLA_URL");
 }

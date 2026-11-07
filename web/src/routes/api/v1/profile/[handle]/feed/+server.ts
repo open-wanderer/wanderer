@@ -3,8 +3,12 @@ import { type FeedItem } from '#lib/models/feed.ts';
 import type { Trail } from '#lib/models/trail.ts';
 import { getActorResponseForHandle } from '#lib/util/activitypub_server_util.ts';
 import { Collection, handleError } from '#lib/util/api_util.ts';
+import { DownloadError, fetchExternalJson } from '#lib/util/secure_fetch_util.ts';
 import { error, type RequestEvent } from '@sveltejs/kit';
 import { ClientResponseError, type ListResult } from 'pocketbase';
+
+// A page of feed items, with their expanded trails and lists.
+const MAX_REMOTE_FEED_BYTES = 8 * 1024 * 1024;
 
 /**
  * @swagger
@@ -39,6 +43,8 @@ import { ClientResponseError, type ListResult } from 'pocketbase';
  *         description: Not Found
  *       500:
  *         description: Internal Server Error
+ *       502:
+ *         description: The instance of a federated profile could not be reached safely
  */
 export async function GET(event: RequestEvent) {
     const handle = event.params.handle;
@@ -60,12 +66,11 @@ export async function GET(event: RequestEvent) {
             const origin = new URL(actor.iri).origin
             const feedURL = `${origin}/api/v1/profile/${actor.preferred_username}/feed?` + event.url.searchParams
 
-            const response = await event.fetch(feedURL, { method: 'GET' })
+            const response = await fetchExternalJson(feedURL, { maxBytes: MAX_REMOTE_FEED_BYTES })
             if (!response.ok) {
-                const errorResponse = await response.json()
-                throw new ClientResponseError({ status: response.status, response: errorResponse });
+                throw new ClientResponseError({ status: response.status, response: response.json });
             }
-            feed = await response.json()
+            feed = response.json
 
             feed.items.forEach(f => {
                 if (f.type == "trail") {
@@ -81,6 +86,10 @@ export async function GET(event: RequestEvent) {
 
         return Response.json(feed)
     } catch (e) {
+        if (e instanceof DownloadError) {
+            console.warn(`federated feed for ${handle} failed`, e);
+            return Response.json({ message: "remote_instance_unavailable" }, { status: 502 });
+        }
         console.error(e)
         return handleError(e)
     }

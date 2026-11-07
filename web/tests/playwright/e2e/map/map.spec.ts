@@ -410,7 +410,7 @@ for (const granted of [true, false]) {
         const auth = (await context.cookies()).find(cookie => cookie.name === 'pb_auth')!;
         const userId = JSON.parse(decodeURIComponent(auth.value)).record.id;
         const user = await (await page.request.get(`/api/v1/user/${userId}?expand=settings_via_user`)).json();
-        const settings = user.expand.settings_via_user[0];
+        const settings = user.expand.settings_via_user;
         const endpoint = `/api/v1/settings/${settings.id}`;
         const updated = await page.request.post(endpoint, { data: { mapFocus: 'location', location: null } });
         expect(updated.ok()).toBe(true);

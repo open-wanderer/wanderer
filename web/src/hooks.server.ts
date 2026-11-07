@@ -12,9 +12,15 @@ import type { Actor } from '#lib/models/activitypub/actor.ts'
 import { normalizeLocale } from '#lib/i18n/locales.ts'
 import { handleError } from '#lib/util/api_util.ts'
 import { apiErrorsAsJson, isApiRequest } from '#lib/server/api_errors.ts'
+import { clientAddress, settleOnAbort } from '#lib/server/http.ts'
 import { limitRequestBodies } from '#lib/server/request_body.ts'
 
 const SEARCH_TOKEN_VERSION = 1;
+const SEARCH_TOKEN_TTL_MS = 60 * 60 * 24 * 1000;
+const HEALTH_PATH = "/api/v1/health";
+// Budget for all PocketBase calls the auth hook makes for one request. Without
+// it a hung PocketBase holds the request for undici's 300 s headers timeout.
+const AUTH_BACKEND_TIMEOUT_MS = 10_000;
 
 // adapter-node no longer applies ORIGIN to event.url, which otherwise
 // defaults to https behind a plain-http deployment.
@@ -59,6 +65,21 @@ function isFormContentType(request: Request) {
   );
 }
 
+// No response (network failure or timeout) or a 5xx: the backend said nothing
+// about the request, so nothing can be concluded from it.
+function isBackendFailure(e: unknown) {
+  return e instanceof ClientResponseError && (e.status === 0 || e.status >= 500)
+}
+
+// Answers without calling resolve, so the request is never handled as
+// authenticated and neither queued nor exported cookies reach the client.
+function backendUnavailable(url: URL) {
+  if (isApiRequest(url)) {
+    return Response.json({ message: "backend_unavailable" }, { status: 503 })
+  }
+  throw error(503, "The server is temporarily unavailable")
+}
+
 const auth: Handle = async ({ event, resolve }) => {
   const pb = new PocketBase(PUBLIC_POCKETBASE_URL)
   pb.beforeSend = (url, options) => {
@@ -68,14 +89,26 @@ const auth: Handle = async ({ event, resolve }) => {
     for (const [key, value] of Object.entries(options.headers ?? {})) {
       if (key.toLowerCase() !== 'x-forwarded-for') headers[key] = value
     }
-    try {
-      headers['X-Forwarded-For'] = event.getClientAddress()
-    } catch {
-      // ADDRESS_HEADER is set but this request has none (e.g. a healthcheck).
+    const address = clientAddress(event)
+    if (address) {
+      headers['X-Forwarded-For'] = address
     }
     return { url, options: { ...options, headers } }
   }
   const url = new URL(event.request.url);
+
+  // The health probe reports whether PocketBase is responding, so it must not
+  // depend on the token checks and search-token fetch below: those can wait for
+  // the full timeout or fail with a 500, and clients only treat 503 as offline.
+  if (url.pathname === HEALTH_PATH) {
+    event.locals.pb = pb
+    return resolve(event)
+  }
+
+  // requestKey: null on the calls below is required: the SDK's auto-cancellation
+  // replaces the signal of any request that has a key.
+  const signal = AbortSignal.timeout(AUTH_BACKEND_TIMEOUT_MS);
+  const backendFetch: typeof fetch = (input, init) => settleOnAbort(event.fetch(input, init), signal);
 
   // Handle API token based auth for API requests
   if (event.request.headers.has("Authorization") && url.pathname.startsWith("/api")) {
@@ -88,7 +121,9 @@ const auth: Handle = async ({ event, resolve }) => {
           body: JSON.stringify({
             api_token: apiToken
           }),
-          fetch: event.fetch,
+          fetch: backendFetch,
+          requestKey: null,
+          signal,
         })
         pb.authStore.save(authData.token, authData.record)
       } catch (e) {
@@ -99,6 +134,9 @@ const auth: Handle = async ({ event, resolve }) => {
             status: 401,
             headers: { "WWW-Authenticate": 'Bearer error="invalid_token"' },
           })
+        }
+        if (isBackendFailure(e)) {
+          return backendUnavailable(url)
         }
         throw error(500, "Failed to verify API token " + e)
       }
@@ -116,28 +154,32 @@ const auth: Handle = async ({ event, resolve }) => {
   const currentUserId = pb.authStore.record?.id || 'public';
 
   if (meiliCookie) {
-    const [token, ownerId, version] = meiliCookie.split('|');
+    const [token, ownerId, version, expiresAtMs] = meiliCookie.split('|');
 
-    if (ownerId === currentUserId && Number(version) === SEARCH_TOKEN_VERSION) {
+    if (ownerId === currentUserId && Number(version) === SEARCH_TOKEN_VERSION && Number(expiresAtMs) > Date.now() + 60_000) {
       meilisearchToken = token;
     } else {
-      // Identity mismatch (e.g. just logged in/out) or stale token version
+      // Identity mismatch (e.g. just logged in/out), stale token version, or expired token
       event.cookies.delete('meilisearch_token', { path: '/' });
     }
   }
 
   if (!meilisearchToken) {
     try {
-      const tokenResponse = await pb.send("/search/token", { method: "GET", fetch: event.fetch });
+      const tokenResponse = await pb.send("/search/token", { method: "GET", fetch: backendFetch, requestKey: null, signal });
       meilisearchToken = tokenResponse.token
-      event.cookies.set('meilisearch_token', `${meilisearchToken}|${currentUserId}|${SEARCH_TOKEN_VERSION}`, {
+      const expiresAtMs = Date.now() + SEARCH_TOKEN_TTL_MS;
+      event.cookies.set('meilisearch_token', `${meilisearchToken}|${currentUserId}|${SEARCH_TOKEN_VERSION}|${expiresAtMs}`, {
         path: '/',
         httpOnly: false,
-        maxAge: 60 * 60 * 24,
+        maxAge: SEARCH_TOKEN_TTL_MS / 1000,
         sameSite: 'lax',
         secure: secure
       });
     } catch (e) {
+      if (isBackendFailure(e)) {
+        return backendUnavailable(url)
+      }
       if (url.pathname.startsWith("/api")) {
         return handleError(e)
       }
@@ -161,10 +203,14 @@ const auth: Handle = async ({ event, resolve }) => {
   try {
     // get an up-to-date auth store state by verifying and refreshing the loaded auth model (if any)
     if (pb.authStore.isValid) {
-      await pb.collection('users').authRefresh({ requestKey: null })
+      await pb.collection('users').authRefresh({ requestKey: null, signal })
     }
-  } catch (_) {
-    // clear the auth store on failed refresh
+  } catch (e) {
+    // The cookie is client-supplied and still unverified, so any other outcome
+    // must not continue as authenticated, nor log the user out.
+    if (!(e instanceof ClientResponseError && (e.status === 401 || e.status === 403))) {
+      return backendUnavailable(url)
+    }
     pb.authStore.clear()
     event.cookies.delete('meilisearch_token', { path: '/' });
   }
@@ -173,8 +219,15 @@ const auth: Handle = async ({ event, resolve }) => {
   let actor: Actor | undefined;
 
   if (pb.authStore.record) {
-    settings = await pb.collection('settings').getFirstListItem<Settings>(`user="${pb.authStore.record.id}"`, { requestKey: null })
-    actor = await pb.collection("activitypub_actors").getFirstListItem(`is_local=1&&user='${pb.authStore.record.id}'`)
+    try {
+      settings = await pb.collection('settings').getFirstListItem<Settings>(`user="${pb.authStore.record.id}"`, { requestKey: null, signal })
+      actor = await pb.collection("activitypub_actors").getFirstListItem(`is_local=1&&user='${pb.authStore.record.id}'`, { requestKey: null, signal })
+    } catch (e) {
+      if (isBackendFailure(e)) {
+        return backendUnavailable(url)
+      }
+      throw e
+    }
   }
   const meiliHost = MEILI_URL;
   if (!meiliHost) {
