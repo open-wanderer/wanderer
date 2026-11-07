@@ -51,6 +51,18 @@ plugins-test:
 	cd plugins/komoot && go test ./...
 	cd plugins/strava && go test ./...
 
+# gorelease lives in golang.org/x/exp, which has no releases, so it is pinned.
+GORELEASE := golang.org/x/exp/cmd/gorelease@v0.0.0-20260112195511-716be5621a96
+
+# Compares the committed SDK API with the newest plugins/sdk/v* tag and suggests
+# the next SDK version. Without a local SDK tag, gorelease compares with the
+# newest version on the Go module proxy. Fails on uncommitted changes.
+# The tinygo build tag includes host_http.go and its host-function helpers.
+# Leave GOOS/GOARCH unset: go run would then build gorelease itself for wasm.
+.PHONY: plugins-sdk-api
+plugins-sdk-api:
+	cd plugins/sdk && GOFLAGS=-tags=tinygo go run $(GORELEASE) -base=$$(git tag -l 'plugins/sdk/v*' --sort=-v:refname | head -n1 | sed 's|^plugins/sdk/||')
+
 .PHONY: plugins-build
 plugins-build:
 	cd plugins/hammerhead && XDG_CACHE_HOME=$${XDG_CACHE_HOME:-/tmp/wanderer-tinygo-cache} make build
