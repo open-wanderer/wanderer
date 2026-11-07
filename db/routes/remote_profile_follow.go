@@ -21,6 +21,11 @@ func RemoteProfileFollowsList(e *core.RequestEvent) error {
 	if handle == "" {
 		return e.BadRequestError("Missing required parameter 'handle'", nil)
 	}
+	// Resolving a remote page stores every listed actor, so anonymous
+	// callers (crawlers) would fill activitypub_actors.
+	if e.Auth == nil && federation.IsRemoteHandle(handle) {
+		return e.UnauthorizedError("Unauthorized", nil)
+	}
 
 	followType := e.Request.URL.Query().Get("type")
 	if followType != "following" {
@@ -96,12 +101,18 @@ func RemoteProfileFollowsList(e *core.RequestEvent) error {
 			// so we can respect the context timeout
 			done := make(chan *core.Record, 1)
 			go func() {
+				// Exactly one value reaches done, also after a panic: the
+				// outer goroutine waits on the request context, not on the
+				// timeout, so a skipped send would hold the request open.
+				var found *core.Record
+				defer func() { done <- found }()
+				defer recoverBackgroundSync(e.App, "activitypub_actors", actorIRI)
 				// Pass false to sync to prevent deep recursion/heavy syncing if possible
 				res, err := federation.GetActorByIRI(e.App, timeoutCtx, actorIRI, false)
-				if err == nil {
-					done <- res
-				} else {
-					done <- nil
+				// An unreachable instance keeps its followers listed from the
+				// stored copy, so the list matches the follower count.
+				if err == nil || (errors.Is(err, federation.ErrActorUnreachable) && federation.CachedActorIdentityMatchesOrigin(res)) {
+					found = res
 				}
 			}()
 

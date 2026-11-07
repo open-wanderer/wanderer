@@ -8,9 +8,11 @@ import (
 	"database/sql"
 	"encoding/pem"
 	"fmt"
+	"math"
 	"net/http"
 	"net/url"
 	"os"
+	"pocketbase/services/routeimage"
 	"strconv"
 	"strings"
 	"time"
@@ -70,6 +72,7 @@ func ActorFromUser(app core.App, u *core.Record) (*core.Record, error) {
 	}
 	domain := strings.TrimPrefix(url.Hostname(), "www.")
 
+	record.Set("actor_type", "person")
 	record.Set("username", u.GetString("username"))
 	record.Set("preferred_username", strings.ToLower(u.GetString("username")))
 	record.Set("domain", domain)
@@ -99,6 +102,11 @@ func ActorFromUser(app core.App, u *core.Record) (*core.Record, error) {
 }
 
 func generateKeyPair() (*rsa.PrivateKey, *rsa.PublicKey, error) {
+	return GenerateRSAKeyPair()
+}
+
+// GenerateRSAKeyPair generates a 2048-bit RSA key pair.
+func GenerateRSAKeyPair() (*rsa.PrivateKey, *rsa.PublicKey, error) {
 	priv, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		return nil, nil, err
@@ -232,10 +240,27 @@ func localActorRecord(app core.App, collection, iri string, actor *core.Record) 
 	return nil, fmt.Errorf("local actor does not own %s %q", collection, iri)
 }
 
+// parseTagMeasure reads a number-plus-unit tag such as "12.5m". A missing, too
+// short, non-numeric or non-finite value is reported as absent so the caller
+// skips the tag.
+func parseTagMeasure(content string) (float64, bool) {
+	if len(content) < 2 {
+		return 0, false
+	}
+	value, err := strconv.ParseFloat(content[:len(content)-1], 64)
+	if err != nil || math.IsNaN(value) || math.IsInf(value, 0) {
+		return 0, false
+	}
+	return value, true
+}
+
 func trailFromActivity(activity pub.Activity, app core.App, actor *core.Record) (*core.Record, error) {
 	t, err := pub.ToObject(activity.Object)
 	if err != nil {
 		return nil, err
+	}
+	if t == nil {
+		return nil, fmt.Errorf("activity has no trail object")
 	}
 
 	iri := t.ID.String()
@@ -302,6 +327,14 @@ func trailFromActivity(activity pub.Activity, app core.App, actor *core.Record) 
 		return record, nil
 	}
 
+	// Only a new record needs a location; the existing-record branch above has
+	// already returned. A Wanderer trail always carries a Place, so anything else
+	// is not a trail we can store.
+	place, err := pub.ToPlace(t.Location)
+	if err != nil || place == nil {
+		return nil, fmt.Errorf("trail %q has no Place location", iri)
+	}
+
 	var distance, duration, elevation_gain, elevation_loss float64
 	var diffculty string
 	trailTags := []string{}
@@ -314,7 +347,7 @@ func trailFromActivity(activity pub.Activity, app core.App, actor *core.Record) 
 
 	for _, tag := range tags.Collection() {
 		tagObj, err := pub.ToObject(tag)
-		if err != nil {
+		if err != nil || tagObj == nil {
 			continue
 		}
 
@@ -323,13 +356,21 @@ func trailFromActivity(activity pub.Activity, app core.App, actor *core.Record) 
 		case "difficulty":
 			diffculty = content
 		case "elevation_gain":
-			elevation_gain, err = strconv.ParseFloat(content[:len(content)-1], 64)
+			if value, ok := parseTagMeasure(content); ok {
+				elevation_gain = value
+			}
 		case "elevation_loss":
-			elevation_loss, err = strconv.ParseFloat(content[:len(content)-1], 64)
+			if value, ok := parseTagMeasure(content); ok {
+				elevation_loss = value
+			}
 		case "duration":
-			duration, err = strconv.ParseFloat(content[:len(content)-1], 64)
+			if value, ok := parseTagMeasure(content); ok {
+				duration = value
+			}
 		case "distance":
-			distance, err = strconv.ParseFloat(content[:len(content)-1], 64)
+			if value, ok := parseTagMeasure(content); ok {
+				distance = value
+			}
 		case "tag":
 			existingTag, tagErr := ResolveFederatedTag(app, content)
 			if tagErr != nil || existingTag == nil {
@@ -341,16 +382,13 @@ func trailFromActivity(activity pub.Activity, app core.App, actor *core.Record) 
 			seenTags[existingTag.Id] = struct{}{}
 			trailTags = append(trailTags, existingTag.Id)
 		}
-		if err != nil {
-			continue
-		}
 	}
 
 	record.Set("name", t.Name.First().Value)
 	record.Set("description", t.Content.First().Value)
-	record.Set("location", t.Location.(*pub.Place).Name.First().Value)
-	record.Set("lat", t.Location.(*pub.Place).Latitude)
-	record.Set("lon", t.Location.(*pub.Place).Longitude)
+	record.Set("location", place.Name.First().Value)
+	record.Set("lat", place.Latitude)
+	record.Set("lon", place.Longitude)
 	record.Set("distance", distance)
 	record.Set("elevation_gain", elevation_gain)
 	record.Set("elevation_loss", elevation_loss)
@@ -381,17 +419,21 @@ func trailFromActivity(activity pub.Activity, app core.App, actor *core.Record) 
 		gpxURL := ""
 		for _, a := range attachments.Collection() {
 			attachment, err := pub.ToObject(a)
-			if err != nil {
+			if err != nil || attachment == nil || pub.IsNil(attachment.URL) {
+				continue
+			}
+			link := attachment.URL.GetLink().String()
+			if link == "" {
 				continue
 			}
 			if attachment.Type == pub.DocumentType && attachment.MediaType == "application/xml+gpx" {
-				gpxURL = attachment.URL.GetLink().String()
+				gpxURL = link
 			} else if attachment.Type == pub.ImageType {
 				if len(photoURLs) >= photoLimit {
 					ignoredPhotos++
 					continue
 				}
-				photoURLs = append(photoURLs, attachment.URL.GetLink().String())
+				photoURLs = append(photoURLs, link)
 			}
 		}
 		if ignoredPhotos > 0 {
@@ -452,7 +494,7 @@ func trailCategoryMetadataFromTags(tags *pub.ItemCollection) trailActivityCatego
 	metadata := trailActivityCategoryMetadata{}
 	for _, tag := range tags.Collection() {
 		tagObj, err := pub.ToObject(tag)
-		if err != nil {
+		if err != nil || tagObj == nil {
 			continue
 		}
 
@@ -589,7 +631,7 @@ func ObjectFromTrail(app core.App, trail *core.Record, mentions *pub.ItemCollect
 		tags.Append(hashtag)
 	}
 
-	photos := trail.GetStringSlice("photos")
+	photos := routeimage.WithoutPlaceholder(trail.GetStringSlice("photos"))
 
 	gpx := ""
 	if trail.GetString("gpx") != "" {
@@ -647,6 +689,9 @@ func listFromActivity(activity pub.Activity, app core.App, actor *core.Record) (
 	if err != nil {
 		return nil, err
 	}
+	if l == nil {
+		return nil, fmt.Errorf("activity has no list object")
+	}
 
 	iri := l.ID.String()
 	if !actor.GetBool("is_local") {
@@ -684,15 +729,14 @@ func listFromActivity(activity pub.Activity, app core.App, actor *core.Record) (
 		if record.GetString("author") != actor.Id || RecordHasLocalIdentity(app, record) {
 			return nil, fmt.Errorf("inbound list author does not own the stored object")
 		}
-		if activity.Type != pub.AnnounceType && !record.GetBool("public") {
+		if activity.Type != pub.AnnounceType {
 			record.Set("public", true)
-			if err := app.Save(record); err != nil {
-				return nil, err
-			}
 		}
 		// ensure that it is fully synced to catch trail updates
-
 		record.Set("needs_full_sync", true)
+		if err := app.Save(record); err != nil {
+			return nil, err
+		}
 
 		return record, nil
 	}
@@ -715,11 +759,15 @@ func listFromActivity(activity pub.Activity, app core.App, actor *core.Record) (
 
 		for _, a := range attachments.Collection() {
 			attachment, err := pub.ToObject(a)
-			if err != nil {
+			if err != nil || attachment == nil || pub.IsNil(attachment.URL) {
+				continue
+			}
+			link := attachment.URL.GetLink().String()
+			if link == "" {
 				continue
 			}
 			if attachment.Type == pub.ImageType {
-				avatarURL = attachment.URL.GetLink().String()
+				avatarURL = link
 			}
 		}
 

@@ -1,8 +1,8 @@
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { basename, extname, resolve } from 'node:path';
-import { compile } from 'svelte/compiler';
-import { build } from 'vite';
+import { compile, compileModule } from 'svelte/compiler';
+import { build, transformWithOxc } from 'vite';
 import { expect, type Page } from '@playwright/test';
 
 const root = fileURLToPath(new URL('../../../', import.meta.url));
@@ -50,6 +50,7 @@ export async function buildPaginationFixture(dev: boolean) {
                         return response.json();
                     }
                 `;
+                if (id.endsWith('.svelte.ts')) return compileModule((await transformWithOxc(await readFile(id, 'utf8'), id, { lang: 'ts', target: 'esnext' })).code, { filename: id, generate: 'client', dev }).js.code;
                 if (!id.endsWith('.svelte')) return;
                 let source: string;
                 switch (basename(id)) {

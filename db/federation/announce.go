@@ -98,6 +98,10 @@ func CreateAnnounceActivity(app core.App, record *core.Record, typ AnnounceType)
 	activityRecord.Set("object", object)
 	activityRecord.Set("actor", actor)
 	activityRecord.Set("published", time.Now())
+	// A share is addressed to its recipient alone, and its permission tag
+	// says how it was shared. Neither is for the public listing, whether the
+	// trail or list is public or not.
+	activityRecord.Set("hidden", true)
 
 	return app.Save(activityRecord)
 }
@@ -107,6 +111,10 @@ func ProcessAnnounceActivity(app core.App, actor *core.Record, activity pub.Acti
 	origin := os.Getenv("ORIGIN")
 	if origin == "" {
 		return fmt.Errorf("ORIGIN not set")
+	}
+
+	if pub.IsNil(activity.Object) {
+		return fmt.Errorf("activity has no object")
 	}
 
 	object := activity.Object.GetID().String()

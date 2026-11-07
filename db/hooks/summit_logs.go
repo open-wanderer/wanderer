@@ -93,26 +93,35 @@ func UpdateSummitLogHandler() func(e *core.RecordRequestEvent) error {
 // copies. Inside a transaction these hooks are deferred until after it commits,
 // so the record is already gone by the time this runs and an error here cannot
 // roll the deletion back.
+//
+// The Delete goes out before the trail is reindexed, and a failed reindex is
+// only logged: the log is gone either way, and its followers must not miss
+// the Delete because the search index is unreachable.
 func DeleteSummitLogHandler(client meilisearch.ServiceManager) func(e *core.RecordEvent) error {
 	return func(e *core.RecordEvent) error {
+		err := errors.Join(
+			federation.CreateSummitLogDeleteActivity(e.App, e.Record),
+			federation.StripObjectActivities(e.App, e.Record.GetString("iri")),
+		)
+		if err != nil {
+			return err
+		}
+
 		trail, err := e.App.FindRecordById("trails", e.Record.GetString("trail"))
 		switch {
 		case err == nil:
 			if err := util.IndexTrails(e.App, []*core.Record{trail}, client); err != nil {
-				return err
+				e.App.Logger().Warn("trail could not be reindexed after summit log deletion",
+					"trail", trail.Id, "summit_log", e.Record.Id, "error", err)
 			}
 		case errors.Is(err, sql.ErrNoRows):
 			// The trail went first and took this log with it. Nothing is left
-			// to reindex, but the log's own followers still have to be told;
-			// CreateSummitLogDeleteActivity handles the missing trail.
+			// to reindex.
 		default:
-			return err
+			e.App.Logger().Warn("trail of a deleted summit log could not be looked up for reindexing",
+				"summit_log", e.Record.Id, "error", err)
 		}
 
-		err = federation.CreateSummitLogDeleteActivity(e.App, e.Record)
-		if err != nil {
-			return err
-		}
 		return e.Next()
 	}
 }

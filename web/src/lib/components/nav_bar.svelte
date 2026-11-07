@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { afterNavigate, goto } from "$app/navigation";
+    import { goto } from "$app/navigation";
     import { page } from "$app/state";
     import LogoText from "#lib/components/logo/logo_text.svelte";
     import { theme, toggleTheme } from "#lib/stores/theme_store.ts";
@@ -9,6 +9,7 @@
     import { _ } from "svelte-i18n";
     import { backInOut, cubicOut } from "svelte/easing";
     import { Tween } from "svelte/motion";
+    import CreateMenu from "./create_menu.svelte";
     import Drawer from "./base/drawer.svelte";
     import Dropdown from "./base/dropdown.svelte";
     import LogoTextLight from "./logo/logo_text_light.svelte";
@@ -42,11 +43,6 @@
         { text: $_("logout"), value: "logout", icon: "right-from-bracket" },
     ];
 
-    const importDropdownItems = [
-        { text: $_("from-file"), value: "file", icon: "file-import" },
-        { text: $_("from-url"), value: "url", icon: "server" },
-    ];
-
     const indicatorPosition = new Tween(0, {
         duration: 300,
         easing: cubicOut,
@@ -66,40 +62,29 @@
 
     let urlImportModal: UrlImportModal;
 
-    afterNavigate((e) => {
-        const routeId = e.to?.route.id;
-        const navBarLinks = document.getElementById("nav-bar-links");
-        let childPosition = -1;
-        switch (routeId) {
-            case "/":
-                childPosition = 1;
-                break;
-            case "/trails":
-                childPosition = 2;
-                break;
-            case "/map":
-                childPosition = 3;
-                break;
-            case "/lists/[[handle]]/[[id]]":
-                childPosition = 4;
-                break;
-            default:
-                break;
-        }
+    let navBarLinks = $state<HTMLElement>();
+    const activePath = $derived(page.route.id === "/lists/[[handle]]/[[id]]" ? "/lists" : page.url.pathname);
 
-        if (childPosition !== -1) {
-            const childElement = navBarLinks?.children[
-                childPosition
-            ] as HTMLElement;
-            const newWidth = childElement?.getBoundingClientRect().width ?? 0;
-            const newPosition = childElement.offsetLeft;
-            const padding = 16;
-            indicatorScale.set(1);
-            indicatorWidth.set(newWidth + padding);
-            indicatorPosition.set(newPosition - padding / 2);
-        } else {
+    function updateIndicator() {
+        const index = navBarItems.findIndex(item => item.value === activePath);
+        const element = navBarLinks?.children[index + 1] as HTMLElement | undefined;
+        if (index < 0 || !element) {
             indicatorScale.set(0);
+            return;
         }
+        indicatorScale.set(1);
+        indicatorWidth.set(element.getBoundingClientRect().width + 16);
+        indicatorPosition.set(element.offsetLeft - 8);
+    }
+
+    $effect(() => {
+        activePath;
+        navBarLinks;
+        updateIndicator();
+        if (!navBarLinks) return;
+        const observer = new ResizeObserver(updateIndicator);
+        for (const link of navBarLinks.querySelectorAll("a")) observer.observe(link);
+        return () => observer.disconnect();
     });
 
     function handleLogout() {
@@ -120,14 +105,10 @@
         }
     }
 
-    function handleImportDropdownClick(item: { text: string; value: any }) {
-        if (item.value == "file") {
-            goto(`/settings/export`);
-        } else if (item.value == "url") {
-            urlImportModal.openModal();
-        }
-    }
+
 </script>
+
+<svelte:window onresize={updateIndicator} />
 
 <Drawer bind:open={drawerOpen}>
     <div class="flex gap-4 items-center m-4">
@@ -151,9 +132,7 @@
     <hr class="my-6 border-input-border" />
     <div class="flex flex-col basis-full">
         {#if navUser}
-            <a class="btn-primary text-center mx-4" href="/trail/edit/new"
-                ><i class="fa fa-plus mr-2"></i>{$_("new-trail")}</a
-            >
+            <CreateMenu inline onselect={() => drawerOpen = false} onurlimport={() => urlImportModal.openModal()} />
             <div class="basis-full"></div>
             <hr class="border-input-border" />
             <div class="flex gap-4 items-center justify-between m-4">
@@ -198,7 +177,7 @@
 </Drawer>
 
 <nav
-    class="flex justify-between items-center p-6 {page.url.pathname === '/'
+    class="app-navbar flex justify-between items-center p-6 {page.url.pathname === '/'
         ? 'sticky top-0 z-10 bg-background'
         : ''}"
 >
@@ -209,7 +188,7 @@
             <LogoTextLight></LogoTextLight>
         {/if}
     </a>
-    <menu id="nav-bar-links" class="hidden lg:flex gap-8 relative py-1 px-2">
+    <menu bind:this={navBarLinks} id="nav-bar-links" class="hidden lg:flex gap-8 relative py-1 px-2">
         <div
             class="absolute h-full w-16 bg-menu-item-background-hover rounded-xl top-0 z-0"
             style="width: {indicatorWidth.current}px; left: {indicatorPosition.current}px; scale: {indicatorScale.current}"
@@ -227,28 +206,7 @@
                     : 'moon'}"
                 onclick={() => toggleTheme()}
             ></button>
-            <nav data-sveltekit-reload>
-                <div class="flex">
-                    <a
-                        class="btn-primary btn-large !rounded-r-none focus:ring-0"
-                        href="/trail/edit/new"
-                        ><i class="fa fa-plus mr-2"></i>{$_("new-trail")}</a
-                    >
-                    <Dropdown
-                        items={importDropdownItems}
-                        onchange={(item) => handleImportDropdownClick(item)}
-                    >
-                        {#snippet children({ toggleMenu: openDropdown })}
-                            <button
-                                onclick={openDropdown}
-                                class="bg-primary rounded-r-lg text-white min-h-12 hover:bg-primary-hover px-3"
-                                aria-label="Open trail create dropdown"
-                                ><i class="fa fa-caret-down"></i></button
-                            >
-                        {/snippet}
-                    </Dropdown>
-                </div>
-            </nav>
+            <CreateMenu onurlimport={() => urlImportModal.openModal()} />
             {#if page.data.notifications}
                 <NotificationDropdown></NotificationDropdown>
             {/if}

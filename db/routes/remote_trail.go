@@ -12,6 +12,7 @@ import (
 	"os"
 	"path"
 	"pocketbase/federation"
+	"pocketbase/services/routeimage"
 	"pocketbase/util"
 	"regexp"
 	"slices"
@@ -162,6 +163,7 @@ func RemoteTrailGet(e *core.RequestEvent) error {
 					syncRecord := record.Fresh()
 					go func() {
 						defer trailSyncing.Delete(iri)
+						defer recoverBackgroundSync(e.App, "trails", iri)
 						_, err := performFullSync(e.App, bgCtx, &urlCopy, syncRecord)
 						switch {
 						case errors.Is(err, errRemoteGone):
@@ -700,6 +702,7 @@ func syncRecordFiles(ctx context.Context, record *core.Record, collection, remot
 	}
 
 	// Keep saved files and append only remote names that have not been copied.
+	// The origin's placeholder stays behind: this instance renders its own.
 	if photos, ok := data["photos"].([]any); ok {
 		saved := record.GetStringSlice("photos")
 		limit := 1
@@ -708,7 +711,7 @@ func syncRecordFiles(ctx context.Context, record *core.Record, collection, remot
 		}
 		for _, p := range photos {
 			name, ok := p.(string)
-			if !ok || name == "" || strings.ContainsAny(name, "/\\") || remotePhotoAlreadyStored(saved, name) {
+			if !ok || name == "" || strings.ContainsAny(name, "/\\") || routeimage.IsPlaceholder(name) || remotePhotoAlreadyStored(saved, name) {
 				continue
 			}
 			if len(saved) >= limit {

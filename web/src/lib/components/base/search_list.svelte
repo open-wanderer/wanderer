@@ -40,8 +40,12 @@
         <li
             class="menu-item flex items-center px-4 py-3 cursor-pointer hover:bg-menu-item-background-hover focus:bg-menu-item-background-focus transition-colors"
             tabindex="0"
-            onmousedown={(e) => onclick?.(e, item)}
-            onkeydown={(e) => onclick?.(e, item)}
+            onmousedown={(e) => { if (e.button === 0) onclick?.(e, item); }}
+            onkeydown={(e) => {
+                if (e.key !== "Enter" && e.key !== " ") return;
+                e.preventDefault();
+                onclick?.(e, item);
+            }}
         >
             {#if prepend}{@render prepend({ item })}
             {:else if isURL(item.icon)}

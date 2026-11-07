@@ -1,0 +1,149 @@
+import { describe, expect, it, vi } from "vitest";
+import type { TrailFilter } from "#lib/models/trail.ts";
+import { sanitizeTrailFilter } from "#lib/util/trail_filter_util.ts";
+import { trails_search_bounds, trails_search_filter, trails_search_filter_pages, trails_search_map_data } from "./trail_store";
+import { LngLat } from "maplibre-gl";
+
+const filter: TrailFilter = {
+    q: "Bern", category: ["hiking"], subcategory: [], tags: ["alpine"], difficulty: [1],
+    author: "author1", public: true, private: false, shared: false, liked: true,
+    near: { lat: 46, lon: 7, radius: 25_000, name: "Fixed place" },
+    distanceMin: 1_000, distanceMax: 20_000, distanceLimit: 50_000,
+    elevationGainMin: 100, elevationGainMax: 1_000, elevationGainLimit: 2_000,
+    elevationLossMin: 100, elevationLossMax: 1_000, elevationLossLimit: 2_000,
+    sort: "distance", sortOrder: "+",
+};
+
+describe("native trail search", () => {
+    function response(hits: object[] = [], page = 1, totalHits = hits.length, perPage = 48) {
+        return Response.json({ hits, page, hitsPerPage: perPage, totalHits, totalPages: Math.ceil(totalHits / perPage) });
+    }
+
+    it("uses one native request and intersects text with explicit filters and the viewport", async () => {
+        const request = vi.fn(async (_url: RequestInfo | URL, _options?: RequestInit) => response([], 3, 101, 12));
+        const bounds = { northEast: { lat: 49, lng: 11 }, southWest: { lat: 45, lng: 5 } };
+        const result = await trails_search_filter(filter, 3, 12, request, bounds);
+        expect(request).toHaveBeenCalledOnce();
+        expect(request.mock.calls[0][0]).toBe("/api/v1/search/trails");
+        const body = JSON.parse(String(request.mock.calls[0][1]?.body));
+        expect(body.q).toBe("Bern");
+        expect(body.options).toMatchObject({ page: 3, hitsPerPage: 12, sort: ["distance:asc"] });
+        for (const clause of ["category_id IN ['hiking']", "tags = 'alpine'", "_geoRadius(46, 7, 25000)", "max_lat >= 45 AND min_lat <= 49"]) {
+            expect(body.options.filter).toContain(clause);
+        }
+        expect(body).not.toHaveProperty("context");
+        expect(body.options).not.toHaveProperty("facets");
+        expect(body.options.filter).not.toContain("id NOT IN");
+        expect(result).toMatchObject({ items: [], page: 3, totalHits: 101 });
+    });
+
+    it("preserves native relevance and the engine's hit order", async () => {
+        const request = vi.fn(async (_url: RequestInfo | URL, _options?: RequestInit) => response([
+            { id: "z", name: "Best match", _geo: { lat: 47, lng: 8 } },
+            { id: "a", name: "Weaker match", _geo: { lat: 47, lng: 8 } },
+        ]));
+        const result = await trails_search_filter({ ...filter, sort: "relevance" }, 1, 48, request);
+        expect(result.items.map(trail => trail.id)).toEqual(["z", "a"]);
+        expect(JSON.parse(String(request.mock.calls[0][1]?.body)).options).not.toHaveProperty("sort");
+    });
+
+    it.each([
+        { q: "", sortOrder: "+", expected: "created:asc" },
+        { q: "", sortOrder: "-", expected: "created:desc" },
+        { q: "  \t ", sortOrder: "+", expected: "created:asc" },
+        { q: "  \t ", sortOrder: "-", expected: "created:desc" },
+    ] as const)("sorts an empty relevance query by creation date: %j", async ({ q, sortOrder, expected }) => {
+        const request = vi.fn(async (_url: RequestInfo | URL, _options?: RequestInit) => response());
+        const empty = { ...filter, q, sort: "relevance" as const, sortOrder };
+        await trails_search_filter(empty, 1, 48, request);
+        expect(JSON.parse(String(request.mock.calls[0][1]?.body)).options.sort).toEqual([expected]);
+        expect(empty.sort).toBe("relevance");
+    });
+
+    it.each([1000, 1500, 30000])("ends pagination at the reachable 1000 hits even when Meili reports %i", async totalHits => {
+        const request = vi.fn(async (_url: RequestInfo | URL, _options?: RequestInit) => response(
+            Array.from({ length: 40 }, (_, i) => ({ id: String(960 + i), name: "Trail", _geo: { lat: 47, lng: 8 } })), 21, totalHits));
+        const result = await trails_search_filter(filter, 21, 48, request);
+        expect(result).toMatchObject({ page: 21, totalPages: 21, totalHits });
+        expect(result.items).toHaveLength(40);
+        expect(request).toHaveBeenCalledOnce();
+    });
+
+    it("loads the next page directly without revalidating the entire result set", async () => {
+        const request = vi.fn(async (_url: RequestInfo | URL, options?: RequestInit) => {
+            const { page } = JSON.parse(String(options?.body)).options;
+            return response([{ id: `page-${page}`, name: "Trail", _geo: { lat: 47, lng: 8 } }], page, 2, 1);
+        });
+        const first = await trails_search_filter(filter, 1, 1, request);
+        const second = await trails_search_filter(filter, 2, 1, request);
+        expect(first.items[0].id).toBe("page-1");
+        expect(second.items[0].id).toBe("page-2");
+        expect(request).toHaveBeenCalledTimes(2);
+    });
+
+    it.each([2, 30])("refreshes %i loaded pages with one bounded request and restores the page position", async pages => {
+        const count = Math.min(pages * 48, 1000);
+        const request = vi.fn(async (_url: RequestInfo | URL, _options?: RequestInit) => response(
+            Array.from({ length: count - 1 }, (_, i) => ({ id: String(i), name: "Trail", _geo: { lat: 47, lng: 8 } })), 1, 1500, count));
+        const result = await trails_search_filter_pages(filter, pages, 48, request);
+        expect(request).toHaveBeenCalledOnce();
+        expect(JSON.parse(String(request.mock.calls[0][1]?.body)).options.hitsPerPage).toBe(count);
+        expect(result).toMatchObject({ page: Math.ceil((count - 1) / 48), totalPages: 21, hitsPerPage: 48 });
+    });
+
+    it("refreshes markers independently using the same literal text and explicit radius", async () => {
+        const request = vi.fn(async (_url: RequestInfo | URL, _options?: RequestInit) => Response.json({ type: "FeatureCollection", features: [], totalHits: 7 }));
+        const result = await trails_search_map_data(new LngLat(11, 49), new LngLat(5, 45), filter, 8, request);
+        expect(request).toHaveBeenCalledOnce();
+        expect(request.mock.calls[0][0]).toBe("/api/v1/search/trails/cluster");
+        const body = JSON.parse(String(request.mock.calls[0][1]?.body));
+        expect(body.q).toBe("Bern");
+        expect(body.filterText).toContain("_geoRadius(46, 7, 25000)");
+        expect(body).not.toHaveProperty("queryContext");
+        expect(result).toMatchObject({ mapTrails: [] });
+        expect(result).not.toHaveProperty("trails");
+    });
+
+    it("persists explicit place labels when restoring filters", () => {
+        expect(sanitizeTrailFilter(filter, filter).near.name).toBe("Fixed place");
+    });
+});
+
+describe("filtered map extent", () => {
+    it("uses the list query and filters with one zero-hit facet request and reads the returned extent", async () => {
+        const requests: { q: string; options: Record<string, any> }[] = [];
+        const request: typeof fetch = async (_url, options) => {
+            requests.push(JSON.parse(String(options?.body)));
+            return Response.json({ hits: [], totalHits: 1500, totalPages: 32, facetStats: {
+                min_lat: { min: 45, max: 48 }, max_lat: { min: 46, max: 49 },
+                min_lon: { min: 5, max: 9 }, max_lon: { min: 6, max: 11 },
+            } });
+        };
+        await trails_search_filter(filter, 1, 48, request);
+        const bounds = await trails_search_bounds(filter, request);
+        expect(requests[1]).toEqual({ q: filter.q, options: {
+            filter: expect.stringContaining(requests[0].options.filter), limit: 0,
+            facets: ["min_lat", "max_lat", "min_lon", "max_lon"],
+        } });
+        expect(requests[1].options.filter).toContain("NOT (min_lat = 0 AND max_lat = 0 AND min_lon = 0 AND max_lon = 0)");
+        expect(requests).toHaveLength(2);
+        expect(bounds?.northEast.lat).toBeCloseTo(49.4);
+        expect(bounds?.southWest.lat).toBeCloseTo(44.6);
+        expect(bounds?.northEast.lng).toBeCloseTo(11.6);
+        expect(bounds?.southWest.lng).toBeCloseTo(4.4);
+    });
+
+    it("leaves room around a point without a track", async () => {
+        const request: typeof fetch = async () => Response.json({ facetStats: {
+            min_lat: { min: 46 }, max_lat: { max: 46 }, min_lon: { min: 7 }, max_lon: { max: 7 },
+        } });
+        const bounds = await trails_search_bounds(filter, request);
+        expect(bounds!.northEast.lat - bounds!.southWest.lat).toBeCloseTo(.01);
+        expect(bounds!.northEast.lng - bounds!.southWest.lng).toBeCloseTo(.01);
+    });
+
+    it("returns no extent for an empty result and propagates request failures", async () => {
+        expect(await trails_search_bounds(filter, async () => Response.json({ hits: [], facetStats: {} }))).toBeUndefined();
+        await expect(trails_search_bounds(filter, async () => Response.json({ message: 'Unavailable' }, { status: 503 }))).rejects.toThrow('Unavailable');
+    });
+});

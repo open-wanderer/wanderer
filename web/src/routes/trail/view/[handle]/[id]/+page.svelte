@@ -25,9 +25,12 @@
                 ],
                 tags: [...new Set(data.trail.expand?.tags?.map((t) => t.name) ?? [])],
             },
-            images: data.trail.photos.map((p) => ({
-                url: page.url.origin + getFileURL(data.trail, p),
-            })),
+            images: data.trail.photos
+                // Link previews can't show SVG, like the generated route image.
+                .filter((p) => !p.endsWith(".svg"))
+                .map((p) => ({
+                    url: page.url.origin + getFileURL(data.trail, p),
+                })),
         }}
     ></MetaTags>
     <TrailInfoPanel

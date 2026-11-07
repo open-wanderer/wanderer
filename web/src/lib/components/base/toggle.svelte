@@ -4,6 +4,7 @@
         icon?: string;
         value?: boolean;
         label?: string;
+        ariaLabel?: string;
         error?: string;
         disabled?: boolean;
         onchange?: (value: boolean) => void;
@@ -14,6 +15,7 @@
         icon = "",
         value = $bindable(false),
         label = "",
+        ariaLabel,
         error = "",
         disabled = false,
         onchange,
@@ -31,6 +33,7 @@
     >
         <input
             {name}
+            aria-label={ariaLabel}
             bind:checked={value}
             type="checkbox"
             class="sr-only peer"

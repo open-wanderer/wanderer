@@ -105,13 +105,16 @@ func fetchCanonicalRemoteSummitLogs(app core.App, ctx context.Context, trailData
 				if fetchCtx.Err() != nil || canonicalRemoteBodyBudgetExhausted(fetchCtx) {
 					return
 				}
-				value, accepted := fetchCanonicalRemoteSummitLog(app, fetchCtx, &client, trail, job)
-				if !accepted {
-					continue
-				}
-				resultLock.Lock()
-				result[job.iri] = value
-				resultLock.Unlock()
+				func() {
+					defer recoverBackgroundSyncJob(app, "summit_logs", job.iri, func() { canonicalRemoteLogCache.failure(job.cacheKey, job.updated) })
+					value, accepted := fetchCanonicalRemoteSummitLog(app, fetchCtx, &client, trail, job)
+					if !accepted {
+						return
+					}
+					resultLock.Lock()
+					result[job.iri] = value
+					resultLock.Unlock()
+				}()
 			}
 		}()
 	}

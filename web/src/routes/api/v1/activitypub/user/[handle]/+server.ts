@@ -46,13 +46,13 @@ export async function GET(event: RequestEvent) {
 
         const [username, domain] = splitUsername(fullUsername, ORIGIN)
 
-        const actor: Actor = await event.locals.pb.collection("activitypub_actors").getFirstListItem(`preferred_username:lower='${username?.toLowerCase()}'&&is_local=1`)
+        const actor: Actor = await event.locals.pb.collection("activitypub_actors").getFirstListItem(event.locals.pb.filter("preferred_username:lower={:username} && is_local=true && actor_type!='instance'", { username: username?.toLowerCase() ?? "" }))
         const user: UserAnonymous = await event.locals.pb.collection("users_anonymous").getOne(actor.user!)
 
 
         const id = `${ORIGIN}/api/v1/activitypub/user/${username}`
 
-        const r: APRoot<APActor & { publicKey: { id: string, owner: string, publicKeyPem: string } }> = {
+        const r: APRoot<APActor & { manuallyApprovesFollowers: boolean, publicKey: { id: string, owner: string, publicKeyPem: string } }> = {
             "@context": [
                 "https://www.w3.org/ns/activitystreams",
                 "https://w3id.org/security/v1",
@@ -66,6 +66,7 @@ export async function GET(event: RequestEvent) {
             preferredUsername: actor.preferred_username,
             followers: id + '/followers',
             following: id + '/following',
+            manuallyApprovesFollowers: false,
             url: `${ORIGIN}/profile/@${username}`,
             published: new Date(user.created ?? "").toISOString(),
             icon: {

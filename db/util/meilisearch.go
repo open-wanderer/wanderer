@@ -25,7 +25,7 @@ var SearchWriteOptions = &meilisearch.DocumentOptions{PrimaryKey: meilisearch.St
 var SearchDocumentVersions = map[string]int{
 	"trails": 2,
 	"lists":  2,
-	"actors": 1,
+	"actors": 2,
 }
 
 func documentFromTrailRecord(r *core.Record, author *core.Record, includeShares bool) (map[string]interface{}, error) {

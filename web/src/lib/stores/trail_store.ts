@@ -7,6 +7,8 @@ import { APIError } from "#lib/util/api_util.ts";
 import { deepEqual } from "#lib/util/deep_util.ts";
 import { getFileURL, objectToFormData } from "#lib/util/file_util.ts";
 import { noSubcategoryFilterCategory, trailFilterDateBoundary } from "#lib/util/trail_filter_util.ts";
+import { TRAIL_SEARCH_LIMIT } from "#lib/config/search.ts";
+import { buildTrailSearchBoundsFilter, type TrailSearchBounds } from "#lib/util/trail_search_util.ts";
 import * as M from "maplibre-gl";
 import type { Hits } from "meilisearch";
 import { type AuthRecord, type ListResult, type RecordModel } from "pocketbase";
@@ -33,7 +35,6 @@ export async function trails_index(perPage: number = 21, random: boolean = false
         throw new APIError(r.status, response.message, response.detail)
     }
 
-    trails = response.items
     return response.items;
 
 }
@@ -55,46 +56,109 @@ export async function trails_recommend(size: number, f: (url: RequestInfo | URL,
 
 }
 
-export async function trails_search_filter(filter: TrailFilter, page: number = 1, perPage: number, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch) {
-    const user = get(currentUser)
+type TrailSearchResponse = {
+    page: number;
+    hitsPerPage: number;
+    totalPages: number;
+    totalHits: number;
+    hits: Hits<TrailSearchResult>;
+};
 
-    let filterText: string = buildFilterText(user, filter, true);
+async function searchTrailResults(
+    filter: TrailFilter,
+    page: number,
+    perPage: number,
+    f: typeof fetch,
+    bounds?: TrailSearchBounds,
+): Promise<TrailSearchResponse> {
+    let filterText = buildFilterText(get(currentUser), filter, true);
+    if (bounds) {
+        filterText += ` AND (${buildTrailSearchBoundsFilter(bounds)})`;
+    }
 
-
-    let r = await f("/api/v1/search/trails", {
+    const sort = filter.sort === "relevance" && !filter.q.trim() ? "created" : filter.sort;
+    const response = await f("/api/v1/search/trails", {
         method: "POST",
         body: JSON.stringify({
             q: filter.q,
             options: {
                 filter: filterText,
                 attributesToRetrieve: defaultTrailSearchAttributes,
-                sort: [`${filter.sort}:${filter.sortOrder == "+" ? "asc" : "desc"}`],
+                ...(sort !== "relevance" ? {
+                    sort: [`${sort}:${filter.sortOrder === "+" ? "asc" : "desc"}`],
+                } : {}),
                 hitsPerPage: perPage,
-                page: page
-            }
+                page,
+            },
         }),
     });
 
-    if (!r.ok) {
-        const response = await r.json();
-        throw new APIError(r.status, response.message, response.detail)
+    if (!response.ok) {
+        const cause = await response.json();
+        throw new APIError(response.status, cause.message, cause.detail);
     }
+    const result: TrailSearchResponse = await response.json();
+    return {
+        ...result,
+        totalPages: Math.min(result.totalPages, Math.ceil(TRAIL_SEARCH_LIMIT / perPage)),
+    };
+}
 
-    const result: { page: number, totalPages: number, hits: Hits<TrailSearchResult> } = await r.json();
+export async function trails_search_filter(
+    filter: TrailFilter,
+    page = 1,
+    perPage: number,
+    f: typeof fetch = fetch,
+    bounds?: TrailSearchBounds,
+) {
+    const result = await searchTrailResults(filter, page, perPage, f, bounds);
+    return { ...result, items: await searchResultToTrailList(result.hits) };
+}
 
-    if (result.hits.length == 0) {
-        return { items: [], ...result };
+/** Refresh the loaded prefix after a bulk action without losing its page position. */
+export async function trails_search_filter_pages(filter: TrailFilter, pages: number, perPage = 48, f: typeof fetch = fetch) {
+    const result = await trails_search_filter(filter, 1, Math.min(TRAIL_SEARCH_LIMIT, Math.max(1, pages) * perPage), f);
+    return { ...result, hitsPerPage: perPage,
+        page: Math.max(1, Math.ceil(result.items.length / perPage)),
+        totalPages: Math.ceil(Math.min(result.totalHits, TRAIL_SEARCH_LIMIT) / perPage) };
+}
+
+/** Find the extent of every matching trail, independently of pagination. */
+export async function trails_search_bounds(filter: TrailFilter, f: typeof fetch = fetch): Promise<TrailSearchBounds | undefined> {
+    const response = await f("/api/v1/search/trails", {
+        method: "POST",
+        body: JSON.stringify({
+            q: filter.q,
+            options: {
+                filter: `(${buildFilterText(get(currentUser), filter, true)}) AND NOT (min_lat = 0 AND max_lat = 0 AND min_lon = 0 AND max_lon = 0)`,
+                limit: 0,
+                facets: ["min_lat", "max_lat", "min_lon", "max_lon"],
+            },
+        }),
+    });
+    if (!response.ok) {
+        const cause = await response.json();
+        throw new APIError(response.status, cause.message, cause.detail ?? cause.data);
     }
-
-    const resultTrails: Trail[] = await searchResultToTrailList(result.hits)
-
-    return { items: resultTrails, ...result };
-
+    const { facetStats } = await response.json();
+    const south = facetStats?.min_lat?.min;
+    const north = facetStats?.max_lat?.max;
+    const west = facetStats?.min_lon?.min;
+    const east = facetStats?.max_lon?.max;
+    if (![south, north, west, east].every(Number.isFinite)) return;
+    const latitude = (north + south) / 2;
+    const longitude = (east + west) / 2;
+    // Add ten percent on each side and leave room around trails without tracks.
+    const halfHeight = Math.max(.005, (north - south) * .6);
+    const halfWidth = Math.max(.005, (east - west) * .6);
+    return {
+        northEast: { lat: Math.min(90, latitude + halfHeight), lng: Math.min(180, longitude + halfWidth) },
+        southWest: { lat: Math.max(-90, latitude - halfHeight), lng: Math.max(-180, longitude - halfWidth) },
+    };
 }
 
 const DETAILED_CACHE_MAX_SIZE = Math.max(200, MAP_MAX_POLYLINES * 10);
 
-let trails: Trail[] = []
 const detailedCache = new Map<string, Trail>();
 let detailedCacheKey = "";
 
@@ -127,30 +191,22 @@ export const trail: Writable<Trail> = writable(new Trail(""));
 
 export const editTrail: Writable<Trail> = writable(new Trail(""));
 
-export async function trails_search_bounding_box(
+/** Fetch markers and polylines independently of the already loaded result list. */
+export async function trails_search_map_data(
     northEast: M.LngLat,
     southWest: M.LngLat,
     filter: TrailFilter,
-    page: number = 1,
     zoom: number = 11,
-    perPage: number = 50,
-    loadMapData: boolean = true
+    f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch,
 ) {
     const user = get(currentUser)
 
     let filterText: string = "";
 
     if (filter) {
-        filterText = buildFilterText(user, filter, false);
+        filterText = buildFilterText(user, filter, true);
     }
 
-    let lonFilter = `max_lon >= ${southWest.lng} AND min_lon <= ${northEast.lng}`;
-    if (southWest.lng > northEast.lng) {
-        lonFilter = `(max_lon >= ${southWest.lng} OR min_lon <= ${northEast.lng})`;
-    }
-
-    const geoFilter = `max_lat >= ${southWest.lat} AND min_lat <= ${northEast.lat} AND ${lonFilter}`;
-    const listFilter = [filterText, geoFilter].filter(Boolean).join(" AND ");
     const cacheKey = JSON.stringify({
         q: filter.q,
         filterText,
@@ -162,53 +218,15 @@ export async function trails_search_bounding_box(
         detailedCacheKey = cacheKey;
     }
 
-    // Step 1: Fetch paginated trails for the side list.
-    const listResponse = await fetch("/api/v1/search/trails", {
-        method: "POST",
-        body: JSON.stringify({
-            q: filter.q,
-            options: {
-                filter: listFilter,
-                attributesToRetrieve: defaultTrailSearchAttributes,
-                sort: [`${filter.sort}:${filter.sortOrder == "+" ? "asc" : "desc"}`],
-                hitsPerPage: perPage,
-                page,
-            },
-        }),
-    });
-
-    if (!listResponse.ok) {
-        const response = await listResponse.json();
-        throw new APIError(listResponse.status, response.message, response.detail)
-    }
-
-    const listResult: { page: number, totalPages: number, totalHits?: number, estimatedTotalHits?: number, hits: Hits<TrailSearchResult> } = await listResponse.json();
-    const listTrails = listResult.hits.length > 0
-        ? await searchResultToTrailList(listResult.hits)
-        : [];
-
-    trails = page > 1 ? trails.concat(listTrails) : listTrails;
-
-    if (!loadMapData) {
-        return {
-            trails,
-            mapTrails: [],
-            clusters: undefined,
-            estimatedTotalHits: listResult.estimatedTotalHits,
-            totalHits: listResult.totalHits ?? listResult.estimatedTotalHits,
-            totalPages: listResult.totalPages
-        };
-    }
-
-    // Step 2: Fetch server-side clusters and unclustered points for the map.
-    let cr = await fetch("/api/v1/search/trails/cluster", {
+    // Fetch server-side clusters and unclustered points for the map.
+    let cr = await f("/api/v1/search/trails/cluster", {
         method: "POST",
         body: JSON.stringify({
             southWest: { lat: southWest.lat, lng: southWest.lng },
             northEast: { lat: northEast.lat, lng: northEast.lng },
             zoom,
             q: filter.q,
-            filterText
+            filterText,
         })
     });
 
@@ -217,8 +235,7 @@ export async function trails_search_bounding_box(
         throw new APIError(cr.status, response.message, response.detail)
     }
 
-    const clusterResult = await cr.json();
-    const clusterFeatureCollection = clusterResult;
+    const clusterFeatureCollection = await cr.json();
 
     const unclusteredFeatures = clusterFeatureCollection.features
         .filter((f: any) => !f.properties.cluster);
@@ -228,10 +245,10 @@ export async function trails_search_bounding_box(
         .filter((f: any) => f.properties.is_large)
         .map((f: any) => f.properties.id);
 
-    // Step 3: Identify which visible trails are MISSING from the local cache
+    // Identify which visible trails are MISSING from the local cache
     const missingIds = unclusteredIds.filter((id: string) => !detailedCache.has(id));
 
-    // Step 4: Only fetch details for missing trails
+    // Only fetch details for missing trails
     if (missingIds.length > 0) {
         const batchSize = 100; // Meilisearch filter length safety
         for (let i = 0; i < missingIds.length; i += batchSize) {
@@ -244,7 +261,7 @@ export async function trails_search_bounding_box(
                 hitsPerPage: batchSize,
             };
 
-            const dr = await fetch("/api/v1/search/multi", {
+            const dr = await f("/api/v1/search/multi", {
                 method: "POST",
                 body: JSON.stringify({ queries: [detailBatchQuery] }),
             });
@@ -260,7 +277,7 @@ export async function trails_search_bounding_box(
         }
     }
 
-    // Step 5: Convert unclustered hits to lightweight Trail objects for map popups/previews.
+    // Convert unclustered hits to lightweight Trail objects for map popups/previews.
     const mapTrails: Trail[] = unclusteredFeatures
         .map((f: any) => {
         const s = f.properties;
@@ -312,14 +329,7 @@ export async function trails_search_bounding_box(
         return t;
     });
 
-    return {
-        trails,
-        mapTrails,
-        clusters: clusterFeatureCollection,
-        estimatedTotalHits: listResult.estimatedTotalHits ?? clusterResult.totalHits,
-        totalHits: listResult.totalHits ?? listResult.estimatedTotalHits ?? clusterResult.totalHits,
-        totalPages: listResult.totalPages
-    };
+    return { mapTrails, clusters: clusterFeatureCollection };
 }
 
 export async function trails_show(id: string, handle?: string, share?: string, loadGPX?: boolean, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch) {
@@ -767,7 +777,7 @@ export async function searchResultToTrailList(hits: Hits<TrailSearchResult>): Pr
     return trails
 }
 
-function buildFilterText(user: AuthRecord, filter: TrailFilter, includeGeo: boolean): string {
+export function buildFilterText(user: AuthRecord, filter: TrailFilter, includeGeo: boolean): string {
     let filterText: string = "";
 
     filterText += `distance >= ${Math.floor(filter.distanceMin)} AND elevation_gain >= ${Math.floor(filter.elevationGainMin)} AND elevation_loss >= ${Math.floor(filter.elevationLossMin)}`
@@ -793,59 +803,22 @@ function buildFilterText(user: AuthRecord, filter: TrailFilter, includeGeo: bool
     }
 
     if (filter.public !== undefined || filter.private !== undefined || filter.shared !== undefined) {
-        filterText += " AND ("
-
         const showPublic = filter.public === undefined || filter.public === true;
         const showPrivate = filter.private === undefined || filter.private === true;
-        const showShared = filter.shared !== undefined && filter.shared === true;
-
-        if (showPublic === true) {
-            filterText += "(public = TRUE";
-            if (showPrivate === true && (!filter.author?.length || filter.author == user?.actor)) {
-                filterText += ` OR author = ${user?.actor}`;
-            }
-            filterText += ")";
+        const visibilityParts: string[] = [];
+        if (showPublic) visibilityParts.push("public = TRUE");
+        if (showPrivate && user?.actor && (!filter.author?.length || filter.author === user.actor)) {
+            visibilityParts.push(`(public = FALSE AND author = ${user.actor})`);
         }
-        else if (!filter.author?.length || filter.author == user?.actor) {
-            filterText += "public = FALSE";
-            filterText += ` AND author = ${user?.actor}`;
+        if (filter.shared === true && user?.actor) {
+            visibilityParts.push(`shares = ${user.actor}`);
         }
-
-        if (filter.shared !== undefined) {
-            if (filter.shared === true) {
-                filterText += ` OR shares = ${user?.actor}`
-            } else {
-                filterText += ` AND NOT shares = ${user?.actor}`
-
-            }
+        filterText += ` AND (${visibilityParts.length ? visibilityParts.join(" OR ") : "public = TRUE AND public = FALSE"})`;
+        if (filter.shared === false && user?.actor) {
+            filterText += ` AND NOT shares = ${user.actor}`;
         }
-
-        filterText += ")";
     }
 
-    /*
-    if (filter.public !== undefined || filter.shared !== undefined) {
-        filterText += " AND ("
-        if (filter.public !== undefined) {
-            filterText += `(public = ${filter.public}`
-
-            if (!filter.author?.length || filter.author == user?.actor) {
-                filterText += ` OR author = ${user?.actor}`
-            }
-            filterText += ")"
-        }
-
-        if (filter.shared !== undefined) {
-            if (filter.shared === true) {
-                filterText += ` OR shares = ${user?.actor}`
-            } else {
-                filterText += ` AND NOT shares = ${user?.actor}`
-
-            }
-        }
-        filterText += ")"
-    }
-*/
 
     if (filter.liked === true) {
         filterText += ` AND likes = ${user?.actor}`

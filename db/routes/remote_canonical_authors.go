@@ -42,19 +42,23 @@ func resolveRemoteAuthorsWithin(app core.App, ctx context.Context, references []
 				if ctx.Err() != nil {
 					return
 				}
-				actorCtx, cancel := context.WithTimeout(ctx, perActor)
-				actor, err := resolveRemoteActorForSync(app, actorCtx, iri)
-				cancel()
-				if errors.Is(err, util.ErrRateLimited) || errors.Is(err, errRemoteSyncFetchQueue) {
-					rememberRemoteAuthorRefusal(ctx, iri)
-					continue
-				}
-				if err != nil || actor == nil || actor.GetBool("is_local") || actor.GetString("iri") != iri || !federation.CachedActorIdentityMatchesOrigin(actor) {
-					continue
-				}
-				lock.Lock()
-				result[iri] = actor
-				lock.Unlock()
+				// An author left out of the result is a failed author to the caller.
+				func() {
+					defer recoverBackgroundSyncJob(app, "activitypub_actors", iri, func() {})
+					actorCtx, cancel := context.WithTimeout(ctx, perActor)
+					actor, err := resolveRemoteActorForSync(app, actorCtx, iri)
+					cancel()
+					if errors.Is(err, util.ErrRateLimited) || errors.Is(err, errRemoteSyncFetchQueue) {
+						rememberRemoteAuthorRefusal(ctx, iri)
+						return
+					}
+					if err != nil || actor == nil || actor.GetBool("is_local") || actor.GetString("iri") != iri || !federation.CachedActorIdentityMatchesOrigin(actor) {
+						return
+					}
+					lock.Lock()
+					result[iri] = actor
+					lock.Unlock()
+				}()
 			}
 		}()
 	}

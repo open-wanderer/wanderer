@@ -93,8 +93,14 @@ func TestSignedInboxKeepsPrivateEntryParentAndPhotos(t *testing.T) {
 				assertPrivate()
 				deliver(entry.GetString("iri"))
 				assertPrivate()
-				deliver(control.GetString("iri"))
-				current, err := f.app.FindRecordById("summit_logs", control.Id)
+				// A Create of a stored summit log changes nothing, so the Create
+				// control is a summit log the instance does not hold yet.
+				controlIRI := control.GetString("iri")
+				if typ == pub.CreateType {
+					controlIRI = "https://remote.example/api/v1/summit-log/new"
+				}
+				deliver(controlIRI)
+				current, err := f.app.FindFirstRecordByData("summit_logs", "iri", controlIRI)
 				if err != nil || current.GetString("text") != "Updated" {
 					t.Fatalf("signed same-parent control was not applied: %v %v", current, err)
 				}

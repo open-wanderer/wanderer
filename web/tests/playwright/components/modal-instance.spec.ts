@@ -36,6 +36,8 @@ for (const dev of [true, false]) {
 
         await page.getByTestId('open-second').click();
         await expect(second).toHaveAttribute('open');
+        await expect(page.getByRole('dialog')).toHaveCount(1);
+        await expect(page.getByRole('dialog')).toContainText('Second content');
         await expect(first).not.toHaveAttribute('open');
         await expect(page.locator('dialog[open]')).toHaveCount(1);
 
