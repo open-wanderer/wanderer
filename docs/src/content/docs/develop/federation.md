@@ -40,6 +40,7 @@ An actor represents a user of <span class="-tracking-[0.075em]">wanderer</span> 
     "preferredUsername": "demo",
     "followers": "https://demo.wanderer.to/api/v1/activitypub/user/demo/followers",
     "following": "https://demo.wanderer.to/api/v1/activitypub/user/demo/following",
+    "manuallyApprovesFollowers": false,
     "url": "https://demo.wanderer.to/profile/@demo",
     "published": "2025-05-05T15:07:59.943Z",
     "icon": {
