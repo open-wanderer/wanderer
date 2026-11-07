@@ -165,3 +165,70 @@ jobs:
         run: gh pr merge --auto --merge "${{ steps.cpr.outputs.url }}"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # The plugin SDK (plugins/sdk) is only versioned with a wanderer release: if it
+  # changed since its last tag, the release commit also gets the next SDK tag, so
+  # every SDK version names the release that understands it. gorelease picks the
+  # version from the API diff: patch without API changes, otherwise minor (also
+  # for incompatible changes while the SDK is v0).
+  plugin-sdk:
+    needs: [publish, release]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ needs.publish.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.publish.outputs.version }}
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.26'
+          cache-dependency-path: plugins/sdk/go.sum
+
+      - name: Tag the plugin SDK
+        id: tag
+        run: |
+          git fetch --quiet --depth=1 origin 'refs/tags/plugins/sdk/*:refs/tags/plugins/sdk/*'
+
+          # A re-run after the tag was pushed only repeats the release notes step.
+          CURRENT=$(git tag -l 'plugins/sdk/v*' --points-at HEAD | head -n1)
+          if [ -n "$CURRENT" ]; then
+            echo "next=${CURRENT#plugins/sdk/}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          BASE=$(git tag -l 'plugins/sdk/v*' --sort=-v:refname | head -n1)
+          if git diff --quiet "$BASE" HEAD -- plugins/sdk; then
+            echo "Plugin SDK unchanged since $BASE, no new SDK version."
+            exit 0
+          fi
+
+          REPORT=$(make -s plugins-sdk-api) || STATUS=$?
+          echo "$REPORT"
+          printf '### Plugin SDK compared with `%s`\n\n```\n%s\n```\n' "$BASE" "$REPORT" >> "$GITHUB_STEP_SUMMARY"
+          NEXT=$(sed -n 's/^Suggested version: \(v[^ ]*\).*/\1/p' <<< "$REPORT")
+          if [ -n "${STATUS:-}" ] || [ -z "$NEXT" ]; then
+            echo "::error title=Plugin SDK::gorelease did not suggest a version. Fix the reported problem and tag the SDK on $VERSION by hand."
+            exit 1
+          fi
+
+          git tag "plugins/sdk/$NEXT"
+          git push origin "plugins/sdk/$NEXT"
+          echo "next=$NEXT" >> "$GITHUB_OUTPUT"
+
+      - name: Name the SDK version in the release notes
+        if: steps.tag.outputs.next != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NEXT: ${{ steps.tag.outputs.next }}
+        run: |
+          gh release view "$VERSION" --json body --jq .body > release_notes.md
+          if grep -q '^## Plugin SDK' release_notes.md; then
+            exit 0
+          fi
+          printf '\n## Plugin SDK\n\n- Plugin SDK %s: `go get github.com/open-wanderer/wanderer/plugins/sdk@%s`\n' "$NEXT" "$NEXT" >> release_notes.md
+          gh release edit "$VERSION" --notes-file release_notes.md
