@@ -99,7 +99,6 @@ describe("API token authentication", () => {
     });
 
     it.each([
-        [500, "Backend unavailable"],
         [404, "The requested resource wasn't found."],
         [400, "Failed to read request data"],
     ])("preserves server errors for backend %i: %s", async (backendStatus, backendMessage) => {
@@ -209,12 +208,35 @@ describe("API token authentication", () => {
         });
     });
 
-    it("preserves server errors when the backend cannot be reached", async () => {
+    it("answers 503 when the backend cannot be reached", async () => {
         const { event, resolve } = request();
         event.fetch = vi.fn().mockRejectedValue(new TypeError("fetch failed"));
-        await expect(handle({ event, resolve })).rejects.toMatchObject({ status: 500 });
+        const response = await handle({ event, resolve });
+        expect(response.status).toBe(503);
+        expect(await response.json()).toEqual({ message: "backend_unavailable" });
         expect(resolve).not.toHaveBeenCalled();
         expect(requests).toEqual([]);
+    });
+
+    it("answers 503 when the backend fails to check the token", async () => {
+        status = 500;
+        message = "Backend unavailable";
+        const { event, resolve } = request();
+        expect((await handle({ event, resolve })).status).toBe(503);
+        expect(resolve).not.toHaveBeenCalled();
+        expect(event.locals.user).toBeUndefined();
+    });
+
+    it("answers the health probe without contacting PocketBase first", async () => {
+        // The backend answers 500 to everything but the auth routes, like a
+        // PocketBase that is down, and no search-token cookie is sent.
+        const { event, resolve } = request("/api/v1/health", false, "Bearer wanderer_key_valid");
+        event.cookies.get = vi.fn(() => undefined);
+        const response = await handle({ event, resolve });
+        expect(response.status).toBe(200);
+        expect(resolve).toHaveBeenCalledOnce();
+        expect(requests).toEqual([]);
+        expect(event.locals.pb).toBeDefined();
     });
 
     it("keeps public requests without a token accessible", async () => {

@@ -3,7 +3,6 @@ import { UserCreateSchema } from '#lib/models/api/user_schema.ts';
 import type { User } from '#lib/models/user.ts';
 import { Collection, handleError } from '#lib/util/api_util.ts';
 import type { RequestEvent } from '@sveltejs/kit';
-import { ClientResponseError } from 'pocketbase';
 
 /**
  * @swagger
@@ -26,13 +25,15 @@ import { ClientResponseError } from 'pocketbase';
  *             schema:
  *               $ref: '#/components/schemas/User'
  *       400:
- *         description: Bad Request - Signup disabled or invalid data
+ *         description: Bad Request - Invalid data
+ *       403:
+ *         description: Signup is disabled on this instance
  *       500:
  *         description: Internal Server Error
  */
 export async function PUT(event: RequestEvent) {
     if (PUBLIC_DISABLE_SIGNUP === "true") {
-        throw new ClientResponseError({ status: 401, response: { messgage: "Forbidden" } })
+        return Response.json({ message: "signup_disabled" }, { status: 403 })
     }
 
     try {
