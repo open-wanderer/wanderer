@@ -130,6 +130,11 @@ import "github.com/open-wanderer/wanderer/plugins/sdk"
 The SDK contains plugin-side protocol types and host-function helpers. It does
 not depend on wanderer core or PocketBase.
 
+SDK versions are tagged as `plugins/sdk/vX.Y.Z`. A wanderer release that
+changes the SDK tags the next SDK version on its own commit and names it in its
+release notes. New fields in an SDK version take effect from that release on;
+older hosts ignore them.
+
 Most plugins use:
 
 - `sdk.HostRequest` for provider API calls through `wanderer.http_request`
