@@ -1,0 +1,42 @@
+{
+  "id": "19-descent-out-and-back",
+  "covers": [
+    "descent-out-and-back",
+    "issue-670-descent"
+  ],
+  "derivation": "hand",
+  "notes": "Synthetic stand-in for open-wanderer/wanderer#670, a 121-point out-and-back at real-watch density (about 4.003 m hops) with a real 60 m climb, an equal descent and +/-1 m barometric-style noise. elevationLoss equals elevationGain and is never 0: a real descent is never mistaken for noise. Nothing in this file comes from the issue's attachment.",
+  "metrics": {
+    "distance": 480.362083105392,
+    "elevationGain": 60,
+    "elevationLoss": 60,
+    "durationMs": 360000,
+    "pointCount": 121,
+    "boundingBox": {
+      "minLat": 47.3,
+      "maxLat": 47.30216,
+      "minLon": 11.4,
+      "maxLon": 11.4
+    },
+    "centroid": {
+      "lat": 47.30107107438017,
+      "lon": 11.4
+    }
+  },
+  "trail": {
+    "name": "Out And Back Descent",
+    "description": "Synthetic out-and-back standing in for open-wanderer/wanderer#670",
+    "lat": 47.3,
+    "lon": 11.4,
+    "date": "2024-07-20",
+    "distance": 480.362083105392,
+    "elevationGain": 60,
+    "elevationLoss": 60,
+    "duration": 360.0,
+    "minLat": 47.3,
+    "maxLat": 47.30216,
+    "minLon": 11.4,
+    "maxLon": 11.4,
+    "waypoints": []
+  }
+}

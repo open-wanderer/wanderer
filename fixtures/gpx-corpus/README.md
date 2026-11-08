@@ -8,7 +8,7 @@ it:
 
 - `web/src/lib/models/gpx/gpx-corpus.test.ts` — Vitest, run with CWD `web/`, reads the corpus at
   a relative path resolved from `process.cwd()`.
-- `app/test/util/gpx_corpus_test.dart` — `flutter test`, run with CWD `app/`, reads
+- `app/test/util/gpx/corpus_test.dart` — `flutter test`, run with CWD `app/`, reads
   the corpus at a relative path via `dart:io`'s `File`.
 
 Neither suite copies, symlinks, or bundles this directory. Both read it directly from disk at
@@ -41,7 +41,10 @@ fixtures/gpx-corpus/
 │   └── expected.json               (no DERIVATION.md — this fixture is seeded, see below)
 ├── 11-malformed-time/
 │   └── ... (same three files)
-└── 12-dense-switchback/
+├── 12-dense-switchback/
+│   └── ... (same three files)
+├── ...                             (13 through 18, same three files)
+└── 19-descent-out-and-back/
     └── ... (same three files)
 ```
 
@@ -73,10 +76,17 @@ Every `expected.json` has exactly this top-level shape:
 | `distance` | number | raw (unsmoothed) total distance, metres — the sum of every consecutive-pair haversine hop |
 | `elevationGain` | number | `finalElevationGain` — **not** `totalElevationGainSmoothed` |
 | `elevationLoss` | number | `finalElevationLoss` — **not** `totalElevationLossSmoothed` |
-| `durationMs` | number | last trkpt time minus first trkpt time, milliseconds |
-| `pointCount` | number | total `<trkpt>` count across every `<trkseg>` |
+| `durationMs` | number | per-segment leg durations summed (a marked anchor opens a new leg, fixture 15), absolute value, milliseconds |
+| `pointCount` | number | usable points of the measured source: trkpts, or the rtepts of a route-only file promoted to tracks |
 | `boundingBox` | object | `{ minLat, maxLat, minLon, maxLon }` |
 | `centroid` | object | `{ lat, lon }` — plain mean of every summed point |
+
+**Measured source.** A file with any `<trk>` element, even an empty one, is measured from its
+tracks only: a `<rte>` beside a `<trk>` contributes nothing to the metrics, bounding box,
+centroid, start point, name or date (fixture 18). Only a file with no `<trk>` at all is measured
+from its `<rte>` elements, one segment per route, with positionless route points dropped before
+timing, and the routes are measured continuously, as one track with several segments would be
+(fixture 17).
 
 `trail` keys (mirrors `gpx2trail()`'s output, `gpx_util.ts:21-90`):
 
@@ -141,7 +151,7 @@ algorithmic divergence, not floating-point noise.
 
 Every `expected.json` records how its values were produced, in its `derivation` field:
 
-- **`"hand"`** (fixtures `01` through `09`, plus `11` through `16`): every expected value was derived **from first
+- **`"hand"`** (fixtures `01` through `09`, plus `11` through `19`): every expected value was derived **from first
   principles**, independently of the implementation under test, and the derivation is written
   down in that fixture's own `DERIVATION.md`. Distance figures come from a haversine formula
   transcribed fresh in a scratch `node -e` one-liner (`R = 6371000`), never from calling
@@ -149,7 +159,7 @@ Every `expected.json` records how its values were produced, in its `derivation` 
   from hand-tracing the documented defer-then-publish state machine's rules (threshold 5 m,
   discard only on a horizontal-stillness return) against each fixture's own point sequence.
   Bounding box and centroid come from plain arithmetic over the fixture's own coordinates. The
-  TypeScript implementation is explicitly **not treated as the oracle** for these nine fixtures —
+  TypeScript implementation is explicitly **not treated as the oracle** for the hand-derived fixtures —
   doing so would risk baking a surviving TS bug into the corpus as "expected."
 - **`"seeded"`** (fixture `10` only): a bulk, realistic-shaped fixture, populated from the
   corrected TS implementation's actual output and then read back and sanity-checked (plausible
@@ -177,12 +187,16 @@ Every `expected.json` records how its values were produced, in its `derivation` 
 | `14-positionless-ends` | positionless-point-time, bad-waypoint-position | A first or last trkpt without a position still bounds the duration; a `<wpt>` without a usable position is discarded |
 | `15-route-anchor` | route-anchor-legs | A marked `wanderer:anchor` opens a new leg: duration is the sum of the legs, not last minus first |
 | `16-out-of-range-coordinates` | out-of-range-coordinates | Distance clips latitude and wraps longitude like geobase's `Geographic`; bounds, centroid and start keep the file's values |
+| `17-route-only-promotion` | route-only-promotion, positionless-route-point | A file with no `<trk>` is measured from its `<rte>` elements, one segment per route, measured continuously; a positionless route point is dropped before timing; name, start and date come from the first route |
+| `18-mixed-rte-trk` | mixed-rte-trk | A file with both `<rte>` and `<trk>` is measured from the `<trk>` only; the route, on another continent and first in the file, leaks into nothing |
+| `19-descent-out-and-back` | descent-out-and-back, issue-670-descent | Synthetic stand-in for #670: at real-watch density a real descent is counted, so `elevationLoss` equals `elevationGain` and is never 0 |
 
 ## How to add a fixture
 
 1. Author `input.gpx` as a GPX 1.1 document (`version="1.1" creator="wanderer-corpus"
-   xmlns="http://www.topografix.com/GPX/1/1"`) with a `<metadata><name>` element (see the rule
-   below — never rely on the time-dependent fallback name).
+   xmlns="http://www.topografix.com/GPX/1/1"`) with a `<metadata><name>`, `<trk><name>` or, for a
+   route-only file, `<rte><name>` element (see the rule below — never rely on the
+   time-dependent fallback name).
 2. Derive every expected value from first principles: haversine formula for distance, hand-traced
    state-machine rules for elevation gain/loss, plain arithmetic for bounding box/centroid. Do
    **not** obtain values by running `GPX.getTotals()`, `gpx2trail()`, or `GpxMetricsComputation`
@@ -192,13 +206,14 @@ Every `expected.json` records how its values were produced, in its `derivation` 
    for every field, plus an explicit statement that no expected value came from executing the
    implementation under test.
 4. Write `expected.json` following the schema above.
-5. Run both suites: `cd web && npx vitest run src/lib/models/gpx/gpx-corpus.test.ts` and (once
-   34-04 lands) `cd app && flutter test test/util/gpx_corpus_test.dart`.
+5. Run both suites: `cd web && npx vitest run src/lib/models/gpx/gpx-corpus.test.ts` and, for
+   `app/test/util/gpx/corpus_test.dart`, `cd app && flutter test test/util/gpx/corpus_test.dart`.
 
 ## No fixture may rely on the time-dependent name fallback
 
 `gpx2trail()`'s name resolution chain is `metadata.name || trk.name || rte.name || fallbackName
 || \`trail-${new Date().toISOString()}\``. The final fallback is time-dependent and therefore
-non-deterministic. Every fixture in this corpus **must** supply either a `<metadata><name>`
-element or a `<trk><name>` element, so `trail.name` is a fixed, reproducible value in every
-`expected.json`.
+non-deterministic. Every fixture in this corpus **must** supply a `<metadata><name>` element, a `<trk><name>`
+element or, for a route-only file, a `<rte><name>` element, so `trail.name` is a fixed,
+reproducible value in every `expected.json`. Fixture 17 deliberately has only route names, to
+exercise the route step of the chain.
