@@ -355,6 +355,13 @@ func syncTrails(txApp core.App, ctx context.Context, list *core.Record, origin s
 			}
 			continue
 		}
+		if strings.TrimSpace(tID) == "" {
+			if trail != nil {
+				localTrails = append(localTrails, trail.Id)
+			}
+			continue
+		}
+
 		author, allowed, err := resolveRemoteSyncAuthor(txApp, ctx, list.GetString("author"), iri, raw)
 		if err != nil {
 			return err
