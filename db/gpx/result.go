@@ -13,6 +13,39 @@ func firstPoint(tracks []measuredTrack) (LatLon, bool) {
 	return LatLon{}, false
 }
 
+// hasElevation is the PARSE-06 rule. The population is every stored point of
+// the measured source (the same set as PointCount); a usable elevation is a
+// non-NaN ele, which already passed parseNumber, so a literal 0 counts. The
+// flag is false when fewer than half of the points carry one (exactly half
+// passes) or when every usable elevation is identical, which includes a single
+// usable value. It only drives the GeoJSON marker: gain and loss are never
+// altered by it.
+func hasElevation(tracks []measuredTrack) bool {
+	population, usable := 0, 0
+	var lo, hi float64
+	for ti := range tracks {
+		for si := range tracks[ti].segments {
+			for _, ele := range tracks[ti].segments[si].ele {
+				population++
+				if ele != ele { // NaN: no usable elevation
+					continue
+				}
+				if usable == 0 || ele < lo {
+					lo = ele
+				}
+				if usable == 0 || ele > hi {
+					hi = ele
+				}
+				usable++
+			}
+		}
+	}
+	if usable*2 < population {
+		return false
+	}
+	return usable > 0 && lo != hi
+}
+
 // firstNonEmpty mirrors the TypeScript `||` chain: an empty string falls
 // through to the next candidate.
 func firstNonEmpty(candidates ...string) string {
@@ -33,6 +66,7 @@ func firstNonEmpty(candidates ...string) string {
 func (b *builder) deriveTrail(r *Result, fallbackName string) {
 	r.Name = firstNonEmpty(b.metaText.name, b.firstTrkName, b.firstRteName, fallbackName)
 	r.Description = b.metaText.desc
+	r.HasElevation = hasElevation(r.tracks)
 
 	// A4: the first stored point of the measured source, in file order.
 	r.Start, _ = firstPoint(r.tracks)

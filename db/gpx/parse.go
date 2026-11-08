@@ -578,7 +578,6 @@ func (b *builder) finish(fallbackName string) (*Result, error) {
 		PointCount:    m.count,
 		Bounds:        m.bounds,
 		Centroid:      m.centroid,
-		HasElevation:  m.hasElevation,
 		tracks:        source,
 		firstTimes:    first,
 	}

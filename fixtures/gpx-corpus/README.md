@@ -3,15 +3,19 @@
 ## Purpose
 
 This directory is the single source of truth for the cross-language metrics contract: it pins
-the Dart port to the corrected TypeScript GPX→trail metrics computation. Two independent test suites read
-it:
+the Dart and Go ports to the corrected TypeScript GPX→trail metrics computation. Three independent test
+suites read it:
 
 - `web/src/lib/models/gpx/gpx-corpus.test.ts` — Vitest, run with CWD `web/`, reads the corpus at
   a relative path resolved from `process.cwd()`.
 - `app/test/util/gpx/corpus_test.dart` — `flutter test`, run with CWD `app/`, reads
   the corpus at a relative path via `dart:io`'s `File`.
+- `db/gpx/corpus_test.go` (metrics block) and `db/gpx/corpus_trail_test.go` (trail block) —
+  `go test`, which runs with CWD `db/gpx` (the package directory), so the corpus is two levels up at
+  `../../fixtures/gpx-corpus`. Run with
+  `cd db && GOTOOLCHAIN=go1.26.1 go test ./gpx/ -run TestCorpus`.
 
-Neither suite copies, symlinks, or bundles this directory. Both read it directly from disk at
+No suite copies, symlinks, embeds, or bundles this directory. Each reads it directly from disk at
 test time via a relative path. There is no `pubspec.yaml` `assets:` entry — the asset-bundle
 restriction that governs `rootBundle.load()` inside a *running app* does not apply to
 `flutter test`/`dart test`, which run with CWD = the package root and full filesystem access
@@ -206,8 +210,9 @@ Every `expected.json` records how its values were produced, in its `derivation` 
    for every field, plus an explicit statement that no expected value came from executing the
    implementation under test.
 4. Write `expected.json` following the schema above.
-5. Run both suites: `cd web && npx vitest run src/lib/models/gpx/gpx-corpus.test.ts` and, for
-   `app/test/util/gpx/corpus_test.dart`, `cd app && flutter test test/util/gpx/corpus_test.dart`.
+5. Run all three suites: `cd web && npx vitest run src/lib/models/gpx/gpx-corpus.test.ts`,
+   `cd app && flutter test test/util/gpx/corpus_test.dart`, and
+   `cd db && GOTOOLCHAIN=go1.26.1 go test ./gpx/ -run TestCorpus`.
 
 ## No fixture may rely on the time-dependent name fallback
 

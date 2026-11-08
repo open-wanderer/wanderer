@@ -72,7 +72,9 @@ type Result struct {
 	PointCount int
 	Bounds     Bounds
 	Centroid   LatLon
-	// HasElevation reports whether any measured point carries a usable elevation.
+	// HasElevation is false when fewer than half of the measured points carry a
+	// usable elevation, or when every usable elevation is identical. Gain and
+	// loss are never zeroed by it.
 	HasElevation bool
 	// Waypoints are the usable <wpt> elements, in file order.
 	Waypoints []Waypoint

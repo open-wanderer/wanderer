@@ -151,7 +151,6 @@ type measurement struct {
 	count                int
 	bounds               Bounds
 	centroid             LatLon
-	hasElevation         bool
 }
 
 // measure walks every stored point of tracks once, in file order, through one
@@ -162,16 +161,12 @@ func measure(tracks []measuredTrack) measurement {
 	var sumLat, sumLon float64
 	b := Bounds{MinLat: math.Inf(1), MaxLat: math.Inf(-1), MinLon: math.Inf(1), MaxLon: math.Inf(-1)}
 	count := 0
-	hasEle := false
 	for ti := range tracks {
 		for si := range tracks[ti].segments {
 			seg := &tracks[ti].segments[si]
 			for i := range seg.lat {
 				lat, lon, ele := seg.lat[i], seg.lon[i], seg.ele[i]
 				m.add(lat, lon, ele)
-				if !math.IsNaN(ele) {
-					hasEle = true
-				}
 				sumLat += lat
 				sumLon += lon
 				count++
@@ -184,13 +179,12 @@ func measure(tracks []measuredTrack) measurement {
 	}
 	gain, loss := m.final()
 	return measurement{
-		distance:     m.distance,
-		gain:         gain,
-		loss:         loss,
-		count:        count,
-		bounds:       b,
-		centroid:     LatLon{Lat: sumLat / float64(count), Lon: sumLon / float64(count)},
-		hasElevation: hasEle,
+		distance: m.distance,
+		gain:     gain,
+		loss:     loss,
+		count:    count,
+		bounds:   b,
+		centroid: LatLon{Lat: sumLat / float64(count), Lon: sumLon / float64(count)},
 	}
 }
 
