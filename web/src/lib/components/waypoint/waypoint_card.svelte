@@ -9,7 +9,7 @@
     import { _ } from "svelte-i18n";
     import Dropdown, { type DropdownItem } from "../base/dropdown.svelte";
     import { browser } from "$app/env";
-    import PhotoGallery from "../photo_gallery.svelte";
+    import PhotoGallery from "../photo/photo_gallery.svelte";
 
     interface Props {
         waypoint: Waypoint;

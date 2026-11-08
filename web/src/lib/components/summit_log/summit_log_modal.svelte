@@ -13,7 +13,7 @@
     import Datepicker from "../base/datepicker.svelte";
     import Modal from "../base/modal.svelte";
     import Textarea from "../base/textarea.svelte";
-    import PhotoPicker from "../trail/photo_picker.svelte";
+    import PhotoPicker from "../photo/photo_picker.svelte";
     import TrailPicker from "../trail/trail_picker.svelte";
     import type { SummitLog } from "#lib/models/summit_log.ts";
     import Editor from "../base/editor.svelte";
