@@ -43,7 +43,13 @@ func encodeOld(t *testing.T, data []byte) (string, error) {
 // the same point set, so byte identity is not claimed. Each entry is filled
 // from an observed difference. A skipped fixture must really differ: an entry
 // whose fixture matches fails the test, so a stale skip cannot hide a pass.
-var goldenSkips = []struct{ dir, reason string }{}
+//
+// Observed against gpxgo v1.4.0 (the plan expected 03 here too, but gpxgo and
+// Polyline agree on it byte for byte, so it is not skipped).
+var goldenSkips = []struct{ dir, reason string }{
+	{"14-positionless-ends", `gpxgo fails the whole parse on <wpt lat="bad"> (strconv.ParseFloat), and would read a <trkpt> without lat as 0; this package drops unusable points and waypoints`},
+	{"17-route-only-promotion", "gpxgo ignores <rte> for the polyline and yields an empty string; this package promotes routes (D-06), so a route-only file gets a real polyline"},
+}
 
 func goldenSkip(dir string) (string, bool) {
 	for _, s := range goldenSkips {
