@@ -11,7 +11,7 @@
     import Footer from "#lib/components/footer.svelte";
     import NavBar from "#lib/components/nav_bar.svelte";
     import PageLoadingBar from "#lib/components/page_loading_bar.svelte";
-    import UploadDialog from "#lib/components/settings/upload_dialog.svelte";
+    import BackgroundTasksDialog from "#lib/components/background_tasks_dialog.svelte";
     import { getPb } from "#lib/pocketbase.ts";
     import { currentUser } from "#lib/stores/user_store.ts";
     import { load_plugin_data_once } from "#lib/stores/plugin_store.ts";
@@ -232,7 +232,7 @@
 <NavBar user={data.user}></NavBar>
 <PageLoadingBar class="text-content"></PageLoadingBar>
 <Toast></Toast>
-<UploadDialog></UploadDialog>
+<BackgroundTasksDialog></BackgroundTasksDialog>
 {@render children?.()}
 
 <Footer></Footer>
