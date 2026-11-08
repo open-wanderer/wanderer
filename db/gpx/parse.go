@@ -119,6 +119,8 @@ func classifyDecodeError(err error) error {
 	switch {
 	case errors.Is(err, ErrTooLarge):
 		return ErrTooLarge
+	case errors.Is(err, ErrMalformed):
+		return err // raised by the reader pipeline with a static reason
 	case errors.As(err, &se) && se.Msg == "unexpected EOF":
 		return ErrTruncated
 	case errors.Is(err, io.EOF):
