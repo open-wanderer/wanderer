@@ -160,6 +160,10 @@
   "stop_recording": "Felvétel leállítása",
   "stop_recording_confirm": "Leállítja a felvételt?",
   "search_this_area": "Search this area",
+  "filter_category_deselect_hint": "Press and hold to deselect a category",
+  "@filter_category_deselect_hint": {
+    "description": "Hint above the category chips on the trail filter screen. A long press removes a category from the selection."
+  },
   "filter_tags": "Filter tags",
   "filter_trails": "Filter trails",
   "finish": "Finish",
@@ -481,7 +485,10 @@
   "auto_routing": "Auto-routing",
   "auto_routing_hint": "Automatically follow roads and paths between anchors.",
   "travel_profile": "Travel profile",
-  "no_track_data": "No track data",
+  "no_elevation_data": "No elevation data",
+  "@no_elevation_data": {
+    "description": "Shown in place of the elevation chart when a trail has too few points with elevation. The track itself may still exist."
+  },
   "available_offline": "Available offline",
   "no_lists_found": "No lists found",
   "search_lists": "Search lists…",
@@ -499,16 +506,6 @@
   "@filter": {
     "description": "Button label that opens the filter options for a trail collection. Verb or noun, whichever reads better as a short button."
   },
-  "no_label_yet": "No {label} yet.",
-  "@no_label_yet": {
-    "placeholders": {
-      "label": {
-        "type": "String",
-        "description": "The already-localized noun describing what's missing, e.g. 'followers' or 'following'"
-      }
-    }
-  },
-  "no_lists_yet": "No lists yet.",
   "no_bio_yet": "No bio yet.",
   "show_more": "Show more",
   "@show_more": {
@@ -533,7 +530,47 @@
       }
     }
   },
-  "no_trails_yet": "No trails yet.",
+  "find_people": "Find people",
+  "profile_trails_empty_other_title": "No public trails yet",
+  "profile_trails_empty_other_body": "Trails {username} makes public will appear here.",
+  "@profile_trails_empty_other_body": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "profile_lists_empty_own_title": "No lists yet",
+  "profile_lists_empty_own_body": "Lists group trails into collections, like a multi-day trek or your local favorites. You can create them in the web app.",
+  "profile_lists_empty_other_title": "No public lists yet",
+  "profile_lists_empty_other_body": "Lists {username} makes public will appear here.",
+  "@profile_lists_empty_other_body": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "profile_following_empty_title": "Not following anyone yet",
+  "profile_following_empty_own_body": "Follow people to stay up to date with their newest public trails, including people on other instances.",
+  "profile_following_empty_other_body": "Accounts {username} follows will appear here.",
+  "@profile_following_empty_other_body": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "profile_followers_empty_title": "No followers yet",
+  "profile_followers_empty_own_body": "People who follow you will appear here and stay up to date with your newest public trails.",
+  "profile_followers_empty_other_body": "People who follow {username} will appear here.",
+  "@profile_followers_empty_other_body": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
   "library_empty_title": "No downloaded trails",
   "library_empty_body": "Trails you download are kept here so you can open them offline.",
   "library_empty_search_body": "Try a different search term or clear your filters.",
