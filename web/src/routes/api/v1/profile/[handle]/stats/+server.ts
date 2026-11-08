@@ -1,8 +1,11 @@
+import { assetResponseJson as json } from "#lib/server/asset_response_json.ts";
 import { RecordListOptionsSchema } from '#lib/models/api/base_schema.ts';
 import type { StatisticActivity } from '#lib/models/statistic_activity.ts';
 import type { Subcategory } from '#lib/models/subcategory.ts';
 import type { SummitLog } from '#lib/models/summit_log.ts';
 import type { Trail } from '#lib/models/trail.ts';
+import { completeChildAssetExpands } from "#lib/server/trail_asset_pagination.ts";
+import { enrichSummitLogAssetPhotos, withRequiredExpand } from '#lib/server/profile_asset_util.ts';
 import {
     buildCompletedTrailFilter,
     buildSummitLogStatisticsFilter,
@@ -13,8 +16,9 @@ import {
 } from '#lib/server/profile_statistics.ts';
 import { getActorResponseForHandle } from '#lib/util/activitypub_server_util.ts';
 import { Collection, handleError } from '#lib/util/api_util.ts';
-import { DownloadError, fetchExternalJson } from '#lib/util/secure_fetch_util.ts';
+import { isURL } from '#lib/util/file_util.ts';
 import { error, type RequestEvent } from '@sveltejs/kit';
+import { DownloadError, fetchExternalJson } from '#lib/util/secure_fetch_util.ts';
 import { ClientResponseError } from 'pocketbase';
 
 // Not paged: every activity of the requested range, for a long-time user too.
@@ -96,6 +100,8 @@ export async function GET(event: RequestEvent) {
                     .filter(Boolean),
             });
 
+        const photoRelation = "summit_log_assets_via_summit_log";
+        const requestedPhotos = event.url.searchParams.get("expand")?.split(",").some((path) => path.trim() === photoRelation || path.trim().startsWith(photoRelation + "."));
         let activities: StatisticActivity[];
         if (actor.is_local) {
             const availableSubcategories = await event.locals.pb
@@ -111,8 +117,15 @@ export async function GET(event: RequestEvent) {
             ]
                 .filter(Boolean)
                 .join('&&');
+            const listOptions = withRequiredExpand(safeSearchParams, ["summit_log_assets_via_summit_log.asset"]);
             const summitLogs = await event.locals.pb.collection(Collection.summit_logs)
-                .getFullList<SummitLog>({ ...safeSearchParams });
+                .getFullList<SummitLog>({
+                    ...listOptions,
+                    query: { share: event.url.searchParams.get("share") ?? undefined },
+                    fetch: event.fetch,
+                });
+            await completeChildAssetExpands(event, summitLogs, "summit_log");
+            enrichSummitLogAssetPhotos(summitLogs, undefined, event.url.searchParams.get("share") ?? undefined);
 
             const completedTrails = await event.locals.pb
                 .collection(Collection.trails)
@@ -144,22 +157,35 @@ export async function GET(event: RequestEvent) {
                     : summitLogToStatisticActivity(activity),
             );
 
+            // Summit log activities may carry asset expands (photo plugins);
+            // fall back to plain file URLs otherwise.
+            enrichSummitLogAssetPhotos(
+                activities.filter((activity) => activity.source !== 'completed_trail'),
+                origin,
+                event.url.searchParams.get("share") ?? undefined,
+            );
             activities.forEach(i => {
                 const collection = i.collectionId ||
                     (i.source === 'completed_trail' ? Collection.trails : Collection.summit_logs);
                 i.collectionId = collection;
                 i.collectionName = collection;
-                i.photos = (i.photos ?? []).map(p =>
-                    `${origin}/api/v1/files/${collection}/${i.id}/${p}`
-                )
-                if (i.gpx) {
-                    i.gpx = `${origin}/api/v1/files/${collection}/${i.id}/${i.gpx}`
+                if (i.source === 'completed_trail') {
+                    i.photos = (i.photos ?? []).map(p =>
+                        normalizeRemoteFileURL(p, origin, collection, i.id ?? "")
+                    );
                 }
-
+                if (i.gpx) {
+                    i.gpx = normalizeRemoteFileURL(i.gpx, origin, collection, i.id ?? "");
+                }
             })
         }
 
-        return Response.json(activities, {
+        if (!requestedPhotos) {
+            for (const activity of activities) {
+                if (activity.expand) delete activity.expand.summit_log_assets_via_summit_log;
+            }
+        }
+        return json(activities, {
             headers: {
                 'Cache-Control': 'private, no-store',
                 Vary: 'Cookie, Authorization',
@@ -168,8 +194,18 @@ export async function GET(event: RequestEvent) {
     } catch (e) {
         if (e instanceof DownloadError) {
             console.warn(`federated stats for ${handle} failed`, e);
-            return Response.json({ message: "remote_instance_unavailable" }, { status: 502 });
+            return json({ message: "remote_instance_unavailable" }, { status: 502 });
         }
         return handleError(e)
     }
+}
+
+function normalizeRemoteFileURL(file: string, origin: string, collection: string, recordId: string): string {
+    if (isURL(file)) {
+        return file;
+    }
+    if (file.startsWith("/")) {
+        return new URL(file, origin).toString();
+    }
+    return new URL(`/api/v1/files/${collection}/${recordId}/${file}`, origin).toString();
 }

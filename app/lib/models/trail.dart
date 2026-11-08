@@ -3,6 +3,7 @@ import 'package:gpx/gpx.dart';
 import 'package:maplibre/maplibre.dart';
 import 'package:wanderer/models/global_search_models.dart';
 import 'package:wanderer/models/record.dart';
+import 'package:wanderer/models/photo_asset.dart';
 import 'package:wanderer/models/trail_summary.dart';
 import 'package:wanderer/models/trail_sync_state.dart';
 
@@ -44,6 +45,7 @@ enum TrailDifficulty {
 @freezed
 abstract class TrailExpand with _$TrailExpand {
   const factory TrailExpand({
+    @JsonKey(name: 'trail_assets_via_trail') List<PhotoAssetLink>? photoAssets,
     List<Tag>? tags,
     Category? category,
     @JsonKey(name: 'waypoints_via_trail') List<Waypoint>? waypointsViaTrail,
@@ -221,7 +223,11 @@ abstract class Trail with _$Trail, RecordFunctions implements TrailSummary {
   DateTime? get summaryDate => date;
 
   @override
-  String get summaryThumbnail => photos.isNotEmpty ? photos[0] : "";
+  String get summaryThumbnail {
+    if (photos.isEmpty) return '';
+    final index = thumbnail >= 0 && thumbnail < photos.length ? thumbnail : 0;
+    return photos[index];
+  }
 
   @override
   String? get categoryId => category;
@@ -238,14 +244,13 @@ abstract class Trail with _$Trail, RecordFunctions implements TrailSummary {
 
   factory Trail.fromJson(Map<String, dynamic> json) => _$TrailFromJson(json);
 
-  factory Trail.empty() =>
-      Trail(
-        id: '',
-        name: '',
-        created: DateTime.now(),
-        updated: DateTime.now(),
-        difficulty: TrailDifficulty.easy,
-      );
+  factory Trail.empty() => Trail(
+    id: '',
+    name: '',
+    created: DateTime.now(),
+    updated: DateTime.now(),
+    difficulty: TrailDifficulty.easy,
+  );
 }
 
 @freezed

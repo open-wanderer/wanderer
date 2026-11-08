@@ -85,8 +85,8 @@ describe("initialTrailFormValues", () => {
         expect(formWaypoint._photos).not.toBe(waypoint._photos);
         expect(formWaypoint._photos![0]).toBe(file);
 
-        form.photos.splice(0, 1);
-        formWaypoint.photos.splice(0, 1);
+        form.photos!.splice(0, 1);
+        formWaypoint.photos!.splice(0, 1);
         formWaypoint._photos!.splice(0, 1);
         form.expand!.waypoints_via_trail!.splice(0, 1);
 
@@ -111,8 +111,8 @@ describe("copyTrailEditorValues", () => {
         saved.expand!.gpx = new GPX({});
         const form = copyTrailEditorValues(saved);
 
-        form.photos.splice(0, 1);
-        form.expand!.waypoints_via_trail![0].photos.splice(0, 1);
+        form.photos!.splice(0, 1);
+        form.expand!.waypoints_via_trail![0].photos!.splice(0, 1);
         form.expand!.waypoints_via_trail!.splice(0, 1);
 
         expect(saved.photos).toEqual(["trail-photo"]);

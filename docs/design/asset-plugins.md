@@ -62,3 +62,11 @@ The record update API does not let non-superusers replace asset files, including
 The supplied image and Compose configuration default to `BODY_SIZE_LIMIT=1G`. Asset batches have a fixed 1 GiB aggregate request limit, including multipart framing; increasing `BODY_SIZE_LIMIT` does not raise it. Error details retain completed attachments and file counts after partial writes. When building a saved record's response fails, the error identifies the committed record without publishing incomplete photo relations. Trail card queries request at most 100 IDs and return at most three photo links per trail, with the marked real photo ahead of generated route previews. Stored-file card URLs keep the file name and extension and carry any share token. Card asset expands retain all public scalar values; their metadata contains only `generated`, keeping unrelated metadata and private provenance out of card payloads.
 
 Failed attachment cleanup checks current links in a transaction and removes only an owned orphan. A copy that another request has already reused stays linked to its successfully saved targets.
+
+## Photo responses and exports
+
+Read responses derive `photos` from the assets linked to a trail, waypoint or summit log. URLs served by this instance are relative to its base URL. The marked trail photo determines the thumbnail index; a generated route preview is used only when there is no other photo. Clients manage links through the asset endpoints and treat response photo arrays as read-only.
+
+Requested reverse relations are completed when PocketBase reaches its expand limit. An independent authorized query confirms an omitted empty relation before the response includes an empty photo set. Failed relation reads leave the relation absent. Canonical link expands remain on the wire, while derived copies of the same asset records are omitted. List cards request bounded previews instead of complete photo links.
+
+Single-trail and account exports include requested photos in their archives. A failed media download preserves the GPX or JSON and the other photos, adds a complete missing-photo report and shows a bounded warning with identifiable filenames. Repeated filenames receive distinct archive names.

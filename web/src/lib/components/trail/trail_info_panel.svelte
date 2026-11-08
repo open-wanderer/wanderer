@@ -1047,10 +1047,7 @@
     </section>
 </div>
 
-<SummitLogModal
-    bind:this={summitLogModal}
-    onsave={(log) => saveSummitLog(log)}
-    photoUploadsUnavailable={!Array.isArray(trail.photos)}
+<SummitLogModal bind:this={summitLogModal} onsave={(log) => saveSummitLog(log)}
 ></SummitLogModal>
 
 <ConfirmModal

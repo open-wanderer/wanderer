@@ -16,7 +16,8 @@
     } from "#lib/stores/trail_store.ts";
     import { currentUser } from "#lib/stores/user_store.ts";
     import { handleFromRecordWithIRI } from "#lib/util/activitypub_util.ts";
-    import { getFileURL, saveAs } from "#lib/util/file_util.ts";
+    import { saveAs } from "#lib/util/file_util.ts";
+    import { appendExportPhotos, addMissingPhotoReport, missingExportPhotoNames, type MissingExportPhoto } from "#lib/util/photo_export_archive.ts";
     import { trail2gpx } from "#lib/util/gpx_util.ts";
     import { gpx } from "#lib/vendor/toGeoJSON/toGeoJSON.js";
     import JSZip from "jszip";
@@ -783,7 +784,10 @@
     ) {
         try {
             if (eTrail !== undefined) {
-                let fileData: string = await trail2gpx(eTrail, $currentUser);
+                if (eTrail.id && (exportSettings.photos || exportSettings.summitLog)) {
+                    eTrail = await trails_show(eTrail.id, handleFromRecordWithIRI(eTrail), page.url.searchParams.get("share") ?? undefined, true);
+                }
+                let fileData: string = await trail2gpx(eTrail, $currentUser, page.url.searchParams.get("share") ?? undefined);
                 if (exportSettings.fileFormat == "json") {
                     fileData = JSON.stringify(
                         gpx(
@@ -804,22 +808,14 @@
                     saveAs(blob, `${eTrail.name}.${exportSettings.fileFormat}`);
                 } else {
                     const zip = new JSZip();
+                    const missing: MissingExportPhoto[] = [];
                     zip.file(
                         `${eTrail.name}.${exportSettings.fileFormat}`,
                         fileData,
                     );
                     if (exportSettings.photos) {
                         const photoFolder = zip.folder($_("photos"));
-                        for (const photo of eTrail.photos) {
-                            const photoURL = getFileURL(eTrail, photo);
-                            const photoBlob = await fetch(photoURL).then(
-                                (response) => response.blob(),
-                            );
-                            const photoData = new File([photoBlob], photo);
-                            photoFolder?.file(photo, photoData, {
-                                base64: true,
-                            });
-                        }
+                        missing.push(...await appendExportPhotos(photoFolder, eTrail));
                     }
                     if (exportSettings.summitLog) {
                         let summitLogString = "";
@@ -832,8 +828,10 @@
                             summitLogString,
                         );
                     }
+                    addMissingPhotoReport(zip, missing);
                     const blob = await zip.generateAsync({ type: "blob" });
                     saveAs(blob, `${eTrail.name}.zip`);
+                    if (missing.length) show_toast({ type: "warning", icon: "warning", text: $_("export-photos-skipped", { values: { n: missing.length, names: missingExportPhotoNames(missing) } }) }, 10000);
                 }
             }
         } catch (e) {

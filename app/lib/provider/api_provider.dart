@@ -4,6 +4,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:wanderer/provider/cookie_jar_provider.dart';
 import 'package:wanderer/provider/online_status_provider.dart';
 import 'package:wanderer/util/server_url.dart';
+import 'package:wanderer/util/image_cache.dart';
 
 part 'api_provider.g.dart';
 
@@ -160,6 +161,7 @@ class Api extends _$Api {
   void updateBaseUrl(String baseUrl) {
     final normalized = normalizeServerUrl(baseUrl) ?? baseUrl;
     state.options.baseUrl = "$normalized$_apiPath";
+    WandererImageCacheManager.serverHost = Uri.parse(normalized).host;
   }
 
   /// The instance address the client currently talks to, as normalised by

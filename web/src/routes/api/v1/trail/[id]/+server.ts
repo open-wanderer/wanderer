@@ -1,8 +1,11 @@
+import { assetResponseJson as json } from "#lib/server/asset_response_json.ts";
+import { committedAssetResponseError } from "#lib/server/committed_asset_response.ts";
 import { TrailUpdateSchema } from '#lib/models/api/trail_schema.ts';
+import { completeTrailAssetExpands } from "#lib/server/trail_asset_pagination.ts";
+import { enrichTrailResponse, withTrailAssetExpandParams, withTrailAssetExpands } from "#lib/server/trail_response_util.ts";
 import type { Trail } from "#lib/models/trail.ts";
 import { Collection, handleError, remove, update } from "#lib/util/api_util.ts";
-import type { RequestEvent } from "@sveltejs/kit";
-import type PocketBase from "pocketbase";
+import { type RequestEvent } from "@sveltejs/kit";
 import { acceptsActivityPub, activityPubObject } from "#lib/server/activitypub_objects.ts";
 
 /**
@@ -43,14 +46,16 @@ export async function GET(event: RequestEvent) {
     }
 
     try {
-        let trail: Trail = await event.locals.pb.send(`/remote/trail/${params.id}?` + url.searchParams, {
+        const searchParams = withTrailAssetExpandParams(url.searchParams);
+        let trail: Trail = await event.locals.pb.send(`/remote/trail/${params.id}?` + searchParams, {
             method: "GET",
             fetch: event.fetch,
         })
 
-        await enrichRecord(event.locals.pb, trail);
+        await completeTrailAssetExpands(event, [trail]);
+        await enrichRecord(trail, url.searchParams.get("share") ?? undefined);
         trail.expand?.waypoints_via_trail?.sort((a, b) => (a.distance_from_start ?? 0) - (b.distance_from_start ?? 0))
-        return Response.json(trail, { headers: { vary: "Accept" } })
+        return json(trail, { headers: { vary: "Accept" } })
     } catch (e: any) {
         return handleError(e);
     }
@@ -93,19 +98,24 @@ export async function GET(event: RequestEvent) {
  *       404:
  *         description: Trail not found
  *       500:
- *         description: Trail update failed
+ *         description: Save or response refresh failed; detail.recordCommitted and detail.savedRecord identify an already persisted trail.
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
 export async function POST(event: RequestEvent) {
+    let committedRecord: Trail | undefined;
     try {
-        const r = await update<Trail>(event, TrailUpdateSchema, Collection.trails)
-        await enrichRecord(event.locals.pb, r)
-        return Response.json(r);
+        const r = await update<Trail>(event, TrailUpdateSchema, Collection.trails, withTrailAssetExpands({
+            expand: event.url.searchParams.get("expand") ?? undefined,
+        }))
+        committedRecord = r;
+        await completeTrailAssetExpands(event, [r]);
+        await enrichRecord(r)
+        return json(r);
     } catch (e: any) {
-        return handleError(e)
+        return committedAssetResponseError(e, committedRecord)
     }
 }
 
@@ -134,7 +144,7 @@ export async function POST(event: RequestEvent) {
 export async function DELETE(event: RequestEvent) {
     try {
         const r = await remove(event, Collection.trails)
-        return Response.json(r);
+        return json(r);
     } catch (e: any) {
         return handleError(e)
     }
@@ -142,9 +152,6 @@ export async function DELETE(event: RequestEvent) {
 
 
 
-async function enrichRecord(pb: PocketBase, r: Trail) {
-    r.date = r.date?.substring(0, 10) ?? "";
-    for (const log of r.expand?.summit_logs_via_trail ?? []) {
-        log.date = log.date.substring(0, 10);
-    }
+async function enrichRecord(r: Trail, share?: string) {
+    enrichTrailResponse(r, { share });
 }

@@ -40,7 +40,7 @@
         formatTimeSince(new Date(feedItem.created ?? "")),
     );
 
-    const photos = $derived((feedItem.expand.item as Trail).photos);
+    const photos = $derived((feedItem.expand.item as Trail).photos ?? []);
     const location = $derived((feedItem.expand.item as Trail).location);
     const category = $derived(
         (feedItem.expand.item as Trail).expand?.category,

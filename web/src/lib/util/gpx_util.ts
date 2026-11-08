@@ -97,12 +97,12 @@ export async function gpx2trail(gpxString: string, fallbackName?: string, correc
     return { gpx: gpx, trail: trail }
 }
 
-export async function trail2gpx(trail: Trail, user?: AuthRecord) {
+export async function trail2gpx(trail: Trail, user?: AuthRecord, share?: string) {
     let gpxTrail = trail;
 
     if ((trail.gpx && !trail.expand?.gpx_data) || !Array.isArray(trail.expand?.waypoints_via_trail)) {
         // List and search projections can omit waypoints even without a track.
-        const response = await trails_show(trail.id!, handleFromRecordWithIRI(trail), undefined, true);
+        const response = await trails_show(trail.id!, handleFromRecordWithIRI(trail), share, true);
 
         if (response.gpx && !response.expand?.gpx_data) {
             throw Error("Trail has no GPX data")

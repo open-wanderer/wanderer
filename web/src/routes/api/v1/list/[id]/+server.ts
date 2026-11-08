@@ -1,7 +1,11 @@
+import { completeTrailCardPreviews, withoutListPhotoExpands } from "#lib/server/trail_card_previews.ts";
+import { assetResponseJson as json } from "#lib/server/asset_response_json.ts";
 import { ListUpdateSchema } from "#lib/models/api/list_schema.ts";
 import type { List } from "#lib/models/list.ts";
+import { completeTrailAssetExpands } from "#lib/server/trail_asset_pagination.ts";
+import { enrichListTrailResponse, withListTrailAssetExpandParams } from "#lib/server/trail_response_util.ts";
 import { Collection, handleError, remove, update } from "#lib/util/api_util.ts";
-import type { RequestEvent } from "@sveltejs/kit";
+import { type RequestEvent } from "@sveltejs/kit";
 
 /**
  * @swagger
@@ -12,6 +16,12 @@ import type { RequestEvent } from "@sveltejs/kit";
  *     tags:
  *       - Lists
  *     parameters:
+ *       - in: query
+ *         name: photoPreview
+ *         description: Set true for trail cards with up to three photos including the selected thumbnail, instead of full photo link expands.
+ *         schema:
+ *           type: boolean
+ *           default: false
  *       - in: path
  *         name: id
  *         required: true
@@ -77,21 +87,33 @@ export async function GET(event: RequestEvent) {
     const { url, params } = event;
 
     try {
-        let list: List = await event.locals.pb.send(`/remote/list/${params.id}?` + url.searchParams, {
+        const preview = url.searchParams.get("photoPreview") === "true";
+        const requested = url.searchParams.get("expand")?.split(",").some((path) => path.trim() === "trails" || path.trim().startsWith("trails."));
+        const searchParams = requested ? (preview ? withoutListPhotoExpands(url.searchParams) : withListTrailAssetExpandParams(url.searchParams)) : url.searchParams;
+        let list: List = await event.locals.pb.send(`/remote/list/${params.id}?` + searchParams, {
             method: "GET",
             fetch: event.fetch,
         })
 
-        return Response.json(list)
+        if (requested && preview) await completeTrailCardPreviews(event, list.expand?.trails ?? []);
+        else if (requested) {
+            await completeTrailAssetExpands(event, list.expand?.trails ?? []);
+            enrichRecord(list, url.searchParams.get("share") ?? undefined);
+        }
+        return json(list)
     } catch (e: any) {
         return handleError(e);
     }
 }
 
+function enrichRecord(list: List, share?: string) {
+    enrichListTrailResponse(list, { share });
+}
+
 export async function POST(event: RequestEvent) {
     try {
         const r = await update<List>(event, ListUpdateSchema, Collection.lists)
-        return Response.json(r);
+        return json(r);
     } catch (e: any) {
         return handleError(e)
     }
@@ -100,9 +122,8 @@ export async function POST(event: RequestEvent) {
 export async function DELETE(event: RequestEvent) {
     try {
         const r = await remove(event, Collection.lists)
-        return Response.json(r);
+        return json(r);
     } catch (e: any) {
         return handleError(e)
     }
 }
-

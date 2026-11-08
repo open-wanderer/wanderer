@@ -42,7 +42,7 @@
         },
         images: (data.trail.photos ?? [])
             // Link previews can't show SVG, like the generated route image.
-            .filter((p) => !p.endsWith(".svg"))
+            .filter((p) => !new URL(p, page.url.origin).pathname.toLowerCase().endsWith(".svg"))
             .map((p) => ({
                 url: page.url.origin + getFileURL(data.trail, p),
             })),

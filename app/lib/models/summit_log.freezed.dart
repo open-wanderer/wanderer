@@ -364,7 +364,7 @@ $SummitLogExpandCopyWith<$Res>? get expand {
 /// @nodoc
 mixin _$SummitLogExpand {
 
-@JsonKey(name: 'gpx_data') String? get gpxData; Trail? get trail; Actor? get author;
+@JsonKey(name: 'summit_log_assets_via_summit_log') List<PhotoAssetLink>? get photoAssets;@JsonKey(name: 'gpx_data') String? get gpxData; Trail? get trail; Actor? get author;
 /// Create a copy of SummitLogExpand
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -378,20 +378,20 @@ $SummitLogExpandCopyWith<SummitLogExpand> get copyWith => _$SummitLogExpandCopyW
 @override
 bool operator ==(Object other) {
   final _this = this as SummitLogExpand;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is SummitLogExpand&&(identical(other.gpxData, _this.gpxData) || other.gpxData == _this.gpxData)&&(identical(other.trail, _this.trail) || other.trail == _this.trail)&&(identical(other.author, _this.author) || other.author == _this.author));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is SummitLogExpand&&const DeepCollectionEquality().equals(other.photoAssets, _this.photoAssets)&&(identical(other.gpxData, _this.gpxData) || other.gpxData == _this.gpxData)&&(identical(other.trail, _this.trail) || other.trail == _this.trail)&&(identical(other.author, _this.author) || other.author == _this.author));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as SummitLogExpand;
-  return Object.hash(runtimeType,_this.gpxData,_this.trail,_this.author);
+  return Object.hash(runtimeType,const DeepCollectionEquality().hash(_this.photoAssets),_this.gpxData,_this.trail,_this.author);
 }
 
 @override
 String toString() {
   final _this = this as SummitLogExpand;
-  return 'SummitLogExpand(gpxData: ${_this.gpxData}, trail: ${_this.trail}, author: ${_this.author})';
+  return 'SummitLogExpand(photoAssets: ${_this.photoAssets}, gpxData: ${_this.gpxData}, trail: ${_this.trail}, author: ${_this.author})';
 }
 
 
@@ -402,7 +402,7 @@ abstract mixin class $SummitLogExpandCopyWith<$Res>  {
   factory $SummitLogExpandCopyWith(SummitLogExpand value, $Res Function(SummitLogExpand) _then) = _$SummitLogExpandCopyWithImpl;
 @useResult
 $Res call({
-@JsonKey(name: 'gpx_data') String? gpxData, Trail? trail, Actor? author
+@JsonKey(name: 'summit_log_assets_via_summit_log') List<PhotoAssetLink>? photoAssets,@JsonKey(name: 'gpx_data') String? gpxData, Trail? trail, Actor? author
 });
 
 
@@ -419,9 +419,10 @@ class _$SummitLogExpandCopyWithImpl<$Res>
 
 /// Create a copy of SummitLogExpand
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? gpxData = freezed,Object? trail = freezed,Object? author = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? photoAssets = freezed,Object? gpxData = freezed,Object? trail = freezed,Object? author = freezed,}) {
   return _then(SummitLogExpand(
-gpxData: freezed == gpxData ? _self.gpxData : gpxData // ignore: cast_nullable_to_non_nullable
+photoAssets: freezed == photoAssets ? _self.photoAssets : photoAssets // ignore: cast_nullable_to_non_nullable
+as List<PhotoAssetLink>?,gpxData: freezed == gpxData ? _self.gpxData : gpxData // ignore: cast_nullable_to_non_nullable
 as String?,trail: freezed == trail ? _self.trail : trail // ignore: cast_nullable_to_non_nullable
 as Trail?,author: freezed == author ? _self.author : author // ignore: cast_nullable_to_non_nullable
 as Actor?,
@@ -533,10 +534,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function(@JsonKey(name: 'gpx_data')  String? gpxData,  Trail? trail,  Actor? author)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function(@JsonKey(name: 'summit_log_assets_via_summit_log')  List<PhotoAssetLink>? photoAssets, @JsonKey(name: 'gpx_data')  String? gpxData,  Trail? trail,  Actor? author)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _SummitLogExpand() when $default != null:
-return $default(_that.gpxData,_that.trail,_that.author);case _:
+return $default(_that.photoAssets,_that.gpxData,_that.trail,_that.author);case _:
   return orElse();
 
 }
@@ -554,10 +555,10 @@ return $default(_that.gpxData,_that.trail,_that.author);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function(@JsonKey(name: 'gpx_data')  String? gpxData,  Trail? trail,  Actor? author)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function(@JsonKey(name: 'summit_log_assets_via_summit_log')  List<PhotoAssetLink>? photoAssets, @JsonKey(name: 'gpx_data')  String? gpxData,  Trail? trail,  Actor? author)  $default,) {final _that = this;
 switch (_that) {
 case _SummitLogExpand():
-return $default(_that.gpxData,_that.trail,_that.author);case _:
+return $default(_that.photoAssets,_that.gpxData,_that.trail,_that.author);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -574,10 +575,10 @@ return $default(_that.gpxData,_that.trail,_that.author);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function(@JsonKey(name: 'gpx_data')  String? gpxData,  Trail? trail,  Actor? author)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function(@JsonKey(name: 'summit_log_assets_via_summit_log')  List<PhotoAssetLink>? photoAssets, @JsonKey(name: 'gpx_data')  String? gpxData,  Trail? trail,  Actor? author)?  $default,) {final _that = this;
 switch (_that) {
 case _SummitLogExpand() when $default != null:
-return $default(_that.gpxData,_that.trail,_that.author);case _:
+return $default(_that.photoAssets,_that.gpxData,_that.trail,_that.author);case _:
   return null;
 
 }
@@ -589,8 +590,17 @@ return $default(_that.gpxData,_that.trail,_that.author);case _:
 @JsonSerializable()
 
 class _SummitLogExpand implements SummitLogExpand {
-  const _SummitLogExpand({@JsonKey(name: 'gpx_data') this.gpxData, this.trail, this.author});
+  const _SummitLogExpand({@JsonKey(name: 'summit_log_assets_via_summit_log')  List<PhotoAssetLink>? photoAssets, @JsonKey(name: 'gpx_data') this.gpxData, this.trail, this.author}): _photoAssets = photoAssets;
   factory _SummitLogExpand.fromJson(Map<String, dynamic> json) => _$SummitLogExpandFromJson(json);
+
+ final  List<PhotoAssetLink>? _photoAssets;
+@override@JsonKey(name: 'summit_log_assets_via_summit_log') List<PhotoAssetLink>? get photoAssets {
+  final value = _photoAssets;
+  if (value == null) return null;
+  if (_photoAssets is EqualUnmodifiableListView) return _photoAssets;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(value);
+}
 
 @override@JsonKey(name: 'gpx_data') final  String? gpxData;
 @override final  Trail? trail;
@@ -609,18 +619,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _SummitLogExpand&&(identical(other.gpxData, gpxData) || other.gpxData == gpxData)&&(identical(other.trail, trail) || other.trail == trail)&&(identical(other.author, author) || other.author == author));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _SummitLogExpand&&const DeepCollectionEquality().equals(other.photoAssets, _photoAssets)&&(identical(other.gpxData, gpxData) || other.gpxData == gpxData)&&(identical(other.trail, trail) || other.trail == trail)&&(identical(other.author, author) || other.author == author));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hash(runtimeType,gpxData,trail,author);
+    return Object.hash(runtimeType,const DeepCollectionEquality().hash(_photoAssets),gpxData,trail,author);
 }
 
 @override
 String toString() {
-    return 'SummitLogExpand(gpxData: $gpxData, trail: $trail, author: $author)';
+    return 'SummitLogExpand(photoAssets: $photoAssets, gpxData: $gpxData, trail: $trail, author: $author)';
 }
 
 
@@ -631,7 +641,7 @@ abstract mixin class _$SummitLogExpandCopyWith<$Res> implements $SummitLogExpand
   factory _$SummitLogExpandCopyWith(_SummitLogExpand value, $Res Function(_SummitLogExpand) _then) = __$SummitLogExpandCopyWithImpl;
 @override @useResult
 $Res call({
-@JsonKey(name: 'gpx_data') String? gpxData, Trail? trail, Actor? author
+@JsonKey(name: 'summit_log_assets_via_summit_log') List<PhotoAssetLink>? photoAssets,@JsonKey(name: 'gpx_data') String? gpxData, Trail? trail, Actor? author
 });
 
 
@@ -648,9 +658,10 @@ class __$SummitLogExpandCopyWithImpl<$Res>
 
 /// Create a copy of SummitLogExpand
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? gpxData = freezed,Object? trail = freezed,Object? author = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? photoAssets = freezed,Object? gpxData = freezed,Object? trail = freezed,Object? author = freezed,}) {
   return _then(_SummitLogExpand(
-gpxData: freezed == gpxData ? _self.gpxData : gpxData // ignore: cast_nullable_to_non_nullable
+photoAssets: freezed == photoAssets ? _self._photoAssets : photoAssets // ignore: cast_nullable_to_non_nullable
+as List<PhotoAssetLink>?,gpxData: freezed == gpxData ? _self.gpxData : gpxData // ignore: cast_nullable_to_non_nullable
 as String?,trail: freezed == trail ? _self.trail : trail // ignore: cast_nullable_to_non_nullable
 as Trail?,author: freezed == author ? _self.author : author // ignore: cast_nullable_to_non_nullable
 as Actor?,

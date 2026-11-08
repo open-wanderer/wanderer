@@ -23,6 +23,9 @@ _Waypoint _$WaypointFromJson(Map<String, dynamic> json) => _Waypoint(
       const [],
   author: json['author'] as String? ?? "000000000000000",
   trail: json['trail'] as String?,
+  expand: json['expand'] == null
+      ? null
+      : WaypointExpand.fromJson(json['expand'] as Map<String, dynamic>),
   created: DateTime.parse(json['created'] as String),
   updated: DateTime.parse(json['updated'] as String),
 );
@@ -40,6 +43,17 @@ Map<String, dynamic> _$WaypointToJson(_Waypoint instance) => <String, dynamic>{
   'photos': instance.photos,
   'author': instance.author,
   'trail': instance.trail,
+  'expand': instance.expand,
   'created': instance.created.toIso8601String(),
   'updated': instance.updated.toIso8601String(),
 };
+
+_WaypointExpand _$WaypointExpandFromJson(Map<String, dynamic> json) =>
+    _WaypointExpand(
+      photoAssets: (json['waypoint_assets_via_waypoint'] as List<dynamic>?)
+          ?.map((e) => PhotoAssetLink.fromJson(e as Map<String, dynamic>))
+          .toList(),
+    );
+
+Map<String, dynamic> _$WaypointExpandToJson(_WaypointExpand instance) =>
+    <String, dynamic>{'waypoint_assets_via_waypoint': instance.photoAssets};

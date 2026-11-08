@@ -1,7 +1,9 @@
+import { assetResponseJson as json } from "#lib/server/asset_response_json.ts";
 import { SummitLogCreateSchema } from '#lib/models/api/summit_log_schema.ts';
 import type { SummitLog } from '#lib/models/summit_log.ts';
 import { Collection, create, handleError, list } from '#lib/util/api_util.ts';
-import type { RequestEvent } from '@sveltejs/kit';
+import { completeChildAssetExpands } from '#lib/server/trail_asset_pagination.ts';
+import { type RequestEvent } from '@sveltejs/kit';
 
 /**
  * @swagger
@@ -42,8 +44,14 @@ import type { RequestEvent } from '@sveltejs/kit';
 export async function GET(event: RequestEvent) {
     try {
         const summitLogs = await list<SummitLog>(event, Collection.summit_logs);
+        const paths = event.url.searchParams.get("expand")?.split(",").map((path) => path.trim()) ?? [];
+        const relation = "summit_log_assets_via_summit_log";
+        if (paths.some((path) => path === relation || path.startsWith(relation + "."))) {
+            const expandAsset = paths.some((path) => path === relation + ".asset" || path.startsWith(relation + ".asset."));
+            await completeChildAssetExpands(event, summitLogs.items, "summit_log", expandAsset);
+        }
         removeTimeFromDates(summitLogs.items)
-        return Response.json(summitLogs)
+        return json(summitLogs)
 
     } catch (e) {
         return handleError(e)
@@ -78,7 +86,7 @@ export async function GET(event: RequestEvent) {
 export async function PUT(event: RequestEvent) {
     try {
         const r = await create<SummitLog>(event, SummitLogCreateSchema, Collection.summit_logs)
-        return Response.json(r);
+        return json(r);
     } catch (e: any) {
         return handleError(e)
     }
@@ -86,6 +94,7 @@ export async function PUT(event: RequestEvent) {
 
 
 function removeTimeFromDates(logs: SummitLog[]) {
-    logs.forEach(l => l.date = l.date.substring(0, 10));
-
+    logs.forEach(l => {
+        l.date = l.date.substring(0, 10);
+    });
 }

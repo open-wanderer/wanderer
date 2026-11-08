@@ -23,7 +23,7 @@ import { waypoints_create, waypoints_delete, waypoints_update } from "./waypoint
 export async function trails_index(perPage: number = 21, random: boolean = false, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch) {
     const r = await f('/api/v1/trail?' + new URLSearchParams({
         "perPage": perPage.toString(),
-        expand: "category,subcategory,subcategory.category,waypoints_via_trail,summit_logs_via_trail,tags",
+        expand: "category,subcategory,subcategory.category,waypoints_via_trail,waypoints_via_trail.waypoint_assets_via_waypoint.asset,summit_logs_via_trail,summit_logs_via_trail.summit_log_assets_via_summit_log.asset,tags,trail_assets_via_trail.asset",
         sort: random ? "@random" : "",
     }), {
         method: 'GET',
@@ -339,7 +339,7 @@ export async function trails_search_map_data(
 export async function trails_show(id: string, handle?: string, share?: string, loadGPX?: boolean, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch) {
 
     const r = await f(`/api/v1/trail/${id}?` + new URLSearchParams({
-        expand: "category,subcategory,subcategory.category,waypoints_via_trail,summit_logs_via_trail,summit_logs_via_trail.author,trail_share_via_trail.actor,trail_like_via_trail,tags,author",
+        expand: "category,subcategory,subcategory.category,waypoints_via_trail,waypoints_via_trail.waypoint_assets_via_waypoint.asset,summit_logs_via_trail,summit_logs_via_trail.summit_log_assets_via_summit_log.asset,summit_logs_via_trail.author,trail_share_via_trail.actor,trail_like_via_trail,tags,author,trail_assets_via_trail.asset",
         ...(handle ? { handle } : {}),
         ...(share ? { share } : {})
     }), {
@@ -410,7 +410,7 @@ export async function trails_create(trail: Trail, photos: File[], gpx: File | Bl
     }
 
     let r = await f(`/api/v1/trail/form?` + new URLSearchParams({
-        expand: "category,subcategory,subcategory.category,waypoints_via_trail,summit_logs_via_trail,trail_share_via_trail,tags",
+        expand: "category,subcategory,subcategory.category,waypoints_via_trail,waypoints_via_trail.waypoint_assets_via_waypoint.asset,summit_logs_via_trail,summit_logs_via_trail.summit_log_assets_via_summit_log.asset,trail_share_via_trail,tags,trail_assets_via_trail.asset",
     }), {
         method: 'PUT',
         body: formData,
@@ -538,7 +538,7 @@ export async function trails_update(oldTrail: Trail, newTrail: Trail, photos?: F
 
 
     const updateUrl = `/api/v1/trail/form/${newTrail.id}?` + new URLSearchParams({
-        expand: "category,subcategory,subcategory.category,waypoints_via_trail,summit_logs_via_trail,trail_share_via_trail,tags",
+        expand: "category,subcategory,subcategory.category,waypoints_via_trail,waypoints_via_trail.waypoint_assets_via_waypoint.asset,summit_logs_via_trail,summit_logs_via_trail.summit_log_assets_via_summit_log.asset,trail_share_via_trail,tags,trail_assets_via_trail.asset",
     });
 
     let r = await fetch(updateUrl, {

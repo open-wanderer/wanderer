@@ -1,10 +1,13 @@
+import { assetResponseJson as json } from "#lib/server/asset_response_json.ts";
 import { RecordListOptionsSchema } from '#lib/models/api/base_schema.ts';
 import { TrailCreateSchema } from '#lib/models/api/trail_schema.ts';
 import type { Trail } from '#lib/models/trail.ts';
-import { completeOwnerExportChildren } from '#lib/server/trail_export_response.ts';
 import { withTrailPreferencePocketBaseFilter } from '#lib/server/category_preference_filter.ts';
+import { completeTrailAssetExpands } from '#lib/server/trail_asset_pagination.ts';
+import { completeOwnerExportChildren } from '#lib/server/trail_export_response.ts';
+import { enrichTrailListResponse, enrichTrailResponse, withTrailAssetExpands } from '#lib/server/trail_response_util.ts';
 import { Collection, create, handleError } from '#lib/util/api_util.ts';
-import type { RequestEvent } from '@sveltejs/kit';
+import { type RequestEvent } from '@sveltejs/kit';
 
 /**
  * @swagger
@@ -41,6 +44,12 @@ import type { RequestEvent } from '@sveltejs/kit';
  *         schema:
  *           type: string
  *           enum: [owned]
+ *       - in: query
+ *         name: photos
+ *         description: Set false to omit photo asset expansion, for example for a metadata-only account export.
+ *         schema:
+ *           type: boolean
+ *           default: true
  *     responses:
  *       200:
  *         description: ListResult<Trail>
@@ -57,18 +66,17 @@ export async function GET(event: RequestEvent) {
         const safeSearchParams = RecordListOptionsSchema.parse(searchParams);
         const { perPage, page, ...opts } = safeSearchParams;
         const ownerExport = searchParams.export === "owned";
-        if (ownerExport && !event.locals.user?.actor) {
-            return Response.json({ message: "Authentication and a local actor are required" }, { status: 401 });
-        }
+        if (ownerExport && !event.locals.user?.actor) return json({ message: "Authentication and a local actor are required" }, { status: 401 });
         const filter = ownerExport ? event.locals.pb.filter("author = {:actor}", { actor: event.locals.user!.actor }) : await withTrailPreferencePocketBaseFilter(
             event,
             safeSearchParams.filter,
         );
+        const includePhotos = searchParams.photos !== "false";
         if (ownerExport) {
             opts.sort = "id";
             opts.expand = "author,category,subcategory,subcategory.category,waypoints_via_trail,summit_logs_via_trail,tags";
         }
-        const listOptions = { ...opts, filter };
+        const listOptions = includePhotos ? withTrailAssetExpands({ ...opts, filter }) : { ...opts, filter };
         const r = ownerExport ? await event.locals.pb.collection(Collection.trails).getList<Trail>(Math.max(1, page ?? 1), Math.max(1, Math.min(100, perPage ?? 100)), listOptions) : (perPage ?? 0) < 0
             ? {
                   items: await event.locals.pb
@@ -88,18 +96,8 @@ export async function GET(event: RequestEvent) {
         }
 
         if (ownerExport) await completeOwnerExportChildren(event, r.items);
-
-        for (const t of r.items) {
-            if (!t.author || !event.locals.pb.authStore.record) {
-                continue;
-            }
-            if (!t.expand) {
-                t.expand = {} as any
-            }
-
-            t.expand?.waypoints_via_trail?.sort((a, b) => (a.distance_from_start ?? 0) - (b.distance_from_start ?? 0))
-        }
-        return Response.json(r)
+        if (includePhotos) await completeTrailAssetExpands(event, r.items);
+        return json(enrichTrailListResponse(r))
     } catch (e: any) {
         return handleError(e);
     }
@@ -129,20 +127,21 @@ export async function GET(event: RequestEvent) {
  *         description: Bad Request
  *       500:
  *         description: Internal Server Error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
  */
 export async function PUT(event: RequestEvent) {
     try {        
         const r = await create<Trail>(event, TrailCreateSchema, Collection.trails)
         enrichRecord(r);
-        return Response.json(r);
+        return json(r);
     } catch (e) {
         return handleError(e)
     }
 }
 
 function enrichRecord(r: Trail) {
-    r.date = r.date?.substring(0, 10) ?? "";
-    for (const log of r.expand?.summit_logs_via_trail ?? []) {
-        log.date = log.date.substring(0, 10);
-    }
+    enrichTrailResponse(r);
 }

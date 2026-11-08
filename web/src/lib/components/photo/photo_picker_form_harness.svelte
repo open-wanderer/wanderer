@@ -28,10 +28,10 @@
         stored.set(fixture.saved);
         setFields(fixture.saved);
     };
-    fixture.api.formPhotos = () => get(formData).photos;
-    fixture.api.storedPhotos = () => get(stored).photos;
+    fixture.api.formPhotos = () => get(formData).photos ?? [];
+    fixture.api.storedPhotos = () => get(stored).photos ?? [];
 </script>
 
 <form use:form>
-    <PhotoPicker id="trail" parent={$formData} bind:photos={$formData.photos} bind:thumbnail={$formData.thumbnail} photoFiles={undefined} />
+    <PhotoPicker id="trail" parent={$formData} bind:photos={() => $formData.photos ?? [], (value) => $formData.photos = value} bind:thumbnail={$formData.thumbnail} photoFiles={undefined} />
 </form>

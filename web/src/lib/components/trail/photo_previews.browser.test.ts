@@ -2,6 +2,8 @@ import { flushSync, mount, unmount } from "svelte";
 import { fromStore, writable } from "svelte/store";
 import { addMessages, init } from "svelte-i18n";
 import { afterEach, beforeAll, expect, it, vi } from "vitest";
+import { Trail } from "#lib/models/trail.ts";
+import TrailTimeline from "./trail_timeline.svelte";
 import { SummitLog } from "#lib/models/summit_log.ts";
 import { Waypoint } from "#lib/models/waypoint.ts";
 import * as files from "#lib/util/file_util.ts";
@@ -94,4 +96,25 @@ it("reads only the three visible waypoint uploads and shares previews between ca
         "data:photo-0.jpg", "data:photo-1.jpg", "data:photo-2.jpg",
     ]);
     expect(reader).toHaveBeenCalledTimes(3);
+});
+
+it("renders cards and the trail timeline when photo relations were inconclusive", async () => {
+    const waypoint = new Waypoint(47, 8);
+    waypoint.name = "Ridge junction";
+    delete waypoint.photos;
+    waypoint._photos = [new File(["photo"], "preview.jpg")];
+    vi.spyOn(files, "readAsDataURLAsync").mockResolvedValue("data:preview");
+    const log = new SummitLog("2026-10-03");
+    delete log.photos;
+    const trail = new Trail("Ridge");
+    trail.expand = { waypoints_via_trail: [waypoint] };
+    const timeline = target();
+    mounted.push(mount(TrailTimeline, { target: timeline, props: { trail } }));
+    mounted.push(mount(SummitLogCard, { target: target(), props: { log, mode: "edit" } }));
+    const card = target();
+    mounted.push(mount(WaypointCard, { target: card, props: { waypoint, mode: "show" } }));
+    flushSync();
+    expect(timeline.textContent).toContain("Ridge junction");
+    expect(timeline.querySelectorAll("img,video")).toHaveLength(0);
+    await vi.waitFor(() => expect(card.querySelectorAll("img").length).toBeGreaterThan(0));
 });

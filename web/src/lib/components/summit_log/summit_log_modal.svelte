@@ -20,10 +20,9 @@
     interface Props {
         children?: Snippet<[any]>;
         onsave?: (summitLog: SummitLog) => void;
-        photoUploadsUnavailable?: boolean;
     }
 
-    let { children, onsave, photoUploadsUnavailable = false }: Props = $props();
+    let { children, onsave }: Props = $props();
 
     let modal: Modal;
 
@@ -47,13 +46,10 @@
         initialValues: $summitLog,
         extend: validator({ schema: ClientSummitLogCreateSchema }),
         onSubmit: async (form) => {
-            if (photoUploadsUnavailable && form._photos?.length) return;
             onsave?.(form);
             modal.closeModal!();
         },
     });
-
-    const photoUploadBlocked = $derived(photoUploadsUnavailable && !!$data._photos?.length);
 
     $effect(() => {
         setFields(cloneDeep($summitLog));
@@ -160,15 +156,10 @@
                 <PhotoPicker
                     id="summitlog-photo-input"
                     parent={$data}
-                    bind:photos={() => $data.photos ?? [], (value) => $data.photos = value}
+                    bind:photos={$data.photos}
                     bind:photoFiles={$data._photos}
                     showThumbnailControls={false}
                 ></PhotoPicker>
-                {#if photoUploadBlocked}
-                    <p class="mt-2 text-sm" role="alert">
-                        {$_("legacy-editor-photo-upload-unavailable")}
-                    </p>
-                {/if}
             </div>
             <div class="flex gap-4 items-end">
                 {#if $data.expand}
@@ -197,7 +188,7 @@
             <button class="btn-secondary" onclick={() => modal.closeModal()}
                 >{$_("cancel")}</button
             >
-            <button class="btn-primary" type="submit" form="summit-log-form" disabled={photoUploadBlocked}
+            <button class="btn-primary" type="submit" form="summit-log-form"
                 >{$_("save")}</button
             >
         </div>

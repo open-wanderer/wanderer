@@ -53,6 +53,9 @@ Map<String, dynamic> _$SummitLogToJson(_SummitLog instance) =>
 
 _SummitLogExpand _$SummitLogExpandFromJson(Map<String, dynamic> json) =>
     _SummitLogExpand(
+      photoAssets: (json['summit_log_assets_via_summit_log'] as List<dynamic>?)
+          ?.map((e) => PhotoAssetLink.fromJson(e as Map<String, dynamic>))
+          .toList(),
       gpxData: json['gpx_data'] as String?,
       trail: json['trail'] == null
           ? null
@@ -64,6 +67,7 @@ _SummitLogExpand _$SummitLogExpandFromJson(Map<String, dynamic> json) =>
 
 Map<String, dynamic> _$SummitLogExpandToJson(_SummitLogExpand instance) =>
     <String, dynamic>{
+      'summit_log_assets_via_summit_log': instance.photoAssets,
       'gpx_data': instance.gpxData,
       'trail': instance.trail,
       'author': instance.author,

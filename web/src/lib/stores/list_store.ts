@@ -90,6 +90,7 @@ export async function lists_show(id: string, handle?: string, f: (url: RequestIn
 
     const r = await f(`/api/v1/list/${id}?` + new URLSearchParams({
         expand: "author,trails,trails.author,trails.category,trails.subcategory,trails.subcategory.category,trails.tags,list_share_via_list.actor",
+        photoPreview: "true",
         ...(handle ? { handle } : {})
     }), {
         method: 'GET',

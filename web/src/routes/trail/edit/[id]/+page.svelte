@@ -220,6 +220,7 @@
     });
 
     const ClientSummitLogCreateSchema = SummitLogCreateSchema.extend({
+        photos: z.array(z.string()).optional(),
         _photos: z.array(z.instanceof(File)).optional(),
         _gpx: z.instanceof(Blob).optional().nullable(),
         _duplicatePhotoSource: PhotoCloneSourceSchema.optional(),
@@ -231,6 +232,7 @@
     });
 
     const ClientWaypointCreateSchema = WaypointCreateSchema.extend({
+        photos: z.array(z.string()).optional(),
         _photos: z.array(z.instanceof(File)).optional(),
         _duplicatePhotoSource: PhotoCloneSourceSchema.optional(),
     });
@@ -248,6 +250,7 @@
     };
 
     const ClientTrailCreateSchema = TrailCreateSchema.extend({
+        photos: z.array(z.string()).optional(),
         expand: z
             .object({
                 gpx_data: z.string().optional(),
@@ -332,36 +335,18 @@
                 if (!formData.get("public")) {
                     form.public = false;
                 }
-                if (Array.isArray(form.photos)) {
-                    form.photos = form.photos.filter(
-                        (p) => !p.startsWith("data:image/svg+xml;base64"),
-                    );
-                }
+                form.photos = (form.photos ?? []).filter(
+                    (p) => !p.startsWith("data:image/svg+xml;base64"),
+                );
                 Object.assign(
                     form,
                     await prepareDuplicateLegacyPhotos(form as Trail),
                 );
 
-                const firstCreate = isNewTrail && !savedAtLeastOnce;
-                // First creates use the migrated schema, regardless of the previous trail in the store.
-                if (
-                    (firstCreate || !Array.isArray($trail.photos)) &&
-                    (photoFiles.length ||
-                        form.expand?.waypoints_via_trail?.some((wp) => wp._photos?.length) ||
-                        form.expand?.summit_logs_via_trail?.some((log) => log._photos?.length))
-                ) {
-                    show_toast({
-                        type: "error",
-                        icon: "close",
-                        text: $_("legacy-editor-photo-upload-unavailable"),
-                    }, 10000);
-                    return;
-                }
-
                 form.expand!.gpx_data = routeToStoredGpx(valhallaStore.route);
                 if (
                     form.expand!.gpx_data &&
-                    (overwriteGPX || (firstCreate && !gpxFile && routeHasTrackPoints()))
+                    (overwriteGPX || (isNewTrail && !savedAtLeastOnce && !gpxFile && routeHasTrackPoints()))
                 ) {
                     gpxFile = new Blob([form.expand!.gpx_data], {
                         type: "text/xml",
@@ -375,7 +360,7 @@
                     form.lon = startPoint.$.lon;
                 }
 
-                if (firstCreate) {
+                if (page.params.id === "new" && !savedAtLeastOnce) {
                     const createdTrail = await trails_create(
                         form as Trail,
                         photoFiles,
@@ -806,6 +791,7 @@
                       "\n\n",
                   )
                 : existing.description,
+            photos: existing.photos ?? [],
             _photos: options.photos
                 ? [
                       ...((existing as Waypoint)._photos ?? []),
@@ -2171,6 +2157,7 @@
             if (existingWaypoint) {
                 commitWaypoint({
                     ...existingWaypoint,
+                    photos: existingWaypoint.photos ?? [],
                     _photos: [...existingWaypointPhotos, ...photos],
                 } as Waypoint);
                 continue;

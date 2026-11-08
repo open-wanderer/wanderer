@@ -15,14 +15,25 @@ mixin RecordFunctions {
       return null;
     }
 
-    if (Uri.tryParse(filename)?.hasAbsolutePath ?? false) {
-      return filename;
+    final base = Uri.parse('${baseUrl.replaceFirst(RegExp(r'/+$'), '')}/');
+    final source = Uri.parse(filename);
+    final Uri resolved;
+    if (source.hasScheme || source.hasAuthority || source.path.contains('/')) {
+      resolved = base.resolveUri(source);
+    } else {
+      resolved = base
+          .resolve('api/v1/files/$collectionId/$id/')
+          .resolveUri(source);
     }
 
-    final thumbParam = (thumb != null && thumb.isNotEmpty)
-        ? '?thumb=$thumb'
-        : '';
-
-    return '$baseUrl/api/v1/files/$collectionId/$id/$filename$thumbParam';
+    if (thumb == null || thumb.isEmpty) return resolved.toString();
+    return resolved
+        .replace(
+          queryParameters: {
+            ...resolved.queryParametersAll,
+            'thumb': [thumb],
+          },
+        )
+        .toString();
   }
 }

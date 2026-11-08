@@ -74,7 +74,7 @@
         avatar: z.string().or(z.instanceof(File)).optional(),
         expand: z
             .object({
-                trails: z.array(TrailCreateSchema).optional(),
+                trails: z.array(TrailCreateSchema.extend({ photos: z.array(z.string()).optional() })).optional(),
                 list_share_via_list: z
                     .array(
                         z.object({
