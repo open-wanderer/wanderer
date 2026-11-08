@@ -82,7 +82,6 @@
     } from "#lib/components/base/search.svelte";
     import RouteEditor from "#lib/components/trail/route_editor.svelte";
     import { TagCreateSchema } from "#lib/models/api/tag_schema.ts";
-    import { convertDMSToDD } from "#lib/models/gpx/utils.ts";
     import { Tag } from "#lib/models/tag.ts";
     import {
         searchLocationReverse,
@@ -93,8 +92,6 @@
     import { currentUser } from "#lib/stores/user_store.ts";
     import { designSelectableCategories } from "#lib/util/category_util.ts";
     import {
-        convertDateTimeOriginalToDate,
-        convertGPSTimestampToDate,
         dateInputValue,
     } from "#lib/util/date_util.ts";
     import { getIconForLocation } from "#lib/util/icon_util.ts";
@@ -108,7 +105,7 @@
         renderValhallaAnchorMarker,
         valhallaAnchorTitle,
     } from "#lib/util/valhalla_anchor_util.ts";
-    import EXIF from "#lib/vendor/exif-js/exif.js";
+    import { extractDevicePhotoExif } from "#lib/util/exif_util.ts";
     import {
         haversineCumulatedDistanceWgs84,
         MIN_STORED_DISTANCE_METERS,
@@ -2061,38 +2058,16 @@
         const photoCoords: GPXCoord[] = [];
 
         for (const [index, file] of Array.from(files).entries()) {
-            const coords = await new Promise<GPXCoord | undefined>((resolve) => {
-                EXIF.getData(file, function (p) {
-                    const lat = EXIF.getTag(p, "GPSLatitude");
-                    const latDir = EXIF.getTag(p, "GPSLatitudeRef");
-                    const lon = EXIF.getTag(p, "GPSLongitude");
-                    const lonDir = EXIF.getTag(p, "GPSLongitudeRef");
-
-                    if (lat && lon) {
-                        resolve({
-                            id: index.toString(),
-                            latitude: convertDMSToDD(lat, latDir),
-                            longitude: convertDMSToDD(lon, lonDir),
-                            time:
-                                convertGPSTimestampToDate(
-                                    EXIF.getTag(p, "GPSDateStamp"),
-                                    EXIF.getTag(p, "GPSTimeStamp"),
-                                ) ??
-                                convertDateTimeOriginalToDate(
-                                    EXIF.getTag(p, "DateTimeOriginal"),
-                                    // some devices only write the offset of
-                                    // the other timestamps, all in one zone
-                                    EXIF.getTag(p, "OffsetTimeOriginal") ??
-                                        EXIF.getTag(p, "OffsetTime") ??
-                                        EXIF.getTag(p, "OffsetTimeDigitized"),
-                                ),
-                            file,
-                        });
-                    } else {
-                        resolve(undefined);
-                    }
-                });
-            });
+            const { coordinates, fileType } = await extractDevicePhotoExif(file);
+            // These EXIF-bearing formats are accepted by waypoints.photos.
+            const supported = ["jpeg", "png", "webp"].includes(fileType ?? "");
+            const coords: GPXCoord | undefined = coordinates && supported ? {
+                id: index.toString(),
+                latitude: coordinates.lat,
+                longitude: coordinates.lon,
+                time: coordinates.time,
+                file,
+            } : undefined;
 
             if (!coords) {
                 show_toast(

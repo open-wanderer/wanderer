@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
     calendarMonthForDateRange,
-    convertDateTimeOriginalToDate,
     convertGPSTimestampToDate,
     dateInputValue,
     datePeriodRange,
@@ -112,21 +111,5 @@ describe("convertGPSTimestampToDate", () => {
     it("ignores missing tags", () => {
         expect(convertGPSTimestampToDate(undefined, [14, 6, 33])).toBeUndefined();
         expect(convertGPSTimestampToDate("2026:10:03", undefined)).toBeUndefined();
-    });
-});
-
-describe("convertDateTimeOriginalToDate", () => {
-    it("converts local time with its offset to UTC", () => {
-        expect(convertDateTimeOriginalToDate("2026:10:03 10:06:33", "-04:00")?.toISOString()).toBe("2026-10-03T14:06:33.000Z");
-        expect(convertDateTimeOriginalToDate("2026:10:03 01:30:00", "+05:30")?.toISOString()).toBe("2026-10-02T20:00:00.000Z");
-    });
-
-    it("ignores a local time without an offset", () => {
-        expect(convertDateTimeOriginalToDate("2026:10:03 10:06:33", undefined)).toBeUndefined();
-    });
-
-    it("ignores malformed values", () => {
-        expect(convertDateTimeOriginalToDate("    :  :     :  :  ", "-04:00")).toBeUndefined();
-        expect(convertDateTimeOriginalToDate("2026:10:03 10:06:33", "Z")).toBeUndefined();
     });
 });
