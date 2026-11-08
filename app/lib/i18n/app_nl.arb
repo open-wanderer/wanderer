@@ -1,0 +1,745 @@
+{
+  "@@locale": "nl",
+  "about": "Over",
+  "@about": {
+    "description": "Standalone heading used in three places: the 'About' tab on the trail detail panel (about the trail), prefixed to a username as 'About <username>' on the account screen, and the settings entry and title of the screen about the app itself. Needs to read as a section heading in all of them."
+  },
+  "about_changelog": "What's new",
+  "@about_changelog": {
+    "description": "About screen: link to the wanderer changelog website."
+  },
+  "about_discord_subtitle": "Chat with the community",
+  "@about_discord_subtitle": {
+    "description": "About screen: subtitle under the 'Discord' link."
+  },
+  "about_github_subtitle": "Source code, issues and contributions",
+  "@about_github_subtitle": {
+    "description": "About screen: subtitle under the 'GitHub' link."
+  },
+  "about_license": "License",
+  "@about_license": {
+    "description": "About screen: link to wanderer's own license on GitHub. Singular, as opposed to 'about_licenses' (the libraries' licenses)."
+  },
+  "about_licenses": "Open source licenses",
+  "@about_licenses": {
+    "description": "About screen: opens the list of licenses of the libraries the app uses."
+  },
+  "about_privacy_policy": "Privacy policy",
+  "@about_privacy_policy": {
+    "description": "About screen: link to the privacy policy website."
+  },
+  "about_report_bug": "Report a bug",
+  "@about_report_bug": {
+    "description": "About screen: opens the app bug report form on GitHub."
+  },
+  "about_version": "Version {version}",
+  "@about_version": {
+    "description": "About screen: the installed app version below the logo. {version} is e.g. '0.1.0 (10)', the number in brackets being the build.",
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "appearance": "Weergave",
+  "account": "Account",
+  "account_delete_confirm": "Je staat op het punt je account te verwijderen. Al je routes worden hierdoor eveneens verwijderd. Wil je doorgaan?",
+  "account_privacy": "Account privacy",
+  "add_bio": "Voeg Bio toe",
+  "add_waypoint": "Routepunt toevoegen",
+  "after": "Na",
+  "@after": {
+    "description": "Used two ways. (1) Label above the date picker that filters for trails dated after the chosen day. (2) Prefixed to a distance on the waypoint sheet as 'After 2.4 km', meaning how far along the trail the waypoint sits. Pick wording that works for both a date and a distance."
+  },
+  "all": "Alles",
+  "@all": {
+    "description": "Filter chip in global search meaning 'all result categories' (trails, lists, places and users together), as opposed to one specific category."
+  },
+  "altitude": "Hoogte",
+  "author": "Auteur",
+  "@author": {
+    "description": "Noun. Heading and input placeholder for the filter that narrows trails to a specific author's username."
+  },
+  "average_speed": "Gem. Snelheid",
+  "background_location_body": "wanderer collects location data in the background so your trail keeps recording when the screen is off or the app is closed. Your recorded track stays on your device until you choose to save the trail.\n\nAndroid only offers this in system settings: open Location and choose \"Allow all the time\".",
+  "background_location_confirm": "Open settings",
+  "background_location_title": "Keep recording in the background",
+  "basic_info": "Algemene informatie",
+  "before": "Voor",
+  "@before": {
+    "description": "Label above the date picker that filters for trails dated before the chosen day. Pairs with the 'after' string."
+  },
+  "by": "door",
+  "@by": {
+    "description": "Byline preposition, rendered lowercase and immediately followed by a username: 'by alice'. Appears on trail cards, list cards and summit log entries. Not the standalone word 'by' in any other sense."
+  },
+  "cancel": "Annuleren",
+  "discard": "Verwijderen",
+  "discard_trail_confirm": "Verwijder dit spoor en de bijbehorende wijzigingen?",
+  "card": "{n, plural, =1 {Kaart} other {Kaarten}}",
+  "@card": {
+    "placeholders": {
+      "n": {
+        "type": "num",
+        "description": "The number of cards to pluralize the label for"
+      }
+    }
+  },
+  "categories": "Categorieën",
+  "category": "Categorie",
+  "change_email": "E-mail wijzigen",
+  "change_password": "Wachtwoord wijzigen",
+  "clear_all": "Wis alles",
+  "close": "Sluiten",
+  "comment": "{n, plural, =1 {Opmerking} other {Opmerkingen}}",
+  "@comment": {
+    "placeholders": {
+      "n": {
+        "type": "num",
+        "description": "The number of comments to pluralize the label for"
+      }
+    }
+  },
+  "completed": "Voltooid",
+  "completion_status": "Voltooiingsstatus",
+  "confirm_deletion": "Bevestig verwijderen",
+  "couldnt_start_navigation": "Kon navigatie niet starten. Controleer je verbinding en probeer het opnieuw.",
+  "location_services_disabled": "Locatieservices zijn uitgeschakeld. Activeer GPS om navigatie te gebruiken.",
+  "location_permission_denied": "Locatie toestemming is vereist voor navigatie.",
+  "location_permission_permanently_denied": "Locatie toestemming is permanent geweigerd. Activeer het in de Instellingen.",
+  "location_unavailable": "Unable to determine your location. Please try again.",
+  "copy_link": "Kopieer Link",
+  "create_waypoint": "Nieuw routepunt",
+  "creation_date": "Aanmaakdatum",
+  "current_password": "Huidig wachtwoord",
+  "danger_zone": "Gevarenzone",
+  "date": "Datum",
+  "@date": {
+    "description": "Noun. Used as a sort option ('sort trails by date'), as the heading of the date-range filter sheet, and as the label of the date field in the trail form. A single neutral noun is needed for all three."
+  },
+  "delete": "Verwijderen",
+  "not_now": "Not now",
+  "open": "Open",
+  "@open": {
+    "description": "Verb. Menu action that opens a downloaded trail from the library. Not the adjective 'open' and not the opposite of 'closed'."
+  },
+  "delete_account": "Account verwijderen",
+  "delete_trail_confirm": "Weet je zeker dat je deze route wilt verwijderen? Deze actie is onomkeerbaar.",
+  "delete_blocked_while_uploading": "This trail is uploading right now. Wait for the upload to finish, then try again.",
+  "delete_unsynced_trail_confirm": "Delete this trail? It hasn't been uploaded yet, so this can't be undone.",
+  "delete_needs_connection": "This trail is already on the server. Connect to the internet to delete it.",
+  "description": "Omschrijving",
+  "difficult": "Moeilijk",
+  "difficulty": "Moeilijkheidsgraad",
+  "directions": "Routebeschrijving",
+  "distance": "Afstand",
+  "download": "Download",
+  "duration": "Duur",
+  "easy": "Makkelijk",
+  "edit": "Bewerk",
+  "edit_needs_connection": "Editing works on the server copy of this trail. Connect to the internet to edit it.",
+  "edit_waypoint": "Bewerk Routepunt",
+  "edited": "bewerkt",
+  "@edited": {
+    "description": "Adjective appended in parentheses after a comment's timestamp to mark that the comment was changed after posting: '2 hours ago (edited)'. Rendered lowercase."
+  },
+  "elevation_gain": "Hoogteverschil",
+  "elevation_loss": "Hoogteverlies",
+  "elevation_profile": "Elevation Profile",
+  "email": "E-mail",
+  "email_not_unique": "Dit e-mailadres is al in gebruik.",
+  "email_updated": "Email bijgewerkt",
+  "error_deleting_trail": "Error deleting trail",
+  "error_reading_file": "Fout bij inlezen bestand",
+  "error_saving_settings": "Error saving settings",
+  "error_saving_trail": "Fout bij bewaren van route",
+  "error_updating_password": "Fout bij bijwerken van wachtwoord",
+  "explore": "Verkennen",
+  "exit_navigation": "Exit",
+  "stop_navigation_confirm": "Stop navigation and return to the trail?",
+  "stop_recording": "Opname stoppen",
+  "stop_recording_confirm": "Opname stoppen?",
+  "search_this_area": "Search this area",
+  "filter_category_deselect_hint": "Press and hold to deselect a category",
+  "@filter_category_deselect_hint": {
+    "description": "Hint above the category chips on the trail filter screen. A long press removes a category from the selection."
+  },
+  "filter_tags": "Filter tags",
+  "filter_trails": "Filter trails",
+  "finish": "Finish",
+  "@finish": {
+    "description": "Used two ways. (1) Noun: label of the last row in the trail's waypoint timeline, marking the end of the trail. (2) Tooltip on the route planner's confirm action, meaning 'finish planning this route'. Prefer wording that carries both, or the noun sense if it must be one."
+  },
+  "finish_disabled_hint": "Add at least 2 anchors to finish your route.",
+  "follow": "Volg",
+  "followers": "Volgers",
+  "following": "Volgend",
+  "from_photos": "Van Foto's",
+  "help": "Help",
+  "hiking": "Hiking",
+  "home": "Home",
+  "icon": "Pictogram",
+  "@icon": {
+    "description": "Noun. Label of the icon picker field in the waypoint form — which symbol to show for this waypoint on the map."
+  },
+  "imperial": "Imperiaal",
+  "joined": "Aangesloten",
+  "language": "Taal",
+  "latitude": "Breedtegraad",
+  "like_status": "Like status",
+  "liked": "Leuk gevonden",
+  "@liked": {
+    "description": "Adjective. Filter toggle that narrows the list to trails you have liked."
+  },
+  "likes": "Vind-ik-leuks",
+  "list": "{n, plural, =1 {Lijst} other {Lijsten}}",
+  "@list": {
+    "placeholders": {
+      "n": {
+        "type": "num",
+        "description": "The number of lists to pluralize the label for"
+      }
+    }
+  },
+  "location": "Locatie",
+  "locations": "Locations",
+  "center_on_my_location": "Center on my location",
+  "location_tracking_notification_title": "Wanderer",
+  "location_tracking_notification_text": "Recording your trail",
+  "location_tracking_notification_text_navigating": "Navigating {trail}",
+  "@location_tracking_notification_text_navigating": {
+    "placeholders": {
+      "trail": {
+        "type": "String"
+      }
+    }
+  },
+  "login": "Inloggen",
+  "logout": "Uitloggen",
+  "longitude": "Lengtegraad",
+  "map": "Kaart",
+  "metric": "Metrisch",
+  "moderate": "Gemiddeld",
+  "my_account": "Mijn Account",
+  "in_distance": "in {distance}",
+  "@in_distance": {
+    "placeholders": {
+      "distance": {
+        "type": "String"
+      }
+    }
+  },
+  "name": "Naam",
+  "@name": {
+    "description": "Noun. Used as a sort option ('sort by name') and as the label of the trail name field in the trail form."
+  },
+  "navigate": "Navigate",
+  "new_password": "Nieuw wachtwoord",
+  "new_password_success": "Het nieuwe wachtwoord is ingesteld.",
+  "new_trail": "Nieuwe Route",
+  "trail_source_planner": "Open trail planner",
+  "trail_source_planner_description": "Draw a new route on the map, waypoint by waypoint.",
+  "trail_source_record": "Record trail",
+  "trail_source_record_description": "Track your live coordinates and log your journey in real-time.",
+  "trail_source_import": "Import file",
+  "trail_source_import_description": "Upload GPX, KML, KMZ, TCX or FIT files directly from your device storage.",
+  "trail_source_import_error": "Could not import file",
+  "trail_source_offline_import_error": "Only GPX files can be imported offline",
+  "@trail_source_offline_import_error": {
+    "description": "Shown when the user picks a non-GPX file for import while offline. Names the formats that need a connection and points at GPX as the offline-capable alternative."
+  },
+  "no_comments_so_far": "Tot nu toe geen opmerkingen",
+  "no_data": "Geen data",
+  "no_description_for_now": "Voorlopig geen beschrijving",
+  "no_gps_data_in_image": "Geen GPS data in afbeelding",
+  "no_preference": "Geen voorkeur",
+  "no_trails_found": "No trails found",
+  "not_completed": "Niet voltooid",
+  "notifications": "Meldingen",
+  "only_me": "Alleen ik",
+  "or": "of",
+  "@or": {
+    "description": "Divider word between the email login form and the OAuth provider buttons on the login screen."
+  },
+  "own_trails_empty_body": "Trails you record or save offline appear here, and upload automatically once you're back online.",
+  "own_trails_empty_title": "Nothing saved yet",
+  "own_trails_offline_banner": "Offline — showing only trails on this device.",
+  "trails_on_device": "Trails (on device)",
+  "@trails_on_device": {
+    "description": "Label of the profile trail count card when the count comes from local storage (unsynced captures plus downloaded trails) because the device is offline."
+  },
+  "pause": "Pause",
+  "password": "Wachtwoord",
+  "password_confirm": "Bevestig wachtwoord",
+  "passwords_must_match": "Wachtwoorden moeten overeenkomen",
+  "photo_copy_failed_toast": "{count, plural, =1 {Trail saved, but 1 photo couldn't be saved.} other {Trail saved, but {count} photos couldn't be saved.}}",
+  "@photo_copy_failed_toast": {
+    "placeholders": {
+      "count": {
+        "type": "num",
+        "description": "The number of photos that failed to copy into app-owned storage while saving a trail"
+      }
+    }
+  },
+  "photos": "Foto's",
+  "photos_skipped_no_gps": "{count, plural, =1 {1 photo skipped — no GPS data} other {{count} photos skipped — no GPS data}}",
+  "@photos_skipped_no_gps": {
+    "placeholders": {
+      "count": {
+        "type": "num",
+        "description": "The number of photos skipped because they had no GPS data"
+      }
+    }
+  },
+  "privacy": "Privacy",
+  "private": "Privaat",
+  "profile": "Profiel",
+  "public": "Openbaar",
+  "reached_end_of_trail": "You've reached the end of the trail.",
+  "register": "Registreren",
+  "reorder_photos_hint": "Long-press and drag to reorder photos.",
+  "reset": "Herstellen",
+  "@reset": {
+    "description": "Verb. Button that clears every active filter back to its default. Not 'restart' and not 'reset password'."
+  },
+  "resume": "Resume",
+  "resume_navigation_prompt": "Resume navigation on {trail}?",
+  "@resume_navigation_prompt": {
+    "placeholders": {
+      "trail": {
+        "type": "String"
+      }
+    }
+  },
+  "resume_recording_prompt": "Opname hervatten?",
+  "route": "{n, plural,=1 {Tocht} other {Tochten}}",
+  "@route": {
+    "placeholders": {
+      "n": {
+        "type": "num",
+        "description": "The number of routes to pluralize the label for"
+      }
+    }
+  },
+  "follow_roads": "Follow roads",
+  "follow_roads_description": "Snap the recorded path to the nearest roads and trails.",
+  "recalculate_heights": "Recalculate heights",
+  "recalculate_heights_description": "Replace recorded GPS elevation with more accurate values from the map.",
+  "track_transform_failed": "Couldn't adjust the track. Check your connection and try again.",
+  "save": "Bewaren",
+  "save_track": "Save track",
+  "search": "Search",
+  "search_for_trails_places": "Zoek naar routes, lijsten en locaties",
+  "select_date": "Select date",
+  "settings": "Instellingen",
+  "settings_notification_comment_mention": "Iemand vermeldt je in een reactie",
+  "settings_notification_list_share": "Iemand heeft een lijst met je gedeeld",
+  "settings_notification_new_follower": "Je hebt een nieuwe volger",
+  "settings_notification_summit_log_create": "Iemand heeft een topboek van je trail gemaakt",
+  "settings_notification_summit_log_mention": "Iemand vermeldde je in een topboek",
+  "settings_notification_trail_comment": "Iemand heeft een opmerking geplaatst bij je route",
+  "settings_notification_trail_like": "Iemand vindt je route leuk",
+  "settings_notification_trail_mention": "Iemand heeft je in een route genoemd",
+  "settings_notification_trail_share": "Iemand heeft een route met je gedeeld",
+  "settings_privacy_account_private": "Alleen jij kunt je profiel zien. Je verschijnt niet in de zoekresultaten. Andere gebruikers kunnen je niet volgen of routes met je delen. Je kunt nog steeds routes of lijsten publiceren.",
+  "settings_privacy_account_public": "Iedereen kan je profiel zien. Je verschijnt in de zoekresultaten. Andere gebruikers kunnen je volgen en ervaringen met je delen.",
+  "settings_privacy_lists_private": "Je lijsten zijn standaard privé. Niemand behalve jij kan ze zien. Je kunt deze instelling op elk moment voor individuele lijsten wijzigen.",
+  "settings_privacy_lists_public": "Je lijsten zijn standaard openbaar. Iedereen kan ze zien. Je kunt deze instelling op elk moment voor individuele lijsten wijzigen.",
+  "settings_privacy_trails_private": "Je routes zijn standaard privé. Niemand behalve jij kan ze zien. Je kunt deze instelling op elk moment voor individuele routes wijzigen.",
+  "settings_privacy_trails_public": "Je routes zijn standaard openbaar. Iedereen kan ze zien. Je kunt deze instelling op elk moment voor individuele routes wijzigen.",
+  "share": "Deel",
+  "share_profile": "Deel profiel",
+  "shared": "Gedeeld",
+  "@shared": {
+    "description": "Adjective. Filter toggle that narrows the list to trails other users have shared with you."
+  },
+  "shortcut_new_trail": "New trail",
+  "@shortcut_new_trail": {
+    "description": "App shortcut shown when long-pressing the app icon on the home screen (Android) or Home Screen (iOS); opens the screen to plan, record or import a new trail. Keep it short: launchers truncate shortcut labels after about 10 to 25 characters."
+  },
+  "show_on_map": "Tonen op kaart",
+  "signout_unsynced_warning": "{count, plural, =1 {You have 1 trail not uploaded yet. Signing out won't delete it — it'll be here when you sign back in — but it won't upload until then.} other {You have {count} trails not uploaded yet. Signing out won't delete them — they'll be here when you sign back in — but they won't upload until then.}}",
+  "@signout_unsynced_warning": {
+    "placeholders": {
+      "count": {
+        "type": "num",
+        "description": "The number of unsynced (not-yet-uploaded) trails owned by the account currently signing out"
+      }
+    }
+  },
+  "slogan": "Jouw routes. Jouw data. Jouw server.",
+  "sort": "Sorteren",
+  "@sort": {
+    "description": "Button label that opens the sort options for a trail or list collection. Verb or noun, whichever reads better as a short button."
+  },
+  "speed": "Snelheid",
+  "@speed": {
+    "description": "Noun. Label of the current-speed readout on the live navigation screen."
+  },
+  "start": "Start",
+  "@start": {
+    "description": "Noun. Label of the first row in the trail's waypoint timeline, marking the trailhead. Not the verb 'to start'."
+  },
+  "subcategories": "Subcategorieën",
+  "@subcategories": {
+    "description": "Label for the subcategories filter section"
+  },
+  "summit_book": "Bergtopboek",
+  "sync_discard_draft_confirm": "Delete this recording? It hasn't been uploaded anywhere.",
+  "sync_draft": "Draft",
+  "sync_failed": "Upload failed · Tap to retry",
+  "sync_pending": "Waiting to upload",
+  "sync_section_failed_body": "The upload didn't go through. Try again.",
+  "sync_section_pending_online_body": "Uploads automatically in a moment.",
+  "sync_section_uploading_body": "Sending this trail to your server.",
+  "sync_section_draft_body": "This recording is only on this device.",
+  "sync_section_draft_title": "Not uploaded yet",
+  "sync_section_failed_title": "Upload failed",
+  "sync_section_pending_offline_body": "Uploads when you're back online",
+  "sync_section_retry": "Retry",
+  "sync_section_upload": "Upload",
+  "sync_section_upload_now": "Upload now",
+  "sync_uploading": "Uploading…",
+  "tags": "Labels",
+  "theme_dark": "Dark",
+  "theme_light": "Light",
+  "theme_system": "Follow system",
+  "time_in_motion": "Time in Motion",
+  "trail": "{n, plural, =1 {Route} other {Routes}}",
+  "@trail": {
+    "placeholders": {
+      "n": {
+        "type": "num",
+        "description": "The number of trails to pluralize the label for"
+      }
+    }
+  },
+  "trail_saved_successfully": "Route succesvol bewaard",
+  "trail_not_on_this_device": "This trail is no longer on this device.",
+  "trail_uploaded_reopen_to_edit": "This trail finished uploading. Re-open it from your trails to keep editing.",
+  "some_waypoints_failed_to_save": "Trail saved, but some waypoints failed to save",
+  "units": "Eenheden",
+  "users": "Users",
+  "username": "Gebruikersnaam",
+  "username_not_unique": "Deze gebruikersnaam is al in gebruik. Probeer een andere naam.",
+  "visibilty_status": "Zichtbaarheid status",
+  "web": "Web",
+  "@web": {
+    "description": "Noun naming a notification delivery channel: notifications shown in the web app, as opposed to push notifications on the phone. Appears as a toggle label under each notification type."
+  },
+  "waypoints": "{n, plural,=1 {Routepunt} other {Routepunten}}",
+  "@waypoints": {
+    "placeholders": {
+      "n": {
+        "type": "num",
+        "description": "The number of waypoints to pluralize the label for"
+      }
+    }
+  },
+  "welcome_to": "Welcome to",
+  "@welcome_to": {
+    "description": "Sentence fragment on the welcome screen, followed by the untranslated product name: 'Welcome to wanderer'. Keep it as a fragment; the brand name is appended in code and must not be included in the translation."
+  },
+  "wrong_username_or_password": "Onjuiste gebruikersnaam of wachtwoord",
+  "oauth_provider_unavailable": "This server no longer offers this sign-in option.",
+  "oauth_login_rate_limited": "Too many sign-in attempts from your network. Try again in a minute.",
+  "oauth_login_rate_limited_seconds": "Too many sign-in attempts from your network. Try again in {seconds, plural, =1{1 second} other{{seconds} seconds}}.",
+  "@oauth_login_rate_limited_seconds": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "oauth_login_server_unavailable": "The server is temporarily unavailable. Try signing in again later.",
+  "oauth_login_rejected": "The server could not start this sign-in. Try again, and update the app if it keeps failing.",
+  "server_incompatible_title": "Server not supported",
+  "server_incompatible": "This server runs a version of wanderer that the app does not support. Signing in becomes possible once it is updated.",
+  "server_incompatible_version": "Server version: {version}",
+  "@server_incompatible_version": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "server_incompatible_docs": "How to update the server",
+  "you_have_arrived": "You've arrived",
+  "settings_categories_confirm_disable_title": "Hide this category?",
+  "settings_categories_confirm_disable_subcategory_title": "Hide this subcategory?",
+  "settings_categories_confirm_disable_body": "{count} of your trails use this category. They will stay published but this filter will be hidden.",
+  "@settings_categories_confirm_disable_body": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "settings_categories_confirm_view_trails": "View trails",
+  "settings_categories_confirm_disable_confirm": "Disable anyway",
+  "settings_categories_empty_title": "No subcategories",
+  "settings_categories_empty_body": "This category has no subcategories to configure.",
+  "settings_categories_reorder_hint": "Categories control which trail types you see and in what order. Turn one off to hide it as a filter — your trails stay published, they just won't appear under that category. Tap a category to manage its subcategories individually.\n\nTo change the order, press and hold a row, then drag it to a new position. The order you set here is reflected everywhere categories are shown.",
+  "something_went_wrong": "Something went wrong",
+  "technical_details": "Technical Details",
+  "link": "Link",
+  "url": "URL",
+  "open_in_new_tab": "Open in een nieuwe tabblad",
+  "remove": "Remove",
+  "remove_download_confirm_body": "This removes the downloaded copy from this device. The trail itself is not deleted — you'll need to download it again to use it offline.",
+  "apply": "Toepassen",
+  "@apply": {
+    "description": "Verb. Confirm button in the rich text editor's link dialog — applies the entered link to the selected text."
+  },
+  "add_at_least_2_anchors_hint": "Add at least 2 anchors to see the elevation profile.",
+  "reverse_direction": "Omgekeerde richting",
+  "delete_all": "Delete all",
+  "auto_routing": "Auto-routing",
+  "auto_routing_hint": "Automatically follow roads and paths between anchors.",
+  "travel_profile": "Travel profile",
+  "no_elevation_data": "No elevation data",
+  "@no_elevation_data": {
+    "description": "Shown in place of the elevation chart when a trail has too few points with elevation. The track itself may still exist."
+  },
+  "available_offline": "Available offline",
+  "no_lists_found": "No lists found",
+  "search_lists": "Search lists…",
+  "search_for_a_location": "Search for a location",
+  "no_results_for_query": "No results for \"{query}\"",
+  "@no_results_for_query": {
+    "placeholders": {
+      "query": {
+        "type": "String",
+        "description": "The search query the user entered, echoed back in the empty-results message"
+      }
+    }
+  },
+  "filter": "Filter",
+  "@filter": {
+    "description": "Button label that opens the filter options for a trail collection. Verb or noun, whichever reads better as a short button."
+  },
+  "no_bio_yet": "No bio yet.",
+  "show_more": "Show more",
+  "@show_more": {
+    "description": "Button label that expands a truncated profile bio to its full text"
+  },
+  "show_less": "Show less",
+  "@show_less": {
+    "description": "Button label that collapses an expanded profile bio back to its truncated form"
+  },
+  "feed": "Feed",
+  "profile_feed_empty_own": "Je hebt nog geen activiteit.",
+  "@profile_feed_empty_own": {
+    "description": "Shown under the Feed heading on your own profile when it has no activity yet. A New Trail button follows it."
+  },
+  "profile_feed_empty_other": "{username} heeft nog geen activiteit.",
+  "@profile_feed_empty_other": {
+    "description": "Shown under the Feed heading on another user profile when it has no activity yet.",
+    "placeholders": {
+      "username": {
+        "type": "String",
+        "description": "Preferred username of the profile being viewed, for example alice"
+      }
+    }
+  },
+  "find_people": "Find people",
+  "profile_trails_empty_other_title": "No public trails yet",
+  "profile_trails_empty_other_body": "Trails {username} makes public will appear here.",
+  "@profile_trails_empty_other_body": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "profile_lists_empty_own_title": "No lists yet",
+  "profile_lists_empty_own_body": "Lists group trails into collections, like a multi-day trek or your local favorites. You can create them in the web app.",
+  "profile_lists_empty_other_title": "No public lists yet",
+  "profile_lists_empty_other_body": "Lists {username} makes public will appear here.",
+  "@profile_lists_empty_other_body": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "profile_following_empty_title": "Not following anyone yet",
+  "profile_following_empty_own_body": "Follow people to stay up to date with their newest public trails, including people on other instances.",
+  "profile_following_empty_other_body": "Accounts {username} follows will appear here.",
+  "@profile_following_empty_other_body": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "profile_followers_empty_title": "No followers yet",
+  "profile_followers_empty_own_body": "People who follow you will appear here and stay up to date with your newest public trails.",
+  "profile_followers_empty_other_body": "People who follow {username} will appear here.",
+  "@profile_followers_empty_other_body": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "library_empty_title": "No downloaded trails",
+  "library_empty_body": "Trails you download are kept here so you can open them offline.",
+  "library_empty_search_body": "Try a different search term or clear your filters.",
+  "search_location": "Search location",
+  "no_servers_match_query": "No servers match \"{query}\"",
+  "@no_servers_match_query": {
+    "placeholders": {
+      "query": {
+        "type": "String",
+        "description": "The search query the user entered, echoed back when no server instances match"
+      }
+    }
+  },
+  "use_custom_url_instead": "Use custom URL instead",
+  "select_instance": "Select Instance",
+  "enter_server_url_hint": "Enter server URL (e.g. wanderer.to)",
+  "last_used": "Last used",
+  "community_instances": "Community instances",
+  "search_library": "Search library…",
+  "language_and_units": "{language} & {units}",
+  "@language_and_units": {
+    "placeholders": {
+      "language": {
+        "type": "String",
+        "description": "The already-localized name of the selected display language"
+      },
+      "units": {
+        "type": "String",
+        "description": "The already-localized name of the selected measurement units (e.g. metric or imperial)"
+      }
+    }
+  },
+  "edit_route": "Bewerk route",
+  "undo": "Undo",
+  "redo": "Redo",
+  "bold": "Bold",
+  "italic": "Italic",
+  "underline": "Underline",
+  "bullet_list": "Bullet list",
+  "ordered_list": "Ordered list",
+  "blockquote": "Blockquote",
+  "library": "Library",
+  "settings_offline_regions_title": "Offline Maps/Regions",
+  "regions_search_hint": "Search regions",
+  "regions_dem_toggle_label": "Download elevation data (DEM)",
+  "regions_dem_toggle_caption": "Adds hillshading; increases download size",
+  "regions_update_available": "Update available",
+  "regions_update_action": "Update",
+  "regions_retry": "Retry",
+  "regions_not_yet_available": "Not yet available",
+  "regions_build_failed": "Build failed",
+  "regions_delete_confirm_title": "Delete {name}?",
+  "@regions_delete_confirm_title": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "regions_delete_confirm_body": "This removes the downloaded map and elevation data for this region. You'll need to download it again to use it offline.",
+  "regions_delete_confirm_action": "Delete",
+  "regions_disk_usage_summary": "{size} used across {count} downloaded region(s)",
+  "@regions_disk_usage_summary": {
+    "placeholders": {
+      "size": {
+        "type": "String"
+      },
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "regions_empty_search_title": "No matching regions",
+  "regions_empty_search_body": "Try a different search term.",
+  "regions_empty_catalog_title": "No offline regions available",
+  "regions_empty_catalog_body": "Ask your Wanderer instance administrator to configure downloadable regions.",
+  "regions_vector_tile_title": "Vector",
+  "regions_dem_tile_title": "Elevation data",
+  "regions_download_failed": "Download failed",
+  "regions_dem_locked_subtitle": "Download map data first",
+  "regions_offline_unavailable_title": "Can't load regions",
+  "regions_offline_unavailable_body": "Connect to the internet to browse and manage downloadable regions.",
+  "regions_map_geometry_failed": "Could not load region outline",
+  "regions_map_back_label": "Back to regions",
+  "regions_group_expand_label": "Expand {name}",
+  "@regions_group_expand_label": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "regions_group_collapse_label": "Collapse {name}",
+  "@regions_group_collapse_label": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "offline_title": "You're offline",
+  "@offline_title": {
+    "description": "Title shown by the shared offline takeover state (map, list, profile) when the backend is unreachable."
+  },
+  "offline_try_again": "Try again",
+  "@offline_try_again": {
+    "description": "Retry button label on the shared offline takeover state."
+  },
+  "offline_map_body": "Connect to the internet to load the map. Downloaded trails are still available.",
+  "@offline_map_body": {
+    "description": "Body copy for the map screen's offline takeover."
+  },
+  "offline_list_body": "Connect to the internet to load lists.",
+  "@offline_list_body": {
+    "description": "Body copy for the list screen's offline takeover."
+  },
+  "offline_profile_body": "Connect to the internet to load your full profile.",
+  "@offline_profile_body": {
+    "description": "Body copy for the profile screen's offline takeover of network-only sections."
+  },
+  "offline_settings_banner": "You're offline. Settings are read-only until you reconnect.",
+  "offline_action_unavailable": "You're offline — try again once you're back online.",
+  "offline_categories_body": "Connect to the internet to manage categories.",
+  "@offline_categories_body": {
+    "description": "Body copy for the categories and subcategories settings screens' offline state."
+  },
+  "offline_trail_search_body": "Connect to the internet to search for trails. Downloaded trails are still available.",
+  "@offline_trail_search_body": {
+    "description": "Body copy shown inside the map screen's draggable trail-results sheet when offline."
+  },
+  "selected_location": "Selected location",
+  "@selected_location": {
+    "description": "Heading of the map screen panel shown after tapping an empty spot on the map."
+  },
+  "distance_from_your_location": "{distance} from your location",
+  "@distance_from_your_location": {
+    "description": "Body of the map screen's selected-location panel. distance is pre-formatted with its unit, e.g. '2.40 km' or '350 m'.",
+    "placeholders": {
+      "distance": {
+        "type": "String"
+      }
+    }
+  },
+  "plan_route_from_here": "Plan route from here",
+  "@plan_route_from_here": {
+    "description": "Button in the map screen's selected-location panel that opens the route planner centered on that location."
+  },
+  "recent_searches": "Recent searches",
+  "@recent_searches": {
+    "description": "Heading above the search history shown on the search screens while the query is empty."
+  },
+  "clear_search_history": "Clear search history",
+  "@clear_search_history": {
+    "description": "Tooltip of the trashcan next to the search history heading, and title of its confirmation dialog."
+  },
+  "clear_search_history_confirm": "Remove all recent searches?",
+  "@clear_search_history_confirm": {
+    "description": "Body of the dialog confirming that the whole search history is removed."
+  }
+}
