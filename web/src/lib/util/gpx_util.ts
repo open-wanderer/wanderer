@@ -100,19 +100,18 @@ export async function gpx2trail(gpxString: string, fallbackName?: string, correc
 export async function trail2gpx(trail: Trail, user?: AuthRecord) {
     let gpxTrail = trail;
 
-    if (!trail.expand?.gpx_data) {
-        // no gpx_data -> empty trail?
-        // or just not expanded? -> expand now
+    if ((trail.gpx && !trail.expand?.gpx_data) || !Array.isArray(trail.expand?.waypoints_via_trail)) {
+        // List and search projections can omit waypoints even without a track.
         const response = await trails_show(trail.id!, handleFromRecordWithIRI(trail), undefined, true);
 
-        if (!response.expand?.gpx_data) {
+        if (response.gpx && !response.expand?.gpx_data) {
             throw Error("Trail has no GPX data")
         } else {
             gpxTrail = response;
         }
     }
 
-    const gpx = GPX.parse(gpxTrail.expand!.gpx_data!);
+    const gpx = gpxTrail.expand?.gpx_data ? GPX.parse(gpxTrail.expand.gpx_data) : new GPX({});
 
     if (gpx instanceof Error) {
         throw gpx;
@@ -135,7 +134,7 @@ export async function trail2gpx(trail: Trail, user?: AuthRecord) {
         gpx.wpt = [];
     }
 
-    for (const wp of gpxTrail.expand!.waypoints_via_trail ?? []) {
+    for (const wp of gpxTrail.expand?.waypoints_via_trail ?? []) {
         let gpxWpt = gpx.wpt.find((w) => w.$.lat == wp.lat && w.$.lon == wp.lon)
         if (!gpxWpt) {
             gpxWpt = new GPXWaypoint({
