@@ -1,0 +1,41 @@
+{
+  "id": "18-mixed-rte-trk",
+  "covers": [
+    "mixed-rte-trk"
+  ],
+  "derivation": "hand",
+  "notes": "A file with both <rte> and <trk> is measured from the <trk> only. The <rte> sits on another continent and comes first in the file, so any leak into the metrics, bounding box, centroid, start point, name or date is obvious, and a reader that decides promotion while streaming would pick it.",
+  "metrics": {
+    "distance": 299.5180922016842,
+    "elevationGain": 14,
+    "elevationLoss": 5,
+    "durationMs": 90000,
+    "pointCount": 4,
+    "boundingBox": {
+      "minLat": 47.2,
+      "maxLat": 47.2024,
+      "minLon": 11.3,
+      "maxLon": 11.3018
+    },
+    "centroid": {
+      "lat": 47.2012,
+      "lon": 11.3009
+    }
+  },
+  "trail": {
+    "name": "Mixed Track Wins",
+    "description": null,
+    "lat": 47.2,
+    "lon": 11.3,
+    "date": "2024-06-02",
+    "distance": 299.5180922016842,
+    "elevationGain": 14,
+    "elevationLoss": 5,
+    "duration": 90.0,
+    "minLat": 47.2,
+    "maxLat": 47.2024,
+    "minLon": 11.3,
+    "maxLon": 11.3018,
+    "waypoints": []
+  }
+}

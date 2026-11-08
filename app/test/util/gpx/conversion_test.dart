@@ -6,6 +6,7 @@ import 'package:gpx/gpx.dart';
 import 'package:gpx/gpx.dart' as pub;
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/util/gpx/conversion.dart';
+import 'package:wanderer/util/route/planner_handoff.dart';
 
 void main() {
   // These groups used to assert on a pair of pre-parse regex sanitizers. The
@@ -653,6 +654,222 @@ void main() {
         expect(metrics.centroidLat.isNaN, isTrue);
         expect(metrics.minLat, double.infinity);
         expect(metrics.maxLat, double.negativeInfinity);
+      },
+    );
+  });
+
+  group('measuredTracks (route promotion, #1356)', () {
+    // Shaped like corpus fixtures 17 and 18, built inline so these tests stay
+    // readable on their own.
+    const routeOnlyXml = '''<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="wanderer-test" xmlns="http://www.topografix.com/GPX/1/1">
+  <rte>
+    <name>Route Only North</name>
+    <rtept lat="47.1000"><ele>990</ele><time>2024-04-30T23:59:00Z</time></rtept>
+    <rtept lat="47.1000" lon="11.2000"><ele>1000</ele><time>2024-05-01T08:00:00Z</time></rtept>
+    <rtept lat="47.1010" lon="11.2000"><ele>1010</ele><time>2024-05-01T08:01:00Z</time></rtept>
+    <rtept lat="47.1020" lon="11.2000"><ele>1020</ele><time>2024-05-01T08:02:00Z</time></rtept>
+  </rte>
+  <rte>
+    <name>Route Only Return</name>
+    <rtept lat="47.1020" lon="11.2015"><ele>1012</ele><time>2024-05-01T09:00:00Z</time></rtept>
+    <rtept lat="47.1010" lon="11.2015"><ele>1004</ele><time>2024-05-01T09:01:00Z</time></rtept>
+    <rtept lat="47.1000" lon="11.2015"><ele>996</ele><time>2024-05-01T09:02:00Z</time></rtept>
+  </rte>
+</gpx>''';
+
+    // The same six usable points as one track with two segments.
+    const sameAsTrackXml = '''<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="wanderer-test" xmlns="http://www.topografix.com/GPX/1/1">
+  <trk>
+    <trkseg>
+      <trkpt lat="47.1000" lon="11.2000"><ele>1000</ele><time>2024-05-01T08:00:00Z</time></trkpt>
+      <trkpt lat="47.1010" lon="11.2000"><ele>1010</ele><time>2024-05-01T08:01:00Z</time></trkpt>
+      <trkpt lat="47.1020" lon="11.2000"><ele>1020</ele><time>2024-05-01T08:02:00Z</time></trkpt>
+    </trkseg>
+    <trkseg>
+      <trkpt lat="47.1020" lon="11.2015"><ele>1012</ele><time>2024-05-01T09:00:00Z</time></trkpt>
+      <trkpt lat="47.1010" lon="11.2015"><ele>1004</ele><time>2024-05-01T09:01:00Z</time></trkpt>
+      <trkpt lat="47.1000" lon="11.2015"><ele>996</ele><time>2024-05-01T09:02:00Z</time></trkpt>
+    </trkseg>
+  </trk>
+</gpx>''';
+
+    const mixedXml = '''<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="wanderer-test" xmlns="http://www.topografix.com/GPX/1/1">
+  <rte>
+    <name>Planned Elsewhere</name>
+    <rtept lat="-33.8500" lon="151.2000"><ele>50</ele></rtept>
+    <rtept lat="-33.8520" lon="151.2000"><ele>70</ele></rtept>
+  </rte>
+  <trk>
+    <name>Mixed Track Wins</name>
+    <trkseg>
+      <trkpt lat="47.2000" lon="11.3000"><ele>1500</ele></trkpt>
+      <trkpt lat="47.2024" lon="11.3018"><ele>1509</ele></trkpt>
+    </trkseg>
+  </trk>
+</gpx>''';
+
+    test(
+      'a route-only file becomes one track per route, one segment each, '
+      'with the positionless point dropped',
+      () {
+        final gpx = parseGpxSafely(routeOnlyXml);
+        final tracks = measuredTracks(gpx);
+
+        expect(tracks, hasLength(2));
+        expect(tracks.map((t) => t.name), [
+          'Route Only North',
+          'Route Only Return',
+        ]);
+        for (final track in tracks) {
+          expect(track.trksegs, hasLength(1));
+        }
+        expect(tracks[0].trksegs.single.trkpts, hasLength(3));
+        expect(tracks[1].trksegs.single.trkpts, hasLength(3));
+        expect(
+          tracks[0].trksegs.single.trkpts.every(hasUsablePosition),
+          isTrue,
+        );
+      },
+    );
+
+    test(
+      'route-only metrics equal the same points written as one track with '
+      'two segments, including the hop between the routes',
+      () {
+        final promoted = computeTrailMetrics(parseGpxSafely(routeOnlyXml));
+        final asTrack = computeTrailMetrics(parseGpxSafely(sameAsTrackXml));
+
+        expect(promoted.distance, greaterThan(0));
+        expect(promoted.distance, closeTo(asTrack.distance, 1e-9));
+        expect(promoted.elevationGain, asTrack.elevationGain);
+        expect(promoted.elevationLoss, asTrack.elevationLoss);
+        expect(promoted.minLat, asTrack.minLat);
+        expect(promoted.maxLat, asTrack.maxLat);
+        expect(promoted.minLon, asTrack.minLon);
+        expect(promoted.maxLon, asTrack.maxLon);
+        expect(promoted.centroidLat, closeTo(asTrack.centroidLat, 1e-9));
+        expect(promoted.centroidLon, closeTo(asTrack.centroidLon, 1e-9));
+        expect(promoted.pointCount, asTrack.pointCount);
+        expect(promoted.pointCount, 6);
+      },
+    );
+
+    test(
+      'route-only duration is the sum of the route spans, timed after the '
+      'positionless point is dropped',
+      () {
+        final metrics = computeTrailMetrics(parseGpxSafely(routeOnlyXml));
+
+        // Two spans of 120 s. Keeping the positionless 23:59 point would have
+        // stretched the first span to a day.
+        expect(metrics.durationMs, 240000);
+      },
+    );
+
+    test('measuring does not mutate the parsed document', () {
+      final gpx = parseGpxSafely(routeOnlyXml);
+
+      computeTrailMetrics(gpx);
+      trailFromGpx(gpx, fallbackName: 'Fallback');
+      measuredTracks(gpx);
+
+      expect(gpx.trks, isEmpty);
+      expect(gpx.rtes, hasLength(2));
+      expect(gpx.rtes.first.rtepts, hasLength(4));
+      expect(gpx.rtes.first.rtepts.first.lon, isNull);
+    });
+
+    test('a file with a track is measured from the track only', () {
+      final gpx = parseGpxSafely(mixedXml);
+
+      expect(identical(measuredTracks(gpx), gpx.trks), isTrue);
+
+      final metrics = computeTrailMetrics(gpx);
+      expect(metrics.pointCount, 2);
+      expect(metrics.minLat, 47.2);
+      expect(metrics.maxLat, 47.2024);
+      expect(metrics.minLon, 11.3);
+      expect(metrics.maxLon, 11.3018);
+    });
+
+    test('an empty <trk> still blocks promotion, as in TS', () {
+      final gpx = Gpx()
+        ..trks = [Trk()]
+        ..rtes = [
+          Rte(
+            rtepts: [Wpt(lat: 47.0, lon: 11.0), Wpt(lat: 47.001, lon: 11.0)],
+          ),
+        ];
+
+      expect(identical(measuredTracks(gpx), gpx.trks), isTrue);
+
+      final metrics = computeTrailMetrics(gpx);
+      expect(metrics.distance, 0);
+      expect(metrics.pointCount, 0);
+    });
+
+    group('the route planner merge', () {
+      final shape = [
+        {'lat': 47.5, 'lon': 11.5},
+        {'lat': 47.501, 'lon': 11.5},
+      ];
+
+      test(
+        'a merged document with new tracks is measured from those tracks, '
+        'not from the copied routes as well',
+        () {
+          final source = parseGpxSafely(routeOnlyXml);
+          final merged = mergeHeightsIntoGpx(
+            shape,
+            const [500, 510],
+            source: source,
+          );
+
+          expect(merged.rtes, hasLength(2));
+          final metrics = computeTrailMetrics(merged);
+          expect(metrics.pointCount, 2);
+          expect(metrics.minLat, 47.5);
+        },
+      );
+
+      test(
+        'an empty shape leaves a track-less document that is measured from '
+        'the copied routes',
+        () {
+          final source = parseGpxSafely(routeOnlyXml);
+          final merged = mergeHeightsIntoGpx(
+            const [],
+            const [],
+            source: source,
+          );
+
+          expect(merged.trks, isEmpty);
+          final metrics = computeTrailMetrics(merged);
+          expect(metrics.pointCount, 6);
+          expect(
+            metrics.distance,
+            closeTo(computeTrailMetrics(source).distance, 1e-9),
+          );
+        },
+      );
+    });
+
+    test(
+      'trailFromGpx on a route-only file takes name, start and date from the '
+      'first route',
+      () {
+        final trail = trailFromGpx(
+          parseGpxSafely(routeOnlyXml),
+          fallbackName: 'Fallback',
+        );
+
+        expect(trail.name, 'Route Only North');
+        expect(trail.lat, 47.1);
+        expect(trail.lon, 11.2);
+        expect(trail.date, DateTime.utc(2024, 5, 1));
       },
     );
   });

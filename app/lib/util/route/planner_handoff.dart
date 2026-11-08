@@ -48,8 +48,11 @@ import 'package:wanderer/util/route/valhalla.dart';
 /// result as the track file it uploads — so returning a bare document here
 /// permanently discarded every imported waypoint, the GPX's own name, and
 /// its description the moment either post-capture toggle was enabled.
-/// Copying `rtes` through cannot double-count metrics: `computeTrailMetrics`
-/// and `GpxMappingUtils.allPoints` both read `trks` only.
+/// `computeTrailMetrics` measures `rtes` only when the document has no `trks`
+/// at all (`measuredTracks`), and `GpxMappingUtils.allPoints` reads `trks`
+/// only, so copying `rtes` alongside new `trks` cannot double-count. A
+/// track-less result (empty [shape]) is measured from the copied `rtes`,
+/// which are the source's own route.
 ///
 /// Omit [source] for a recording or a planner session, where there is no
 /// source document and the geometry IS the whole document.

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="wanderer-corpus" xmlns="http://www.topografix.com/GPX/1/1">
+  <rte>
+    <name>Planned Elsewhere</name>
+    <rtept lat="-33.8500" lon="151.2000"><ele>50</ele><time>2023-01-15T10:00:00Z</time></rtept>
+    <rtept lat="-33.8510" lon="151.2000"><ele>60</ele><time>2023-01-15T10:01:00Z</time></rtept>
+    <rtept lat="-33.8520" lon="151.2000"><ele>70</ele><time>2023-01-15T10:02:00Z</time></rtept>
+  </rte>
+  <trk>
+    <name>Mixed Track Wins</name>
+    <trkseg>
+      <trkpt lat="47.2000" lon="11.3000"><ele>1500</ele><time>2024-06-02T07:00:00Z</time></trkpt>
+      <trkpt lat="47.2008" lon="11.3006"><ele>1507</ele><time>2024-06-02T07:00:30Z</time></trkpt>
+      <trkpt lat="47.2016" lon="11.3012"><ele>1514</ele><time>2024-06-02T07:01:00Z</time></trkpt>
+      <trkpt lat="47.2024" lon="11.3018"><ele>1509</ele><time>2024-06-02T07:01:30Z</time></trkpt>
+    </trkseg>
+  </trk>
+</gpx>
