@@ -1,0 +1,680 @@
+{
+  "@@locale": "de",
+  "about": "Über",
+  "@about": {
+    "description": "Standalone heading used in three places: the 'About' tab on the trail detail panel (about the trail), prefixed to a username as 'About <username>' on the account screen, and the settings entry and title of the screen about the app itself. Needs to read as a section heading in all of them."
+  },
+  "about_changelog": "What's new",
+  "@about_changelog": {
+    "description": "About screen: link to the wanderer changelog website."
+  },
+  "about_discord_subtitle": "Chat with the community",
+  "@about_discord_subtitle": {
+    "description": "About screen: subtitle under the 'Discord' link."
+  },
+  "about_github_subtitle": "Source code, issues and contributions",
+  "@about_github_subtitle": {
+    "description": "About screen: subtitle under the 'GitHub' link."
+  },
+  "about_license": "License",
+  "@about_license": {
+    "description": "About screen: link to wanderer's own license on GitHub. Singular, as opposed to 'about_licenses' (the libraries' licenses)."
+  },
+  "about_licenses": "Open source licenses",
+  "@about_licenses": {
+    "description": "About screen: opens the list of licenses of the libraries the app uses."
+  },
+  "about_privacy_policy": "Privacy policy",
+  "@about_privacy_policy": {
+    "description": "About screen: link to the privacy policy website."
+  },
+  "about_report_bug": "Report a bug",
+  "@about_report_bug": {
+    "description": "About screen: opens the app bug report form on GitHub."
+  },
+  "about_version": "Version {version}",
+  "@about_version": {
+    "description": "About screen: the installed app version below the logo. {version} is e.g. '0.1.0 (10)', the number in brackets being the build.",
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "appearance": "Darstellung",
+  "account": "Konto",
+  "account_delete_confirm": "Du bist dabei, dein Konto zu löschen. Alle deine Routen werden ebenfalls gelöscht. Möchtest du fortfahren?",
+  "account_privacy": "Privatsphäre des Kontos",
+  "add_bio": "Bio hinzufügen",
+  "add_waypoint": "Wegpunkt hinzufügen",
+  "after": "Nach",
+  "@after": {
+    "description": "Used two ways. (1) Label above the date picker that filters for trails dated after the chosen day. (2) Prefixed to a distance on the waypoint sheet as 'After 2.4 km', meaning how far along the trail the waypoint sits. Pick wording that works for both a date and a distance."
+  },
+  "all": "Alle",
+  "@all": {
+    "description": "Filter chip in global search meaning 'all result categories' (trails, lists, places and users together), as opposed to one specific category."
+  },
+  "altitude": "Höhe",
+  "author": "Autor",
+  "@author": {
+    "description": "Noun. Heading and input placeholder for the filter that narrows trails to a specific author's username."
+  },
+  "average_speed": "Durchschn. Geschwindigkeit",
+  "background_location_body": "wanderer erfasst Standortdaten im Hintergrund, damit deine Tour weiter aufgezeichnet wird, wenn der Bildschirm aus ist oder du die App schließt. Deine Aufzeichnung bleibt auf deinem Gerät, bis du die Tour speicherst.\n\nAndroid bietet das nur in den Systemeinstellungen an: Öffne „Berechtigungen“ → „Standort“ und wähle „Immer zulassen“.",
+  "background_location_confirm": "Einstellungen öffnen",
+  "background_location_title": "Aufzeichnung im Hintergrund fortsetzen",
+  "basic_info": "Basisinformation",
+  "before": "Vor",
+  "@before": {
+    "description": "Label above the date picker that filters for trails dated before the chosen day. Pairs with the 'after' string."
+  },
+  "by": "von",
+  "@by": {
+    "description": "Byline preposition, rendered lowercase and immediately followed by a username: 'by alice'. Appears on trail cards, list cards and summit log entries. Not the standalone word 'by' in any other sense."
+  },
+  "cancel": "Abbrechen",
+  "discard": "Verwerfen",
+  "discard_trail_confirm": "Diese Route und ihre Änderungen verwerfen?",
+  "card": "{n, plural, =1 {Karte} other {Karten}}",
+  "@card": {
+    "placeholders": {
+      "n": {
+        "type": "num",
+        "description": "The number of cards to pluralize the label for"
+      }
+    }
+  },
+  "categories": "Kategorien",
+  "category": "Kategorie",
+  "change_email": "Email ändern",
+  "change_password": "Passwort ändern",
+  "clear_all": "Alle ausblenden",
+  "close": "Schließen",
+  "comment": "{n, plural, =1 {Kommentar} other {Kommentare}}",
+  "@comment": {
+    "placeholders": {
+      "n": {
+        "type": "num",
+        "description": "The number of comments to pluralize the label for"
+      }
+    }
+  },
+  "completed": "Abgeschlossen",
+  "completion_status": "Abschlussstatus",
+  "confirm_deletion": "Löschen bestätigen",
+  "couldnt_start_navigation": "Navigation konnte nicht gestartet werden. Prüfe deine Verbindung und versuche es erneut.",
+  "location_services_disabled": "Ortungsdienste sind deaktiviert. Bitte aktiviere GPS, um die Navigation zu nutzen.",
+  "location_permission_denied": "Für die Navigation wird eine Standortberechtigung benötigt.",
+  "location_permission_permanently_denied": "Die Standortberechtigung wurde dauerhaft verweigert. Bitte aktiviere sie in den Einstellungen.",
+  "location_unavailable": "Standort konnte nicht ermittelt werden. Bitte versuchen Sie es erneut.",
+  "copy_link": "Link kopieren",
+  "create_waypoint": "Wegpunkt erstellen",
+  "creation_date": "Erstellungsdatum",
+  "current_password": "Aktuelles Passwort",
+  "danger_zone": "Gefahrenzone",
+  "date": "Datum",
+  "@date": {
+    "description": "Noun. Used as a sort option ('sort trails by date'), as the heading of the date-range filter sheet, and as the label of the date field in the trail form. A single neutral noun is needed for all three."
+  },
+  "delete": "Löschen",
+  "not_now": "Jetzt nicht",
+  "open": "Öffnen",
+  "@open": {
+    "description": "Verb. Menu action that opens a downloaded trail from the library. Not the adjective 'open' and not the opposite of 'closed'."
+  },
+  "delete_account": "Konto löschen",
+  "delete_trail_confirm": "Möchtest Du diese Route wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
+  "delete_blocked_while_uploading": "Diese Route wird gerade hochgeladen. Warten Sie, bis der Upload beendet ist, und versuchen Sie es erneut.",
+  "delete_unsynced_trail_confirm": "Diese Route löschen? Sie wurde noch nicht hochgeladen und kann daher nicht rückgängig gemacht werden.",
+  "delete_needs_connection": "Diese Route ist bereits auf dem Server. Verbinden Sie sich mit dem Internet, um sie zu löschen.",
+  "description": "Beschreibung",
+  "difficult": "Schwer",
+  "difficulty": "Schwierigkeit",
+  "directions": "Wegbeschreibung",
+  "distance": "Distanz",
+  "download": "Herunterladen",
+  "duration": "Dauer",
+  "easy": "Einfach",
+  "edit": "Bearbeiten",
+  "edit_needs_connection": "Bearbeiten funktioniert auf der Server-Kopie dieser Route. Verbinde dich mit dem Internet, um sie zu bearbeiten.",
+  "edit_waypoint": "Wegpunkt bearbeiten",
+  "edited": "bearbeitet",
+  "@edited": {
+    "description": "Adjective appended in parentheses after a comment's timestamp to mark that the comment was changed after posting: '2 hours ago (edited)'. Rendered lowercase."
+  },
+  "elevation_gain": "Höhenunterschied (aufw.)",
+  "elevation_loss": "Höhenunterschied (abw.)",
+  "elevation_profile": "Höhenprofil",
+  "email": "E-Mail",
+  "email_not_unique": "Diese Email_Adresse wird bereits verwendet",
+  "email_updated": "E_Mail aktualisiert",
+  "error_deleting_trail": "Fehler beim Löschen der Route",
+  "error_reading_file": "Fehler beim Lesen der Datei",
+  "error_saving_settings": "Fehler beim Speichern der Einstellungen",
+  "error_saving_trail": "Fehler beim Speichern der Route",
+  "error_updating_password": "Fehler beim Aktualisieren des Passworts",
+  "explore": "Erkunden",
+  "exit_navigation": "Beenden",
+  "stop_navigation_confirm": "Navigation beenden und zur Route zurückkehren?",
+  "stop_recording": "Aufnahme stoppen",
+  "stop_recording_confirm": "Aufnahme stoppen?",
+  "search_this_area": "In diesem Bereich suchen",
+  "filter_tags": "Tags filtern",
+  "filter_trails": "Routen filtern",
+  "finish": "Ziel",
+  "@finish": {
+    "description": "Used two ways. (1) Noun: label of the last row in the trail's waypoint timeline, marking the end of the trail. (2) Tooltip on the route planner's confirm action, meaning 'finish planning this route'. Prefer wording that carries both, or the noun sense if it must be one."
+  },
+  "finish_disabled_hint": "Fügen Sie mindestens 2 Ankerpunkte hinzu, um Ihre Route abzuschließen.",
+  "follow": "Folgen",
+  "followers": "Follower",
+  "following": "Folgt",
+  "from_photos": "Aus Fotos",
+  "help": "Hilfe",
+  "hiking": "Wandern",
+  "home": "Zuhause",
+  "icon": "Icon",
+  "@icon": {
+    "description": "Noun. Label of the icon picker field in the waypoint form — which symbol to show for this waypoint on the map."
+  },
+  "imperial": "Imperial",
+  "joined": "Beigetreten",
+  "language": "Sprache",
+  "latitude": "Breitengrad",
+  "like_status": "\"Gefällt mir\" Status",
+  "liked": "Gefällt mir",
+  "@liked": {
+    "description": "Adjective. Filter toggle that narrows the list to trails you have liked."
+  },
+  "likes": "Likes",
+  "list": "{n, plural, =1 {Liste} other {Listen}}",
+  "@list": {
+    "placeholders": {
+      "n": {
+        "type": "num",
+        "description": "The number of lists to pluralize the label for"
+      }
+    }
+  },
+  "location": "Standort",
+  "locations": "Orte",
+  "center_on_my_location": "Auf meinen Standort zentrieren",
+  "location_tracking_notification_title": "wanderer",
+  "location_tracking_notification_text": "Route wird aufgezeichnet",
+  "location_tracking_notification_text_navigating": "Navigation: {trail}",
+  "@location_tracking_notification_text_navigating": {
+    "placeholders": {
+      "trail": {
+        "type": "String"
+      }
+    }
+  },
+  "login": "Login",
+  "logout": "Logout",
+  "longitude": "Längengrad",
+  "map": "Karte",
+  "metric": "Metrisch",
+  "moderate": "Mittel",
+  "my_account": "Mein Konto",
+  "in_distance": "in {distance}",
+  "@in_distance": {
+    "placeholders": {
+      "distance": {
+        "type": "String"
+      }
+    }
+  },
+  "name": "Name",
+  "@name": {
+    "description": "Noun. Used as a sort option ('sort by name') and as the label of the trail name field in the trail form."
+  },
+  "navigate": "Navigieren",
+  "new_password": "Neues Passwort",
+  "new_password_success": "Neues Passwort wurde gesetzt",
+  "new_trail": "Neue Route",
+  "trail_source_planner": "Routen-Planer öffnen",
+  "trail_source_planner_description": "Zeichne eine neue Route auf der Karte, Wegpunkt für Wegpunkt.",
+  "trail_source_record": "Route aufzeichnen",
+  "trail_source_record_description": "Verfolge deine Position live und zeichne deine Tour in Echtzeit auf.",
+  "trail_source_import": "Datei importieren",
+  "trail_source_import_description": "Lade GPX-, KML-, KMZ-, TCX- oder FIT-Dateien direkt von deinem Gerät hoch.",
+  "trail_source_import_error": "Datei konnte nicht importiert werden",
+  "trail_source_offline_import_error": "Offline können nur GPX-Dateien importiert werden",
+  "@trail_source_offline_import_error": {
+    "description": "Shown when the user picks a non-GPX file for import while offline. Names the formats that need a connection and points at GPX as the offline-capable alternative."
+  },
+  "no_comments_so_far": "Bisher keine Kommentare",
+  "no_data": "Keine Daten",
+  "no_description_for_now": "Noch keine Beschreibung",
+  "no_gps_data_in_image": "Keine GPS Daten im Bild",
+  "no_preference": "Keine Präferenz",
+  "no_trails_found": "Keine Routen gefunden",
+  "not_completed": "Nicht abgeschlossen",
+  "notifications": "Benachrichtigungen",
+  "only_me": "Nur ich",
+  "or": "oder",
+  "@or": {
+    "description": "Divider word between the email login form and the OAuth provider buttons on the login screen."
+  },
+  "own_trails_empty_body": "Routen, die du offline aufnimmst oder speicherst, erscheinen hier und werden automatisch hochgeladen, sobald du wieder online bist.",
+  "own_trails_empty_title": "Noch nichts gespeichert",
+  "own_trails_offline_banner": "Offline — zeigt nur Routen auf diesem Gerät an.",
+  "trails_on_device": "Routen (auf Gerät)",
+  "@trails_on_device": {
+    "description": "Label of the profile trail count card when the count comes from local storage (unsynced captures plus downloaded trails) because the device is offline."
+  },
+  "pause": "Pausieren",
+  "password": "Passwort",
+  "password_confirm": "Passwort bestätigen",
+  "passwords_must_match": "Passwörter müssen übereinstimmen",
+  "photo_copy_failed_toast": "{count, plural, =1 {Route gespeichert, aber 1 Foto konnte nicht gespeichert werden.} other {Route gespeichert, aber {count} Fotos konnten nicht gespeichert werden.}}",
+  "@photo_copy_failed_toast": {
+    "placeholders": {
+      "count": {
+        "type": "num",
+        "description": "The number of photos that failed to copy into app-owned storage while saving a trail"
+      }
+    }
+  },
+  "photos": "Fotos",
+  "photos_skipped_no_gps": "{count, plural, =1 {1 Foto übersprungen — keine GPS-Daten} other {{count} Fotos übersprungen — keine GPS-Daten}}",
+  "@photos_skipped_no_gps": {
+    "placeholders": {
+      "count": {
+        "type": "num",
+        "description": "The number of photos skipped because they had no GPS data"
+      }
+    }
+  },
+  "privacy": "Privatsphäre",
+  "private": "Privat",
+  "profile": "Profil",
+  "public": "Öffentlich",
+  "reached_end_of_trail": "Du hast das Ende des Wegs erreicht.",
+  "register": "Registrieren",
+  "reorder_photos_hint": "Lange drücken und ziehen, um Fotos neu zu ordnen.",
+  "reset": "Zurücksetzen",
+  "@reset": {
+    "description": "Verb. Button that clears every active filter back to its default. Not 'restart' and not 'reset password'."
+  },
+  "resume": "Fortsetzen",
+  "resume_navigation_prompt": "Navigation von {trail} fortsetzen?",
+  "@resume_navigation_prompt": {
+    "placeholders": {
+      "trail": {
+        "type": "String"
+      }
+    }
+  },
+  "resume_recording_prompt": "Aufnahme fortsetzen?",
+  "route": "{n, plural, =1 {Route} other {Routen}}",
+  "@route": {
+    "placeholders": {
+      "n": {
+        "type": "num",
+        "description": "The number of routes to pluralize the label for"
+      }
+    }
+  },
+  "follow_roads": "Straßen folgen",
+  "follow_roads_description": "Passen Sie die aufgezeichnete Route an die nächstgelegenen Straßen und Wege an.",
+  "recalculate_heights": "Höhen neu berechnen",
+  "recalculate_heights_description": "Ersetzen Sie die aufgezeichnete GPS-Höhe durch genauere Werte aus Kartendaten.",
+  "save": "Speichern",
+  "save_track": "Pfad speichern",
+  "search": "Suche",
+  "search_for_trails_places": "Suche nach Routen, Listen, Orten",
+  "select_date": "Datum auswählen",
+  "settings": "Einstellungen",
+  "settings_notification_comment_mention": "Jemand hat dich in einem Kommentar erwähnt",
+  "settings_notification_list_share": "Jemand hat eine Liste mit Dir geteilt",
+  "settings_notification_new_follower": "Du hast einen neuen Follower",
+  "settings_notification_summit_log_create": "Jemand hat einen Gipfelbuch_Eintrag zu deiner Route erstellt",
+  "settings_notification_summit_log_mention": "Jemand hat dich in einem Gipfelbuch Eintrag erwähnt",
+  "settings_notification_trail_comment": "Jemand hat einen Kommentar zu Deiner Route hinterlassen",
+  "settings_notification_trail_like": "Jemand hat deiner Route ein \"Gefällt mir\" gegeben",
+  "settings_notification_trail_mention": "Jemand hat dich in einer Route erwähnt",
+  "settings_notification_trail_share": "Jemand hat eine Route mit Dir geteilt",
+  "settings_privacy_account_private": "Nur Du kannst dein Profil sehen. Du wirst nicht in den Suchergebnissen angezeigt. Andere Benutzer können Dir nicht folgen oder Routen mit Dir teilen. Du kannst weiterhin Routen oder Listen veröffentlichen.",
+  "settings_privacy_account_public": "Jeder kann Dein Profil sehen. Du erscheinst in den Suchergebnissen. Andere Benutzer können Dir folgen und Routen mit Dir teilen.",
+  "settings_privacy_lists_private": "Deine Listen sind standardmäßig privat. Niemand außer Dir kann sie sehen. Du kannst diese Einstellung jederzeit für einzelne Listen ändern.",
+  "settings_privacy_lists_public": "Deine Listen sind standardmäßig öffentlich. Jeder kann sie sehen. Du kannst diese Einstellung jederzeit für einzelne Listen ändern.",
+  "settings_privacy_trails_private": "Deine Routen sind standardmäßig privat. Niemand außer Dir kann sie sehen. Du kannst diese Einstellung jederzeit für einzelne Routen ändern.",
+  "settings_privacy_trails_public": "Deine Trails sind standardmäßig öffentlich. Jeder kann sie sehen. Du kannst diese Einstellung jederzeit für einzelne Routen ändern.",
+  "share": "Teilen",
+  "share_profile": "Profil teilen",
+  "shared": "Geteilt",
+  "@shared": {
+    "description": "Adjective. Filter toggle that narrows the list to trails other users have shared with you."
+  },
+  "show_on_map": "Auf der Karte anzeigen",
+  "signout_unsynced_warning": "{count, plural, =1 {Du hast 1 Route noch nicht hochgeladen. Abmelden löscht sie nicht – sie ist immer noch hier, wenn du wiederkommst –, aber sie wird bis dahin nicht hochgeladen.} other {Du hast {count} Routen noch nicht hochgeladen. Abmelden löscht sie nicht — sie sind immer noch hier, wenn du wiederkommst — aber sie werden bis dahin nicht hochgeladen.}}",
+  "@signout_unsynced_warning": {
+    "placeholders": {
+      "count": {
+        "type": "num",
+        "description": "The number of unsynced (not-yet-uploaded) trails owned by the account currently signing out"
+      }
+    }
+  },
+  "slogan": "Deine Routen. Deine Daten. Dein Server.",
+  "sort": "Sortieren",
+  "@sort": {
+    "description": "Button label that opens the sort options for a trail or list collection. Verb or noun, whichever reads better as a short button."
+  },
+  "speed": "Geschwindigkeit",
+  "@speed": {
+    "description": "Noun. Label of the current-speed readout on the live navigation screen."
+  },
+  "start": "Start",
+  "@start": {
+    "description": "Noun. Label of the first row in the trail's waypoint timeline, marking the trailhead. Not the verb 'to start'."
+  },
+  "subcategories": "Unterkategorien",
+  "@subcategories": {
+    "description": "Label for the subcategories filter section"
+  },
+  "summit_book": "Gipfelbuch",
+  "sync_discard_draft_confirm": "Diese Aufnahme löschen? Sie wurde nirgends hochgeladen.",
+  "sync_draft": "Entwurf",
+  "sync_failed": "Upload fehlgeschlagen · Zum Wiederholen tippen",
+  "sync_pending": "Warten auf Upload",
+  "sync_section_failed_body": "Der Upload hat nicht geklappt. Versuche es erneut.",
+  "sync_section_pending_online_body": "Wird gleich automatisch hochgeladen.",
+  "sync_section_uploading_body": "Diese Route wird an deinen Server gesendet.",
+  "sync_section_draft_body": "Diese Aufnahme ist nur auf diesem Gerät gespeichert.",
+  "sync_section_draft_title": "Noch nicht hochgeladen",
+  "sync_section_failed_title": "Upload fehlgeschlagen",
+  "sync_section_pending_offline_body": "Wird hochgeladen, sobald du wieder online bist",
+  "sync_section_retry": "Erneut versuchen",
+  "sync_section_upload": "Hochladen",
+  "sync_section_upload_now": "Jetzt hochladen",
+  "sync_uploading": "Wird hochgeladen…",
+  "tags": "Tags",
+  "theme_dark": "Dunkel",
+  "theme_light": "Hell",
+  "theme_system": "System folgen",
+  "time_in_motion": "Zeit in Bewegung",
+  "trail": "{n, plural, =1 {Route} other {Routen}}",
+  "@trail": {
+    "placeholders": {
+      "n": {
+        "type": "num",
+        "description": "The number of trails to pluralize the label for"
+      }
+    }
+  },
+  "trail_saved_successfully": "Route gespeichert",
+  "trail_not_on_this_device": "Dieser Route ist nicht mehr auf diesem Gerät.",
+  "trail_uploaded_reopen_to_edit": "Diese Route wurde hochgeladen. Öffne sie erneut von deinen Routen, um sie weiter zu bearbeiten.",
+  "some_waypoints_failed_to_save": "Route gespeichert, aber einige Wegpunkte konnten nicht gespeichert werden",
+  "units": "Einheiten",
+  "users": "Benutzer",
+  "username": "Nutzername",
+  "username_not_unique": "Dieser Nutzername ist bereits vergeben. Bitte versuche es mit einem anderen.",
+  "visibilty_status": "Sichtbarkeit",
+  "web": "Web",
+  "@web": {
+    "description": "Noun naming a notification delivery channel: notifications shown in the web app, as opposed to push notifications on the phone. Appears as a toggle label under each notification type."
+  },
+  "waypoints": "{n, plural, =1 {Wegpunkt} other {Wegpunkte}}",
+  "@waypoints": {
+    "placeholders": {
+      "n": {
+        "type": "num",
+        "description": "The number of waypoints to pluralize the label for"
+      }
+    }
+  },
+  "welcome_to": "Willkommen bei",
+  "@welcome_to": {
+    "description": "Sentence fragment on the welcome screen, followed by the untranslated product name: 'Welcome to wanderer'. Keep it as a fragment; the brand name is appended in code and must not be included in the translation."
+  },
+  "wrong_username_or_password": "Falscher Nutzername oder falsches Passwort",
+  "server_incompatible_title": "Server nicht unterstützt",
+  "server_incompatible": "Auf diesem Server läuft eine wanderer-Version, die die App nicht unterstützt. Anmelden ist möglich, sobald er aktualisiert wurde.",
+  "server_incompatible_version": "Serverversion: {version}",
+  "@server_incompatible_version": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "server_incompatible_docs": "Server aktualisieren",
+  "you_have_arrived": "Angekommen",
+  "settings_categories_confirm_disable_title": "Diese Kategorie trotzdem ausblenden?",
+  "settings_categories_confirm_disable_subcategory_title": "Diese Unterkategorie trotzdem ausblenden?",
+  "settings_categories_confirm_disable_body": "{count} Ihrer Trails verwenden diese Kategorie. Sie bleiben veröffentlicht, aber dieser Filter wird nicht angezeigt.",
+  "@settings_categories_confirm_disable_body": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "settings_categories_confirm_view_trails": "Routen anzeigen",
+  "settings_categories_confirm_disable_confirm": "Trotzdem deaktivieren",
+  "settings_categories_empty_title": "Keine Unter-Kategorien",
+  "settings_categories_empty_body": "Diese Kategorie hat keine zu konfigurierenden Unterkategorien.",
+  "settings_categories_reorder_hint": "Kategorien bestimmen, welche Routentypen Sie sehen und in welcher Reihenfolge. Schalten Sie eine aus, um sie in Filtern zu verstecken — Ihre Routen bleiben veröffentlicht, sie erscheinen einfach nicht unter dieser Kategorie. Tippen Sie auf eine Kategorie, um ihre Unterkategorien individuell zu verwalten.\n\nUm die Reihenfolge zu ändern, drücken und halten Sie eine Zeile und ziehen Sie sie dann an eine neue Position. Die Reihenfolge, die Sie hier einstellen, wird überall verwendet, wo Kategorien angezeigt werden.",
+  "something_went_wrong": "Etwas ist schief gelaufen",
+  "technical_details": "Technische Details",
+  "link": "Verknüpfen",
+  "url": "URL",
+  "open_in_new_tab": "In neuem Tab öffnen",
+  "remove": "Entfernen",
+  "remove_download_confirm_body": "Dies entfernt die heruntergeladene Kopie von diesem Gerät. Die Route selbst wird nicht gelöscht — Sie müssen sie erneut herunterladen, um sie offline nutzen zu können.",
+  "apply": "Anwenden",
+  "@apply": {
+    "description": "Verb. Confirm button in the rich text editor's link dialog — applies the entered link to the selected text."
+  },
+  "add_at_least_2_anchors_hint": "Fügen Sie mindestens 2 Ankerpunkte hinzu, um das Höhenprofil zu sehen.",
+  "reverse_direction": "Richtung umkehren",
+  "delete_all": "Alle löschen",
+  "auto_routing": "Auto-Routing aktivieren",
+  "auto_routing_hint": "Automatisch den Straßen und Pfaden zwischen den Ankerpunkten folgen.",
+  "travel_profile": "Fortbewegungsmittel",
+  "no_track_data": "Keine Pfad-Daten",
+  "available_offline": "Offline verfügbar",
+  "no_lists_found": "Keine Listen gefunden",
+  "search_lists": "Liste suchen…",
+  "search_for_a_location": "Nach einem Ort suchen",
+  "no_results_for_query": "Keine Ergebnisse für „{query}“",
+  "@no_results_for_query": {
+    "placeholders": {
+      "query": {
+        "type": "String",
+        "description": "The search query the user entered, echoed back in the empty-results message"
+      }
+    }
+  },
+  "filter": "Filter",
+  "@filter": {
+    "description": "Button label that opens the filter options for a trail collection. Verb or noun, whichever reads better as a short button."
+  },
+  "no_label_yet": "Noch kein {label}.",
+  "@no_label_yet": {
+    "placeholders": {
+      "label": {
+        "type": "String",
+        "description": "The already-localized noun describing what's missing, e.g. 'followers' or 'following'"
+      }
+    }
+  },
+  "no_lists_yet": "Noch keine Listen vorhanden.",
+  "no_bio_yet": "Noch keine Biografie.",
+  "show_more": "Mehr anzeigen",
+  "@show_more": {
+    "description": "Button label that expands a truncated profile bio to its full text"
+  },
+  "show_less": "Weniger anzeigen",
+  "@show_less": {
+    "description": "Button label that collapses an expanded profile bio back to its truncated form"
+  },
+  "feed": "Feed",
+  "profile_feed_empty_own": "Du hast noch keine Aktivitäten.",
+  "@profile_feed_empty_own": {
+    "description": "Shown under the Feed heading on your own profile when it has no activity yet. A New Trail button follows it."
+  },
+  "profile_feed_empty_other": "{username} hat noch keine Aktivitäten.",
+  "@profile_feed_empty_other": {
+    "description": "Shown under the Feed heading on another user profile when it has no activity yet.",
+    "placeholders": {
+      "username": {
+        "type": "String",
+        "description": "Preferred username of the profile being viewed, for example alice"
+      }
+    }
+  },
+  "no_trails_yet": "Noch keine Routen.",
+  "library_empty_title": "Keine heruntergeladenen Routen",
+  "library_empty_body": "Routen, die du herunterlädst, werden hier gespeichert, damit du sie offline öffnen kannst.",
+  "library_empty_search_body": "Versuche einen anderen Suchbegriff oder setze die Filter zurück.",
+  "search_location": "Ort suchen",
+  "no_servers_match_query": "Keine Server stimmen überein mit \"{query}\"",
+  "@no_servers_match_query": {
+    "placeholders": {
+      "query": {
+        "type": "String",
+        "description": "The search query the user entered, echoed back when no server instances match"
+      }
+    }
+  },
+  "use_custom_url_instead": "Eigene URL verwenden",
+  "select_instance": "Instanz auswählen",
+  "enter_server_url_hint": "Server-URL eingeben (z.B. wanderer.to)",
+  "last_used": "Zuletzt verwendet",
+  "community_instances": "Community-Instanzen",
+  "search_library": "Bibliothek durchsuchen…",
+  "language_and_units": "{language} & {units}",
+  "@language_and_units": {
+    "placeholders": {
+      "language": {
+        "type": "String",
+        "description": "The already-localized name of the selected display language"
+      },
+      "units": {
+        "type": "String",
+        "description": "The already-localized name of the selected measurement units (e.g. metric or imperial)"
+      }
+    }
+  },
+  "edit_route": "Route bearbeiten",
+  "undo": "Rückgängig",
+  "redo": "Wiederholen",
+  "bold": "Fett",
+  "italic": "Kursiv",
+  "underline": "Unterstrichen",
+  "bullet_list": "Aufzählung",
+  "ordered_list": "Geordnete Liste",
+  "blockquote": "Zitat",
+  "library": "Bibliothek",
+  "settings_offline_regions_title": "Offline-Karten / Regionen",
+  "regions_search_hint": "Nach Region suchen",
+  "regions_dem_toggle_label": "Höhendaten herunterladen (DEM)",
+  "regions_dem_toggle_caption": "Fügt Hangschattierung hinzu; vergrößert die Downloadgröße",
+  "regions_update_available": "Update verfügbar",
+  "regions_update_action": "Aktualisieren",
+  "regions_retry": "Erneut versuchen",
+  "regions_not_yet_available": "Noch nicht verfügbar",
+  "regions_build_failed": "Build fehlgeschlagen",
+  "regions_delete_confirm_title": "{name} löschen?",
+  "@regions_delete_confirm_title": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "regions_delete_confirm_body": "Dies entfernt die heruntergeladene Karte und die Höhendaten für diese Region. Sie müssen sie erneut herunterladen, um sie offline zu nutzen.",
+  "regions_delete_confirm_action": "Löschen",
+  "regions_disk_usage_summary": "{size} in {count} heruntergeladenen Region(en)",
+  "@regions_disk_usage_summary": {
+    "placeholders": {
+      "size": {
+        "type": "String"
+      },
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "regions_empty_search_title": "Keine passenden Regionen",
+  "regions_empty_search_body": "Versuchen Sie es mit einem anderen Suchbegriff.",
+  "regions_empty_catalog_title": "Keine Offline-Regionen verfügbar",
+  "regions_empty_catalog_body": "Fragen Sie den Administrator Ihrer wanderer Instanz, die herunterladbaren Regionen zu konfigurieren.",
+  "regions_vector_tile_title": "Vektor",
+  "regions_dem_tile_title": "Höhenandaten",
+  "regions_download_failed": "Download fehlgeschlagen",
+  "regions_dem_locked_subtitle": "Zuerst Kartendaten herunterladen",
+  "regions_offline_unavailable_title": "Regionen können nicht geladen werden",
+  "regions_offline_unavailable_body": "Verbinden Sie sich mit dem Internet, um herunterladbare Regionen zu durchsuchen und zu verwalten.",
+  "regions_map_geometry_failed": "Konnte die Regionsumrandung nicht laden",
+  "regions_map_back_label": "Zurück zu den Regionen",
+  "regions_group_expand_label": "{name} ausklappen",
+  "@regions_group_expand_label": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "regions_group_collapse_label": "{name} einklappen",
+  "@regions_group_collapse_label": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "offline_title": "Sie sind Offline",
+  "@offline_title": {
+    "description": "Title shown by the shared offline takeover state (map, list, profile) when the backend is unreachable."
+  },
+  "offline_try_again": "Erneut versuchen",
+  "@offline_try_again": {
+    "description": "Retry button label on the shared offline takeover state."
+  },
+  "offline_map_body": "Verbinde dich mit dem Internet, um die Karte zu laden. Heruntergeladene Routen sind verfügbar.",
+  "@offline_map_body": {
+    "description": "Body copy for the map screen's offline takeover."
+  },
+  "offline_list_body": "Verbinden Sie sich mit dem Internet, um Listen zu laden.",
+  "@offline_list_body": {
+    "description": "Body copy for the list screen's offline takeover."
+  },
+  "offline_profile_body": "Verbinden Sie sich mit dem Internet, um Ihr vollständiges Profil zu laden.",
+  "@offline_profile_body": {
+    "description": "Body copy for the profile screen's offline takeover of network-only sections."
+  },
+  "offline_settings_banner": "Sie sind offline. Einstellungen sind schreibgeschützt, bis Sie sich wieder verbinden.",
+  "offline_action_unavailable": "Du bist offline — versuche es erneut, sobald du wieder online bist.",
+  "offline_categories_body": "Verbinden Sie sich mit dem Internet, um Kategorien zu verwalten.",
+  "@offline_categories_body": {
+    "description": "Body copy for the categories and subcategories settings screens' offline state."
+  },
+  "offline_trail_search_body": "Verbinde dich mit dem Internet, um nach Routen zu suchen. Heruntergeladene Routen sind verfügbar.",
+  "@offline_trail_search_body": {
+    "description": "Body copy shown inside the map screen's draggable trail-results sheet when offline."
+  },
+  "selected_location": "Ausgewählter Ort",
+  "@selected_location": {
+    "description": "Heading of the map screen panel shown after tapping an empty spot on the map."
+  },
+  "distance_from_your_location": "{distance} von deinem Standort",
+  "@distance_from_your_location": {
+    "description": "Body of the map screen's selected-location panel. distance is pre-formatted with its unit, e.g. '2.40 km' or '350 m'.",
+    "placeholders": {
+      "distance": { "type": "String" }
+    }
+  },
+  "plan_route_from_here": "Route von hier planen",
+  "@plan_route_from_here": {
+    "description": "Button in the map screen's selected-location panel that opens the route planner centered on that location."
+  },
+  "recent_searches": "Letzte Suchanfragen",
+  "clear_search_history": "Suchverlauf löschen",
+  "clear_search_history_confirm": "Alle letzten Suchanfragen entfernen?"
+}

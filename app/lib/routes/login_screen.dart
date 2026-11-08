@@ -1,0 +1,179 @@
+import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_form_builder/flutter_form_builder.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:form_builder_validators/form_builder_validators.dart';
+import 'package:go_router/go_router.dart';
+import 'package:wanderer/components/base/wanderer_button.dart';
+import 'package:wanderer/components/base/wanderer_text_field.dart';
+import 'package:wanderer/components/welcome/server_compatibility_alert.dart';
+import 'package:wanderer/components/welcome/server_selctor.dart';
+import 'package:wanderer/components/welcome/topography_background.dart';
+import 'package:wanderer/models/api_error.dart';
+import 'package:wanderer/provider/auth_provider.dart';
+import 'package:wanderer/provider/toast_provider.dart';
+import 'package:wanderer/provider/welcome/server_compatibility_provider.dart';
+import 'package:wanderer/util/server_compatibility.dart';
+
+import '/i18n/app_localizations.dart';
+
+class LoginScreen extends ConsumerWidget {
+  LoginScreen({super.key});
+
+  final _formKey = GlobalKey<FormBuilderState>();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final loginState = ref.watch(authProvider);
+    final isServerIncompatible = ref.watch(selectedServerIncompatibleProvider);
+
+    void submit() {
+      if (isServerIncompatible) return;
+      if (_formKey.currentState?.saveAndValidate() ?? false) {
+        final data = _formKey.currentState!.value;
+        ref
+            .read(authProvider.notifier)
+            .login(data['username'], data['password']);
+      }
+    }
+
+    ref.listen(authProvider, (previous, next) {
+      // Sign-in worked: close the autofill context so the password manager
+      // offers to save (or update) the credentials that were just used. Has
+      // to happen while the fields are still mounted, i.e. before the router
+      // swaps this screen out.
+      if (next is AsyncData && next.value != null) {
+        TextInput.finishAutofillContext();
+      }
+
+      next.whenOrNull(
+        error: (error, _) {
+          String displayMessage = "An unexpected error occurred";
+
+          // Already on screen as the selected server's alert, which stays put.
+          if (error is IncompatibleServerException) return;
+
+          if (error is DioException) {
+            try {
+              final apiError = ApiError.fromJson(error.response?.data);
+
+              displayMessage = apiError.message == "Failed to authenticate."
+                  ? AppLocalizations.of(context)!.wrong_username_or_password
+                  : apiError.message;
+            } catch (_) {
+              displayMessage = error.message ?? "Network connection issue";
+            }
+          } else {
+            displayMessage = error.toString();
+          }
+
+          ref
+              .read(toastProvider.notifier)
+              .add(
+                ToastMessage(
+                  type: ToastType.error,
+                  icon: FontAwesomeIcons.circleExclamation,
+                  text: displayMessage,
+                ),
+              );
+        },
+      );
+    });
+
+    // Leaving mid-sign-in would abandon a request whose result still lands
+    // in authProvider, so neither the back button nor a system back gesture
+    // is offered until it settles.
+    return PopScope(
+      canPop: !loginState.isLoading,
+      child: Scaffold(
+        body: Stack(
+          children: [
+            Positioned.fill(child: TopographyBackground()),
+            if (!loginState.isLoading)
+              SafeArea(
+                child: IconButton(
+                  icon: const BackButtonIcon(),
+                  onPressed: () => context.pop(),
+                ),
+              ),
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32.0),
+                child: FormBuilder(
+                  key: _formKey,
+                  autovalidateMode: AutovalidateMode.onUnfocus,
+                  child: SingleChildScrollView(
+                    // Groups the two credential fields into one autofill
+                    // context, so a password manager fills them together and
+                    // knows they belong to the same login.
+                    child: AutofillGroup(
+                      child: Column(
+                        spacing: 12,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          SvgPicture.asset(
+                            "assets/svgs/logo_text_twoline_${Theme.of(context).brightness.name}.svg",
+                            semanticsLabel: 'wanderer logo with text',
+                          ),
+                          Text(
+                            AppLocalizations.of(context)!.slogan,
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          SizedBox(height: 12),
+
+                          ServerSelector(icon: FontAwesomeIcons.pencil),
+                          if (isServerIncompatible)
+                            const ServerCompatibilityAlert(),
+                          WandererTextField(
+                            name: 'username',
+                            label:
+                                "${AppLocalizations.of(context)!.username}/${AppLocalizations.of(context)!.email}",
+                            autofillHints: const [
+                              AutofillHints.username,
+                              AutofillHints.email,
+                            ],
+                            keyboardType: TextInputType.emailAddress,
+                            textInputAction: TextInputAction.next,
+                            validator: FormBuilderValidators.required(),
+                          ),
+                          WandererTextField(
+                            name: 'password',
+                            label: AppLocalizations.of(context)!.password,
+                            isPassword: true,
+                            autofillHints: const [AutofillHints.password],
+                            textInputAction: TextInputAction.done,
+                            onSubmitted: (_) => submit(),
+                            validator: FormBuilderValidators.compose([
+                              FormBuilderValidators.required(),
+                              FormBuilderValidators.minLength(8),
+                            ]),
+                          ),
+
+                          SizedBox(
+                            width: double.infinity,
+                            child: WandererButton(
+                              primary: true,
+                              large: true,
+                              loading: loginState.isLoading,
+                              disabled: isServerIncompatible,
+                              onPressed: submit,
+                              child: Text(AppLocalizations.of(context)!.login),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

@@ -1,0 +1,147 @@
+import 'package:riverpod_annotation/riverpod_annotation.dart';
+
+/// How much unseen content may remain below the viewport before the next page
+/// is fetched, in logical pixels -- roughly three quarters of a phone screen.
+///
+/// Deliberately a DISTANCE, not the fraction (`pixels / maxScrollExtent >=
+/// 0.8`) the scroll listeners used to compare. A fraction makes the trigger
+/// distance scale with the list's current length, which is backwards at both
+/// ends: on page 1 of a 20-row list, 20% left is only ~240px of runway, so the
+/// user reaches the bottom and waits; after ten pages it is ~3800px, so pages
+/// are fetched while the user is still dozens of rows away. A constant
+/// distance behaves the same on page 1 and page 50.
+const double kPagedPrefetchExtent = 600;
+
+/// The shape every paged provider's state already had before this mixin
+/// existed: a 1-based [page] cursor, a [totalPages] ceiling, and the
+/// [hasMore] test derived from them.
+///
+/// Deliberately does NOT include the item list. The five paged states name it
+/// differently (`items` / `lists` / `trails`) and two of them merge it in ways
+/// nothing generic could express -- `ProfileTrailsState` splices in local
+/// ObjectBox rows and dedupes network hits against them. Appending is the
+/// per-provider half; see [PagedLoadMore.appendPage].
+abstract interface class PagedState {
+  int get page;
+  int get totalPages;
+  bool get hasMore;
+}
+
+/// Serialises "scroll to load more" so one gesture can only ever produce one
+/// request.
+///
+/// ## Why an explicit flag rather than `state.isLoading`
+///
+/// Every `loadNextPage` here intentionally leaves the provider in `AsyncData`
+/// while the next page is in flight, so the list stays on screen instead of
+/// flickering to a spinner. That choice has a consequence that was missed
+/// when it was made: `AsyncValue.guard` assigns to `state` only *after* its
+/// future completes, so `state.isLoading` is false for the entire duration of
+/// the fetch. It was also the only re-entrancy guard, which made it a no-op.
+///
+/// `ScrollController` listeners fire once per frame (60-120 Hz), so a single
+/// fling past the trigger threshold called `loadNextPage` ~100+ times, each
+/// call passing the dead guard and issuing a request for the *same*
+/// `page + 1` -- `state.page` does not advance until the first response
+/// lands. On 2026-08-05 that tripped the server's own rate limiting and
+/// locked the developer's IP out of wanderer.to.
+///
+/// [_inFlight] is what `state.isLoading` was believed to be. `state.isLoading`
+/// is still checked as well, because `search()` on some notifiers *does*
+/// publish an `AsyncLoading` and a next-page fetch must not race it.
+mixin PagedLoadMore<S extends PagedState> on AnyNotifier<AsyncValue<S>, S> {
+  bool _inFlight = false;
+
+  /// Bumped by [resetPaging]; a page fetched under an older generation
+  /// belongs to a list that has since been replaced.
+  int _generation = 0;
+
+  /// Starts a new list: clears the in-flight flag and orphans any page still
+  /// being fetched. Must be called at the top of every `build()` and of any
+  /// method that replaces the list with a fresh page 1, such as `search()`.
+  ///
+  /// The notifier instance survives rebuilds, so a flag left true by a fetch
+  /// that was still running when the provider was invalidated would wedge
+  /// pagination permanently -- every later `loadNextPage` returning at the
+  /// guard, the list silently never growing again.
+  ///
+  /// The orphaned fetch must not land either. `state` writes go through the
+  /// element's current ref, which a rebuild remounts, so Riverpod lets a
+  /// stale `loadNextPage` overwrite the refreshed list with the old one plus
+  /// its next page -- a pull-to-refresh that appears to do nothing.
+  void resetPaging() {
+    _generation++;
+    _inFlight = false;
+  }
+
+  /// Fetches [nextPage] and returns [current] with that page merged in.
+  ///
+  /// Implementations own the merge because they own the list field and any
+  /// dedupe rules. They should NOT touch `state`, guard re-entrancy, or catch
+  /// transport errors -- [loadNextPage] wraps this call in
+  /// `AsyncValue.guard`, so a throw surfaces as `AsyncError` exactly as it
+  /// did before.
+  Future<S> appendPage(S current, int nextPage);
+
+  /// Extra per-provider veto, checked after [PagedState.hasMore].
+  ///
+  /// Defaults to always allowing. `ProfileTrailsNotifier` overrides it to
+  /// refuse paging while showing device-only content -- there is no server to
+  /// page through.
+  bool canLoadMore(S current) => true;
+
+  /// Returns [current] carrying a "next page is in flight" marker, so screens
+  /// can show a loading affordance for exactly as long as a fetch is running.
+  ///
+  /// [_inFlight] cannot serve that purpose on its own: it is a plain field, so
+  /// flipping it notifies nobody and the UI never rebuilds to see it. The flag
+  /// has to live in the state for a screen to observe it.
+  ///
+  /// Defaults to returning [current] unchanged, which leaves every provider
+  /// that has no such affordance exactly as it was -- opting in costs one
+  /// override plus one field on the state. Overriders must not touch anything
+  /// else about [current]; this is called on the state the user is already
+  /// looking at, mid-scroll.
+  S withLoadingMore(S current, bool value) => current;
+
+  Future<void> loadNextPage() async {
+    final current = state.value;
+
+    if (current == null ||
+        _inFlight ||
+        state.isLoading ||
+        !current.hasMore ||
+        !canLoadMore(current)) {
+      return;
+    }
+
+    final generation = _generation;
+    _inFlight = true;
+    try {
+      // Still no `AsyncLoading` here -- the seamless AsyncData -> AsyncData
+      // transition is the point. It is safe now only because `_inFlight`,
+      // not the state's own loading flag, is what holds the door shut.
+      //
+      // Published as AsyncData for the same reason: an `AsyncLoading` would
+      // put `AsyncLoader`'s skeleton over the whole list. This publish is what
+      // makes the marker visible to the UI at the *start* of the fetch; the
+      // reassignment below clears it at the end.
+      state = AsyncData(withLoadingMore(current, true));
+
+      // `current`, not the state just published -- `appendPage` merges onto
+      // the list as it was, and the marker is cleared on the way out rather
+      // than being inherited by the merged result.
+      final next = await AsyncValue.guard(
+        () => appendPage(current, current.page + 1),
+      );
+      // A refresh or search replaced the list while this page was in flight.
+      if (generation != _generation) return;
+      state = next.whenData((v) => withLoadingMore(v, false));
+    } finally {
+      // `finally`, so a failed page does not wedge pagination the way a bare
+      // reset after the await would have. Only for this generation: after a
+      // reset the flag belongs to whatever fetch the new list started.
+      if (generation == _generation) _inFlight = false;
+    }
+  }
+}

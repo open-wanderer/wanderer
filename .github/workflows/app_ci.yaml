@@ -1,0 +1,48 @@
+name: App
+
+on:
+  push:
+    branches: [ main, dev ]
+    paths:
+      - '.github/workflows/app_ci.yaml'
+      - 'app/**'
+      - 'fixtures/gpx-corpus/**'
+  pull_request:
+    paths:
+      - '.github/workflows/app_ci.yaml'
+      - 'app/**'
+      - 'fixtures/gpx-corpus/**'
+
+concurrency:
+  group: app-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  FLUTTER_VERSION: '3.47.8'
+
+jobs:
+  app-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos
+
+      - name: Test
+        run: flutter test

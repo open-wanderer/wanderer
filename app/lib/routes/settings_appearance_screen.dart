@@ -1,0 +1,56 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:wanderer/i18n/app_localizations.dart';
+import 'package:wanderer/provider/local_settings_provider.dart';
+
+class SettingsAppearanceScreen extends ConsumerWidget {
+  const SettingsAppearanceScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
+    final currentMode = ref.watch(themeModeProvider);
+    final colorScheme = Theme.of(context).colorScheme;
+    final activeColor = Theme.of(context).brightness == Brightness.dark
+        ? colorScheme.onSurface
+        : colorScheme.primary;
+
+    return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const BackButtonIcon(),
+          onPressed: () => context.pop(),
+        ),
+        title: Text(l10n.appearance),
+      ),
+      body: RadioGroup<ThemeMode>(
+        groupValue: currentMode,
+        onChanged: (value) {
+          if (value != null) {
+            ref.read(localSettingsProvider.notifier).setThemeMode(value);
+          }
+        },
+        child: ListView(
+          children: [
+            RadioListTile<ThemeMode>(
+              title: Text(l10n.theme_light),
+              value: ThemeMode.light,
+              activeColor: activeColor,
+            ),
+            RadioListTile<ThemeMode>(
+              title: Text(l10n.theme_dark),
+              value: ThemeMode.dark,
+              activeColor: activeColor,
+            ),
+            RadioListTile<ThemeMode>(
+              title: Text(l10n.theme_system),
+              value: ThemeMode.system,
+              activeColor: activeColor,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
