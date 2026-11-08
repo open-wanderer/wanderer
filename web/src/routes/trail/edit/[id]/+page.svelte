@@ -8,7 +8,7 @@
     import SummitLogCard from "#lib/components/summit_log/summit_log_card.svelte";
     import SummitLogModal from "#lib/components/summit_log/summit_log_modal.svelte";
     import MapWithElevationMaplibre from "#lib/components/trail/map_with_elevation_maplibre.svelte";
-    import PhotoPicker from "#lib/components/trail/photo_picker.svelte";
+    import PhotoPicker from "#lib/components/photo/photo_picker.svelte";
     import TrailAnchorList from "#lib/components/trail/trail_anchor_list.svelte";
     import WaypointCard from "#lib/components/waypoint/waypoint_card.svelte";
     import WaypointMergeModal, {

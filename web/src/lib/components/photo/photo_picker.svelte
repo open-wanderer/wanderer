@@ -3,7 +3,7 @@
     import { getFileURL } from "#lib/util/file_util.ts";
     import { photoFilePreview } from "#lib/util/photo_preview_util.ts";
     import { _ } from "svelte-i18n";
-    import PhotoCard from "../photo_card.svelte";
+    import PhotoCard from "./photo_card.svelte";
 
     interface Props {
         id: string;
