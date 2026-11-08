@@ -23,7 +23,7 @@
 }
 
 .btn-danger {
-    @apply h-10 text-white rounded-lg px-4 py-2 bg-red-500 font-semibold transition-all hover:bg-red-600 focus:ring-4 ring-red-100
+    @apply min-h-10 text-white rounded-lg px-4 py-2 bg-red-500 font-semibold transition-all hover:bg-red-600 focus:ring-4 ring-red-100
 }
 
 .btn-disabled {
