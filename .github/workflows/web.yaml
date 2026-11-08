@@ -23,6 +23,15 @@ jobs:
         with:
           node-version: '22'
 
+      - run: npm ci
+        working-directory: web
+
+      - name: Generate and validate OpenAPI
+        working-directory: web
+        run: |
+          npm run openapi:generate
+          npm run openapi:validate
+
       - uses: actions/setup-go@v6
         with:
           go-version: '1.26'
@@ -40,7 +49,6 @@ jobs:
               .env.example > .env
           docker compose up -d --wait --wait-timeout 840
 
-      - run: make web-install
       - run: make web-playwright-install
       - run: make web-check
       - run: make web-test
