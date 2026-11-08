@@ -1,17 +1,51 @@
-package routes
+package pluginhost
 
 import (
 	"encoding/base64"
+	"errors"
 	"fmt"
-	"strings"
+	"os"
+
+	"github.com/pocketbase/dbx"
+	"github.com/pocketbase/pocketbase/core"
+	"github.com/pocketbase/pocketbase/tools/security"
 
 	"pocketbase/pluginsystem"
+	"pocketbase/util"
 )
 
-func pluginInstancePolicy(plugin pluginsystem.LocalPlugin, config map[string]any) pluginsystem.RequestPolicyContext {
+var ErrMissingEncryptionKey = errors.New("POCKETBASE_ENCRYPTION_KEY not set")
+
+func EffectiveConfig(app core.App, pluginID string, instance *core.Record) map[string]any {
+	config := InstalledConfig(app, pluginID)
+	pluginsystem.MergePluginConfig(config, pluginsystem.JSONMapFromRecord(instance, "config"))
+	return config
+}
+
+func RuntimeConfig(config map[string]any) map[string]any {
+	return configSection(config, "plugin")
+}
+
+func HostConfig(config map[string]any) map[string]any {
+	return configSection(config, "host")
+}
+
+func InstalledConfig(app core.App, pluginID string) map[string]any {
+	record, _ := app.FindFirstRecordByFilter(
+		"installed_plugins",
+		"plugin_id={:plugin_id}",
+		dbx.Params{"plugin_id": pluginID},
+	)
+	if record == nil {
+		return map[string]any{}
+	}
+	return pluginsystem.JSONMapFromRecord(record, "config")
+}
+
+func InstancePolicy(plugin pluginsystem.LocalPlugin, config map[string]any) pluginsystem.RequestPolicyContext {
 	connectors := map[string]pluginsystem.ResolvedConnectorTarget{}
-	hostConfig := pluginHostConfig(config)
-	hostConnectors := configMap(configMap(hostConfig, "connectors"), "")
+	hostConfig := HostConfig(config)
+	hostConnectors := util.ConfigMap(hostConfig, "connectors")
 
 	for _, manifestConnector := range plugin.Manifest.Permissions.Network.Connectors {
 		target, err := resolveConnectorTarget(manifestConnector, hostConnectors)
@@ -22,6 +56,37 @@ func pluginInstancePolicy(plugin pluginsystem.LocalPlugin, config map[string]any
 	}
 
 	return pluginsystem.RequestPolicyContext{Connectors: connectors}
+}
+
+func DecryptedInstanceAuth(instance *core.Record) (map[string]any, error) {
+	auth := pluginsystem.JSONMapFromRecord(instance, "auth")
+	if len(auth) == 0 {
+		return map[string]any{}, nil
+	}
+	encryptionKey := os.Getenv("POCKETBASE_ENCRYPTION_KEY")
+	if encryptionKey == "" {
+		return nil, ErrMissingEncryptionKey
+	}
+	for key, value := range auth {
+		secret, ok := value.(string)
+		if !ok || secret == "" || !util.CanDecryptSecret(secret) {
+			continue
+		}
+		decrypted, err := security.Decrypt(secret, encryptionKey)
+		if err != nil {
+			return nil, fmt.Errorf("decrypt %s: %w", key, err)
+		}
+		auth[key] = string(decrypted)
+	}
+	return auth, nil
+}
+
+func configSection(config map[string]any, key string) map[string]any {
+	raw, ok := config[key].(map[string]any)
+	if !ok || raw == nil {
+		return map[string]any{}
+	}
+	return raw
 }
 
 func resolveConnectorTarget(manifest pluginsystem.ConnectorTargetPermission, hostConnectors map[string]any) (pluginsystem.ResolvedConnectorTarget, error) {
@@ -47,19 +112,19 @@ func resolveConnectorTarget(manifest pluginsystem.ConnectorTargetPermission, hos
 		target.BasePath = basePath
 		target.AllowPrivate = false
 	case pluginsystem.ConnectorTypeConfigured:
-		rawConfig := configMap(hostConnectors, manifest.ConfigKey)
+		rawConfig := util.ConfigMap(hostConnectors, manifest.ConfigKey)
 		if len(rawConfig) == 0 {
 			return target, fmt.Errorf("configured connector %q has no host config", manifest.Name)
 		}
-		baseURL := stringConfig(rawConfig, "baseURL")
-		basePath := stringConfig(rawConfig, "basePath")
+		baseURL := util.ConfigString(rawConfig, "baseURL")
+		basePath := util.ConfigString(rawConfig, "basePath")
 		normalizedBaseURL, normalizedBasePath, err := pluginsystem.NormalizeConnectorBase(baseURL, basePath)
 		if err != nil {
 			return target, err
 		}
 		target.BaseURL = normalizedBaseURL
 		target.BasePath = normalizedBasePath
-		target.AllowPrivate = boolConfig(rawConfig, "allowPrivate")
+		target.AllowPrivate = util.ConfigBool(rawConfig, "allowPrivate", false)
 		target.TLS = tlsConfig(rawConfig, manifest.SupportsCustomTLS)
 		if manifest.SupportsStorageRedirects {
 			target.StorageOrigins = storageOrigins(rawConfig)
@@ -71,7 +136,7 @@ func resolveConnectorTarget(manifest pluginsystem.ConnectorTargetPermission, hos
 }
 
 func storageOrigins(rawConfig map[string]any) map[string]pluginsystem.ResolvedConnectorOrigin {
-	rawOrigins := configMap(rawConfig, "storageOrigins")
+	rawOrigins := util.ConfigMap(rawConfig, "storageOrigins")
 	origins := map[string]pluginsystem.ResolvedConnectorOrigin{}
 	for name, raw := range rawOrigins {
 		originMap, ok := raw.(map[string]any)
@@ -79,8 +144,8 @@ func storageOrigins(rawConfig map[string]any) map[string]pluginsystem.ResolvedCo
 			continue
 		}
 		baseURL, basePath, err := pluginsystem.NormalizeConnectorBase(
-			stringConfig(originMap, "baseURL"),
-			stringConfig(originMap, "basePath"),
+			util.ConfigString(originMap, "baseURL"),
+			util.ConfigString(originMap, "basePath"),
 		)
 		if err != nil {
 			continue
@@ -89,7 +154,7 @@ func storageOrigins(rawConfig map[string]any) map[string]pluginsystem.ResolvedCo
 			Name:         name,
 			BaseURL:      baseURL,
 			BasePath:     basePath,
-			AllowPrivate: boolConfig(originMap, "allowPrivate"),
+			AllowPrivate: util.ConfigBool(originMap, "allowPrivate", false),
 			TLS:          tlsConfig(originMap, true),
 		}
 	}
@@ -97,8 +162,8 @@ func storageOrigins(rawConfig map[string]any) map[string]pluginsystem.ResolvedCo
 }
 
 func tlsConfig(raw map[string]any, customAllowed bool) pluginsystem.ConnectorTLSConfig {
-	rawTLS := configMap(raw, "tls")
-	mode := stringConfig(rawTLS, "mode")
+	rawTLS := util.ConfigMap(raw, "tls")
+	mode := util.ConfigString(rawTLS, "mode")
 	if mode == "" {
 		mode = pluginsystem.TLSModeSystem
 	}
@@ -110,7 +175,7 @@ func tlsConfig(raw map[string]any, customAllowed bool) pluginsystem.ConnectorTLS
 	}
 	cfg := pluginsystem.ConnectorTLSConfig{Mode: mode}
 	if mode == pluginsystem.TLSModeCustomCA {
-		ca := stringConfig(rawTLS, "caBundle")
+		ca := util.ConfigString(rawTLS, "caBundle")
 		if decoded, err := base64.StdEncoding.DecodeString(ca); err == nil {
 			cfg.CABundle = decoded
 		} else {
@@ -118,30 +183,4 @@ func tlsConfig(raw map[string]any, customAllowed bool) pluginsystem.ConnectorTLS
 		}
 	}
 	return cfg
-}
-
-func configMap(raw map[string]any, key string) map[string]any {
-	if key == "" {
-		return raw
-	}
-	value, ok := raw[key]
-	if !ok {
-		return map[string]any{}
-	}
-	switch typed := value.(type) {
-	case map[string]any:
-		return typed
-	default:
-		return map[string]any{}
-	}
-}
-
-func stringConfig(raw map[string]any, key string) string {
-	value, _ := raw[key].(string)
-	return strings.TrimSpace(value)
-}
-
-func boolConfig(raw map[string]any, key string) bool {
-	value, _ := raw[key].(bool)
-	return value
 }

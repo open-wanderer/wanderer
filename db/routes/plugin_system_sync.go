@@ -15,6 +15,7 @@ import (
 
 	"pocketbase/plugins/importer"
 	"pocketbase/pluginsystem"
+	"pocketbase/services/pluginhost"
 	"pocketbase/services/trailmerge"
 	"pocketbase/util"
 )
@@ -243,9 +244,9 @@ func syncPluginInstance(ctx context.Context, app core.App, client meilisearch.Se
 		setPluginInstanceStatus(app, instance, "needs_reauth", "auth_failed", err.Error())
 		return nil, err
 	}
-	config := effectivePluginConfig(app, plugin.Manifest.ID, instance)
-	pluginConfig := pluginRuntimeConfig(config)
-	hostConfig := pluginHostConfig(config)
+	config := pluginhost.EffectiveConfig(app, plugin.Manifest.ID, instance)
+	pluginConfig := pluginhost.RuntimeConfig(config)
+	hostConfig := pluginhost.HostConfig(config)
 	defaultPublic := userDefaultPublic(app, instance.GetString("user"))
 	createSummitLog := boolOption(hostConfig, "createSummitLogForCompleted", true)
 	runtime, err := pluginRuntimeFor(plugin)
@@ -256,7 +257,7 @@ func syncPluginInstance(ctx context.Context, app core.App, client meilisearch.Se
 	sessions := &pluginSyncRuntimeSession{
 		runtime: runtime,
 		plugin:  plugin,
-		policy:  pluginInstancePolicy(plugin, config).WithHostAuth(auth),
+		policy:  pluginhost.InstancePolicy(plugin, config).WithHostAuth(auth),
 	}
 	if err := sessions.open(ctx); err != nil {
 		setPluginInstanceStatusForError(app, instance, err)
