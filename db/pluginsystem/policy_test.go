@@ -66,6 +66,21 @@ func TestValidateHostRequestSpecRejectsLimitExpansion(t *testing.T) {
 	}
 }
 
+func TestValidateResponseContentType(t *testing.T) {
+	if err := ValidateResponseContentType("image/jpeg; charset=binary", []string{"image/jpeg"}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if err := ValidateResponseContentType("", nil); err != nil {
+		t.Fatalf("empty allowlist should not require a content type: %v", err)
+	}
+	if err := ValidateResponseContentType("", []string{"image/jpeg"}); err == nil {
+		t.Fatal("expected missing content type to fail")
+	}
+	if err := ValidateResponseContentType("text/html", []string{"image/jpeg"}); err == nil {
+		t.Fatal("expected undeclared content type to fail")
+	}
+}
+
 func TestBuildConnectorURLPreservesBasePathAndQueryOrder(t *testing.T) {
 	target := ResolvedConnectorTarget{
 		Name:                "immich",

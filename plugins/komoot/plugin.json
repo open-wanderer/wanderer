@@ -4,7 +4,7 @@
   "type": "trails",
   "name": "komoot",
   "description": "Imports planned and completed komoot tours, including photos and waypoints, into wanderer.",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "runtime": {
     "type": "wasm",
     "entrypoint": "plugin.wasm"
@@ -75,10 +75,13 @@
       "provider_session"
     ],
     "downloads": {
-      "maxBytes": 16777216,
+      "maxBytes": 52428800,
       "contentTypes": [
         "application/json",
-        "application/hal+json"
+        "application/hal+json",
+        "image/jpeg",
+        "image/png",
+        "image/webp"
       ]
     }
   },

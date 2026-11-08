@@ -4,7 +4,7 @@
   "type": "trails",
   "name": "Strava",
   "description": "Imports Strava routes, activities and photos into wanderer.",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "runtime": {
     "type": "wasm",
     "entrypoint": "plugin.wasm"
@@ -102,13 +102,16 @@
       "oauth_access_token"
     ],
     "downloads": {
-      "maxBytes": 16777216,
+      "maxBytes": 52428800,
       "contentTypes": [
         "application/json",
         "application/gpx+xml",
         "application/xml",
         "text/xml",
-        "application/octet-stream"
+        "application/octet-stream",
+        "image/jpeg",
+        "image/png",
+        "image/webp"
       ]
     }
   },
