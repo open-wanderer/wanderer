@@ -6,8 +6,9 @@
     import TrailExportModal from "#lib/components/trail/trail_export_modal.svelte";
     import { theme } from "#lib/stores/theme_store.ts";
     import { show_toast } from "#lib/stores/toast_store.svelte.ts";
-    import { fetchGPX, trails_index, trails_upload } from "#lib/stores/trail_store.ts";
+    import { fetchGPX, trails_upload } from "#lib/stores/trail_store.ts";
     import { processUploadQueue, uploadStore, type Upload } from "#lib/stores/upload_store.svelte.ts";
+    import { ownedTrailExportPages } from "#lib/stores/trail_export_store.ts";
     import { currentUser } from "#lib/stores/user_store.ts";
     import { getFileURL, saveAs } from "#lib/util/file_util.ts";
     import { trail2gpx } from "#lib/util/gpx_util.ts";
@@ -68,10 +69,11 @@
         summitLog: boolean;
     }) {
         try {
-            const trails = await trails_index(-1);
+            if (!$currentUser?.actor) throw new Error("Unauthenticated");
 
             const zip = new JSZip();
 
+            for await (const trails of ownedTrailExportPages($currentUser.actor, exportSettings.photos)) {
             for (const trail of trails) {
                 const gpxData: string = await fetchGPX(trail);
                 if (!trail.expand) {
@@ -115,6 +117,8 @@
                         summitLogString,
                     );
                 }
+            }
+
             }
 
             const blob = await zip.generateAsync({ type: "blob" });
