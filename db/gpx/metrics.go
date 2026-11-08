@@ -193,3 +193,13 @@ func measure(tracks []measuredTrack) measurement {
 		hasElevation: hasEle,
 	}
 }
+
+// legsAccumulator is the incremental form of legsDurationMs in
+// web/src/lib/models/gpx/track-segment.ts.
+//
+// Stub: the real accumulator follows in the implementation commit.
+type legsAccumulator struct{}
+
+func (l *legsAccumulator) add(timeMs int64, anchor bool) {}
+
+func (l *legsAccumulator) total() int64 { return 0 }
