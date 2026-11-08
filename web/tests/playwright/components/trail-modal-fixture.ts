@@ -21,6 +21,7 @@ export async function buildTrailModalFixture(dev: boolean, pairSource?: string, 
             resolveId(id) {
                 if (id.startsWith('fixture:')) return `\0${id}`;
                 if (id === '$app/env') return '\0fixture:environment';
+                if (id === '$app/env/public') return '\0fixture:public-environment';
                 if (id === '$app/state') return '\0fixture:state';
                 if (id === '$app/navigation') return '\0fixture:navigation';
                 if (id === 'svelte-i18n') return '\0fixture:i18n';
@@ -32,6 +33,7 @@ export async function buildTrailModalFixture(dev: boolean, pairSource?: string, 
                 }
             },
             async load(id) {
+                if (id in sourceStubs && !id.endsWith('.svelte') && !id.endsWith('.svelte.ts') && !sourceStubs[id].trimStart().startsWith('<script')) return sourceStubs[id];
                 if (id === '\0fixture:entry') return `
                     import { mount, unmount } from 'svelte';
                     import Pair from 'fixture:pair.svelte';
@@ -41,6 +43,7 @@ export async function buildTrailModalFixture(dev: boolean, pairSource?: string, 
                     document.body.dataset.modalFixtureReady = 'true';
                 `;
                 if (id === '\0fixture:environment') return 'export const browser = true;';
+                if (id === '\0fixture:public-environment') return 'export const PUBLIC_POCKETBASE_URL = \'https://a.example\'; export const PUBLIC_MAP_MAX_POLYLINES = undefined; export const PUBLIC_PRIVATE_INSTANCE = undefined;';
                 if (id === '\0fixture:state') return 'export const page = { url: new URL(location.href), params: {}, data: {} };';
                 if (id === '\0fixture:navigation') return 'export function goto() {}';
                 if (id === '\0fixture:i18n') return `
@@ -60,7 +63,7 @@ export async function buildTrailModalFixture(dev: boolean, pairSource?: string, 
                 if (id === resolve(root, 'src/lib/stores/search_store.ts')) return 'export async function searchActors() { return []; }';
                 if (id === '\0fixture:toast') return 'export function show_toast() {}';
 
-                if (id.endsWith('.svelte.ts')) return compileModule((await transformWithOxc(await readFile(id, 'utf8'), id, { lang: 'ts', target: 'esnext' })).code, { filename: id, generate: 'client', dev }).js.code;
+                if (id.endsWith('.svelte.ts')) return compileModule((await transformWithOxc(sourceStubs[id] ?? await readFile(id, 'utf8'), id, { lang: 'ts', target: 'esnext' })).code, { filename: id, generate: 'client', dev }).js.code;
                 let source: string;
                 if (id in sourceStubs) source = sourceStubs[id];
                 else if (id === '\0fixture:pair.svelte') source = pairSource ?? `

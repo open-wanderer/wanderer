@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs';
 import { extname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { compile, compileModule } from 'svelte/compiler';
-import { build } from 'vite';
+import { build, transformWithOxc } from 'vite';
 import tailwindcss from '@tailwindcss/vite';
 import { expect, type Page } from '@playwright/test';
 import { mapResultStubs } from './trail-map-results-fixture';
@@ -47,9 +47,22 @@ export async function buildMapPageFixture(dev: boolean, realMapResults = false, 
             async load(id) {
                 if (id === '\0fixture:user') return `import { writable } from 'svelte/store'; export const currentUser = writable({ id: 'tester', actor: 'tester', username: 'tester' }); export function logout() { sessionStorage.setItem('fixture:loggedOut', 'true'); }`;
                 if (id === '\0fixture:files') return 'export function getFileURL() { return undefined; }';
-                if (id === resolve(root, 'src/lib/stores/upload_store.svelte.ts')) return compileModule('export const uploadStore = $state({ enqueuedUploads: [], completedUploads: [], uploading: false }); export async function processUploadQueue() {}', { filename: 'fixture-upload.svelte.js', generate: 'client', dev }).js.code;
+                if (id === resolve(root, 'src/lib/stores/upload_store.svelte.ts')) return compileModule(`
+                    import { createBackgroundTaskId, upsertBackgroundTask } from '#lib/stores/background_task_store.svelte.ts';
+                    export const uploadStore = $state({ enqueuedUploads: [], completedUploads: [], uploading: false });
+                    export async function processUploadQueue() {}
+                    export function enqueueUpload(upload) {
+                        uploadStore.enqueuedUploads.push(upload);
+                        syncUploadTask(uploadStore.enqueuedUploads[uploadStore.enqueuedUploads.length - 1]);
+                    }
+                    export function syncUploadTask(upload) {
+                        upload.taskId ??= createBackgroundTaskId('upload');
+                        upsertBackgroundTask({ id: upload.taskId, title: upload.file.name, status: upload.status, progress: upload.progress });
+                    }
+                `, { filename: 'fixture-upload.svelte.js', generate: 'client', dev }).js.code;
                 if ((realSearch || includeNav) && id === resolve(root, 'src/lib/stores/toast_store.svelte.ts')) return compileModule('export const toastStore = $state({toasts: []}); export function show_toast(toast) { toastStore.toasts.push({...toast, id: "fixture"}); } export function closeToast(toast) { toastStore.toasts = toastStore.toasts.filter(t => t.id !== toast.id); } export function pauseToast() {} export function resumeToast() {}', {filename: 'fixture-toast.svelte.js', generate: 'client', dev}).js.code;
                 if (realEngine && id === resolve(root, 'src/lib/stores/trail_merge_store.svelte.ts')) return compileModule('export const mergeStore = $state({enqueuedMerges: [], completedMerges: []}); export function processMergeQueue() {} window.showMergeStatus = () => mergeStore.completedMerges.push({trailSource: {id: "merge-source", name: "Merge source"}, trailTarget: {id: "merge-target", name: "Merge target"}, status: "error", progress: 0, error: "Try again"});', {filename:'fixture-merge.svelte.js', generate:'client', dev}).js.code;
+                if (id === resolve(root, 'src/lib/stores/background_task_store.svelte.ts')) return compileModule((await transformWithOxc(await readFile(id, 'utf8'), id, { lang: 'ts', target: 'esnext' })).code, { filename: id, generate: 'client', dev }).js.code;
                 if (id === '\0fixture:empty') return 'export default {};';
                 if (realEngine && id === '\0fixture:maplibre') return `const M = window.RealMapLibre; export default M; export const { ${engineExports.join(', ')} } = M;`;
 
@@ -63,8 +76,8 @@ export async function buildMapPageFixture(dev: boolean, realMapResults = false, 
                     import { show_toast } from ${JSON.stringify(resolve(root, 'src/lib/stores/toast_store.svelte.ts'))};
                     import NavBar from ${JSON.stringify(resolve(root, 'src/lib/components/nav_bar.svelte'))};
                     import Toast from ${JSON.stringify(resolve(root, 'src/lib/components/base/toast.svelte'))};
-                    import UploadDialog from ${JSON.stringify(resolve(root, 'src/lib/components/settings/upload_dialog.svelte'))};
-                    import { uploadStore } from ${JSON.stringify(resolve(root, 'src/lib/stores/upload_store.svelte.ts'))};` : ''}
+                    import BackgroundTasksDialog from ${JSON.stringify(resolve(root, 'src/lib/components/background_tasks_dialog.svelte'))};
+                    import { enqueueUpload, syncUploadTask, uploadStore } from ${JSON.stringify(resolve(root, 'src/lib/stores/upload_store.svelte.ts'))};` : ''}
                     ${includeNav || realEngine || realSearch ? `import ${JSON.stringify(resolve(root, 'src/css/app.css'))};
                     import ${JSON.stringify(resolve(root, 'src/css/components.css'))};
                     import ${JSON.stringify(resolve(root, 'src/css/theme.css'))};` : ''}
@@ -81,7 +94,7 @@ export async function buildMapPageFixture(dev: boolean, realMapResults = false, 
                             ? { mapTrails: [], clusters: { type: 'FeatureCollection', features: [] } }
                             : { items: window.fixture.resultItems ?? [{ id: 'fixture-1', author: 'tester', name: 'Fixture trail' }], page: 1, totalPages: 1, totalHits: 1 }));
                     }); };
-                    ${includeNav ? `document.documentElement.classList.add('light'); document.body.style.width = '100%'; mount(NavBar, { target: document.body, props: { user: { id: 'tester', username: 'tester', avatar: '' } } }); mount(Toast, { target: document.body }); mount(EnlargeDialog, {target: document.body}); window.fixture.toast = () => show_toast({type: 'info', icon: 'info', text: 'Map toast'}, 60000); mount(UploadDialog, { target: document.body }); window.fixture.addUpload = () => uploadStore.enqueuedUploads.push({ file: new File(['fixture'], 'fixture.gpx'), status: 'enqueued', progress: 0 }); window.fixture.completeUpload = () => uploadStore.completedUploads.push({ ...uploadStore.enqueuedUploads.shift(), status: 'success' });` : ''}
+                    ${includeNav ? `document.documentElement.classList.add('light'); document.body.style.width = '100%'; mount(NavBar, { target: document.body, props: { user: { id: 'tester', username: 'tester', avatar: '' } } }); mount(Toast, { target: document.body }); mount(EnlargeDialog, {target: document.body}); window.fixture.toast = () => show_toast({type: 'info', icon: 'info', text: 'Map toast'}, 60000); mount(BackgroundTasksDialog, { target: document.body }); window.fixtureMessages = { ...(window.fixtureMessages ?? {}), minimize: 'Minimize' }; window.fixture.addUpload = () => enqueueUpload({ file: new File(['fixture'], 'fixture.gpx'), status: 'enqueued', progress: 0 }); window.fixture.completeUpload = () => { const upload = uploadStore.enqueuedUploads.shift(); upload.status = 'success'; uploadStore.completedUploads.push(upload); syncUploadTask(upload); };` : ''}
                     let component = mount(Page, { target: document.body });
                     ${includeNav ? `mount(Footer, {target: document.body});` : ""}
                     window.fixture.remount = async (value, mode = 'sync') => {
