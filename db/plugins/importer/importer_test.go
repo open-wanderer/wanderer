@@ -668,3 +668,45 @@ func mustFindImporterTestCollection(t *testing.T, app core.App, name string) *co
 
 	return collection
 }
+
+func TestTrackDistanceIndexCountsGapsBetweenSegments(t *testing.T) {
+	_, parsed, err := decodeAndParseGPX(pluginsystem.Track{
+		Format: "gpx",
+		ContentBase64: base64.StdEncoding.EncodeToString([]byte(`<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="test">
+  <trk>
+    <trkseg>
+      <trkpt lat="46.000000" lon="8.000000"></trkpt>
+      <trkpt lat="46.001000" lon="8.000000"></trkpt>
+    </trkseg>
+    <trkseg>
+      <trkpt lat="46.001000" lon="8.001000"></trkpt>
+      <trkpt lat="46.002000" lon="8.001000"></trkpt>
+    </trkseg>
+  </trk>
+</gpx>`)),
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	trackIndex := trackDistanceIndexFromGPX(parsed)
+	first := util.HaversineDistanceMeters(46.000, 8.000, 46.001, 8.000)
+	gap := util.HaversineDistanceMeters(46.001, 8.000, 46.001, 8.001)
+
+	for name, test := range map[string]struct {
+		point geoPoint
+		want  float64
+	}{
+		"start of the second segment":  {geoPoint{Lat: 46.001, Lon: 8.001}, first + gap},
+		"middle of the second segment": {geoPoint{Lat: 46.0015, Lon: 8.001}, first + gap + first/2},
+		"beside the gap":               {geoPoint{Lat: 46.0011, Lon: 8.0004}, first},
+	} {
+		distance, ok := trackIndex.nearest(test.point)
+		if !ok {
+			t.Fatalf("%s: expected nearest distance", name)
+		}
+		if distance.fromStart < test.want-0.01 || distance.fromStart > test.want+0.01 {
+			t.Errorf("%s: got %v, want %v", name, distance.fromStart, test.want)
+		}
+	}
+}
