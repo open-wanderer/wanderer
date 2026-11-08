@@ -440,7 +440,7 @@ func TestGeoJSONAnchors(t *testing.T) {
 	}
 
 	// Anchors on the first and last point are not interior and are left out.
-	const ext = `<extensions><wanderer:anchor xmlns:wanderer="urn:w"/></extensions>`
+	const ext = `<extensions><wanderer:anchor xmlns:wanderer="` + wandererNamespace + `"/></extensions>`
 	doc, _ = decodeGeoJSON(t, parseDoc(t, trkptsDoc(
 		`<trkpt lat="47" lon="11">`+ext+`</trkpt>`,
 		`<trkpt lat="47.001" lon="11"/>`,
