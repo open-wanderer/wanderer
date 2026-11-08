@@ -25,23 +25,21 @@ const pocketBaseDefaultThumb = "100x100"
 // requestedThumbs mirrors the sizes the web UI asks for through getFileURL.
 // PocketBase silently serves the original file for any size that is neither the
 // built-in default nor registered on the field, so every size used by a
-// component has to appear in the field's thumbs option.
+// component has to appear in the field's thumbs option. Trail, waypoint and
+// summit log photos are all served from assets.file.
 var requestedThumbs = []struct {
 	collection string
 	field      string
 	size       string
 	usedBy     string
 }{
-	{"trails", "photos", "600x0", "trail_info_panel header and photo grid, maplibre_util, feed_card, activity_card, photo_picker, lists/edit"},
+	{"assets", "file", "300x300", "waypoint_card, summit_log_table_row"},
+	{"assets", "file", "600x0", "trail_card, trail_list_item, trail_info_panel header and photo grid, maplibre_util, feed_card, activity_card, photo_picker, trail_timeline, summit_log_card, lists/edit"},
 	{"users", "avatar", "100x100", "nav_bar, trail_info_panel comment box"},
 	{"users", "avatar", "300x300", "settings/profile"},
 	{"lists", "avatar", "100x100", "list_search_modal, trail/edit"},
 	{"lists", "avatar", "300x300", "list_card, lists/edit load"},
 	{"lists", "avatar", "600x0", "list_panel, profile/[handle]"},
-	{"waypoints", "photos", "300x300", "waypoint_card"},
-	{"waypoints", "photos", "600x0", "trail_timeline, photo_picker"},
-	{"summit_logs", "photos", "300x300", "summit_log_table_row"},
-	{"summit_logs", "photos", "600x0", "summit_log_card, photo_picker, activity_card"},
 }
 
 func TestRequestedThumbSizesAreRegistered(t *testing.T) {

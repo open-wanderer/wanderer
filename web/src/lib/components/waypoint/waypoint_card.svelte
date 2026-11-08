@@ -52,7 +52,7 @@
     {#if imgSrc.length}
         {#if mode == "show"}
             <PhotoGallery
-                photos={waypoint.photos.map((p) => getFileURL(waypoint, p))}
+                photos={(waypoint.photos ?? []).map((p) => getFileURL(waypoint, p))}
                 bind:this={gallery}
             ></PhotoGallery>
         {/if}

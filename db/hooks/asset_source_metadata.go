@@ -15,6 +15,15 @@ func PreserveAssetSourceMetadata() func(*core.RecordRequestEvent) error {
 		if err != nil {
 			return err
 		}
+		// The hash describes stored bytes and is populated by the upload hook.
+		delete(metadata, "content_hash")
+		originalMetadata, err := assetMetadataMap(e.Record.Original())
+		if err != nil {
+			return err
+		}
+		if hash, ok := originalMetadata["content_hash"]; ok {
+			metadata["content_hash"] = hash
+		}
 		original := util.AssetProvenanceMetadata(e.Record.Original())
 		copyID, _ := metadata["copied_from"].(string)
 		filename, _ := metadata["original_filename"].(string)
@@ -68,6 +77,17 @@ func StoreAssetSourceMetadata() func(*core.RecordEvent) error {
 		}
 		e.Record.Set("metadata", metadata)
 		e.Record.Set(util.AssetProvenanceField, provenance)
-		return e.Next()
+		if len(util.AssetLegacyPhotoAliases(e.Record)) == 0 && len(util.AssetLegacyPhotoAliases(e.Record.Original())) == 0 {
+			return e.Next()
+		}
+		originalApp := e.App
+		return originalApp.RunInTransaction(func(tx core.App) error {
+			e.App = tx
+			defer func() { e.App = originalApp }()
+			if err := e.Next(); err != nil {
+				return err
+			}
+			return util.SyncAssetLegacyPhotoAliases(tx, e.Record)
+		})
 	}
 }

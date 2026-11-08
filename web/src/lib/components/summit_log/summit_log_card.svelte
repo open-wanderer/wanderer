@@ -39,8 +39,8 @@
     $effect(() => {
         let canceled = false;
         const firstFile = log._photos?.[0];
-        if (log.photos.length) {
-            thumbnail = getFileURL(log, log.photos[0], "600x0");
+        if ((log.photos ?? []).length) {
+            thumbnail = getFileURL(log, (log.photos ?? [])[0], "600x0");
         } else if (firstFile) {
             photoFilePreview(firstFile).then((preview) => {
                 if (!canceled) thumbnail = preview;
