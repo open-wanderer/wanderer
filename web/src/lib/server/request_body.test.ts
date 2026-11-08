@@ -145,3 +145,22 @@ it.each([
     }
     expect(warning).toHaveBeenCalledTimes(setting === "invalid" ? 2 : 0);
 });
+
+describe("asset batch request body limits", () => {
+    it("allows a twenty-photo request without buffering it before auth", async () => {
+        const { request, remaining } = streamedRequest("/api/v1/assets", 20 * 50 * 1024 * 1024, { "content-type": "multipart/form-data; boundary=test", "content-length": String(20 * 50 * 1024 * 1024) });
+        const put = new Request(request, { method: "PUT" });
+        const resolve = vi.fn(async () => new Response("Unauthorized", { status: 401 }));
+        expect((await limitRequestBodies({ event: event(put), resolve })).status).toBe(401);
+        expect(remaining()).toBeGreaterThan(999 * 1024 * 1024);
+        expect(resolve).toHaveBeenCalledOnce();
+    });
+
+    it("still rejects a multipart batch above the aggregate upload limit", async () => {
+        const request = new Request("https://a.example/api/v1/assets", { method: "PUT", body: "small", headers: { "content-type": "multipart/form-data; boundary=test", "content-length": String(1024 * 1024 * 1024 + 1) } });
+        const resolve = vi.fn();
+        expect((await limitRequestBodies({ event: event(request), resolve })).status).toBe(413);
+        expect(resolve).not.toHaveBeenCalled();
+    });
+
+});

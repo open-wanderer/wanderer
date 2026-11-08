@@ -16,15 +16,18 @@ This can lead to non-intuitive errors such as: editing and creating a trail, whi
 
 ### Body Size Limit
 
-The `BODY_SIZE_LIMIT` setting controls both the frontend adapter's request ceiling and the multipart upload limit. The provided Docker Compose configuration defaults to `2G`, which accommodates 99 photos at the default 20 MiB field limit, a GPX file and multipart headers in one request. The provided image and `npm start` launch the web server through `server.js`, which uses `2G` when the variable is unset. An invalid value logs a warning and also uses `2G` at this startup step. Set `Infinity` to allow uploads of any size by signed-in users, as in previous Compose configurations.
-Upload routes authenticate before reading or parsing multipart bodies. Other route limits remain fixed: login 64 KiB, ActivityPub inbox 2 MiB and ordinary requests 1 MiB.
+The `BODY_SIZE_LIMIT` setting controls the frontend adapter's request ceiling and the other multipart upload limits. The supplied image and Docker Compose configuration default to `1G`. Bare `server.js` / `npm start` uses the inherited `2G` fallback when the variable is unset or invalid; invalid values also produce a warning. Source deployments can export `BODY_SIZE_LIMIT=1G` explicitly.
+
+Photo and video uploads use the `file` field of the `assets` collection, which accepts up to 50 MiB per file by default. `PUT /api/v1/assets` also has a fixed 1 GiB aggregate limit per request, including multipart framing. Raising the collection file limit or `BODY_SIZE_LIMIT`, even to `Infinity`, does not raise that request limit. Split larger selections into separate requests.
+
+Upload routes authenticate before reading or parsing multipart bodies. Other fixed route limits remain login 64 KiB, ActivityPub inbox 2 MiB and ordinary requests 1 MiB.
 
 Track files sent to `/api/v1/trail/upload` and `/api/v1/trail/convert` are limited by the `Max File Size` of the `gpx` field of the `trails` collection, which is 25 MiB by default, and `BODY_SIZE_LIMIT` still caps them. A change to the field applies within a minute, without a restart. The web server parses these files in memory, and its other parsing limits grow with the field. On a server with little memory, a large value lets one upload exhaust it.
 
-When raising the backend file limits, set the single `BODY_SIZE_LIMIT` [Environment Variable](../../environment-configuration.md) high enough for all files in a request plus multipart headers. For Docker Compose, set it in the `.env` file beside `docker-compose.yml`; source deployments can export it before starting the web server. Check the reverse proxy's request limit as well.
+When raising backend file limits for other upload routes, set `BODY_SIZE_LIMIT` [Environment Variable](../../environment-configuration.md) high enough for the request plus multipart framing. Configure it in the Compose `.env` file or export it for source deployments. For asset requests, the fixed 1 GiB ceiling still applies. Check the reverse proxy's request limit as well.
 
 ```sh
-BODY_SIZE_LIMIT=3G
+BODY_SIZE_LIMIT=1G
 ```
 
 <Aside type="tip">Read more about the limitations and configuration possibilities on the [SvelteKit Reference](https://svelte.dev/docs/kit/adapter-node#Environment-variables-BODY_SIZE_LIMIT).</Aside>

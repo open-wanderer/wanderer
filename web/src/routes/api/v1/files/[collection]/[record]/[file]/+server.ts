@@ -53,6 +53,8 @@ import { z } from "zod";
  *               format: binary
  *       304:
  *         description: Not Modified after access validation; no response body
+ *       499:
+ *         description: Request cancelled while downloading the file; no response body
  *       400:
  *         description: Bad Request
  *       404:
@@ -107,6 +109,7 @@ export async function GET(event: RequestEvent) {
         const r = await event.fetch(fileURL, { headers, signal: event.request.signal })
         return new Response(r.body, { headers: r.headers, status: r.status });
     } catch (e: any) {
+        if (event.request.signal.aborted) return new Response(null, { status: 499 });
         throw error(500, e.message);
     }
 

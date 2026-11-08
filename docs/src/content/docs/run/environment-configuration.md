@@ -54,7 +54,7 @@ bundles and configuring self-hosted connector trust settings.
 | Environment Variable    | Description                                                                      | Default                             |
 | ----------------------- | -------------------------------------------------------------------------------- | ----------------------------------- |
 | ORIGIN                  | Public IP or hostname (including the port) of your <span class="-tracking-[0.075em]">wanderer</span> instance             | http://localhost:3000               |
-| BODY_SIZE_LIMIT         | Adapter ceiling and multipart upload limit; K, M and G suffixes use powers of 1024, `Infinity` permits uploads of any size after sign-in | 2G                                  |
+| BODY_SIZE_LIMIT         | Adapter ceiling and multipart upload limit; asset requests also have a fixed 1 GiB cap; suffixes use powers of 1024 | 1G (supplied image and Compose) |
 | PUBLIC_POCKETBASE_URL   | IP or hostname (including the port) of your pocketbase instance                  | http://db:8090                      |
 | POCKETBASE_PROXY_SECRET | **Required.** Shared secret authenticating the frontend → backend hop for inbound ActivityPub delivery to user inboxes and the instance inbox. Must match the value set on the `db` service; instance federation is rejected (fail closed) if it is unset or differs. |                       |
 | PUBLIC_DISABLE_SIGNUP   | Disables signup option for new users                                             | false                               |
@@ -134,4 +134,6 @@ services:
 Provider plugin connector CAs are configured per connector when a plugin
 supports custom TLS. They are not read from `NODE_EXTRA_CA_CERTS`.
 
-`BODY_SIZE_LIMIT` controls the adapter ceiling and multipart upload limit together. The sample Compose default is `2G`, enough for 99 default-sized photos and a GPX file in one request. When started through `server.js`, as in the provided image and `npm start`, the web server uses `2G` when the variable is unset; an invalid value logs a warning and also uses `2G`. `Infinity` permits uploads of any size by signed-in users, including in older Compose files. Increase this one variable when raising collection file limits, allowing space for multipart headers. Upload routes authenticate before reading or parsing the body. Other route limits remain fixed: login 64 KiB, ActivityPub inbox 2 MiB and ordinary requests 1 MiB. Configure reverse-proxy request limits accordingly.
+`BODY_SIZE_LIMIT` controls the adapter ceiling and the other multipart upload limits. The supplied image and Compose configuration default to `1G`. Bare `server.js` / `npm start` retains a `2G` fallback when the variable is unset or invalid; an invalid value also logs a warning. Source deployments can set `BODY_SIZE_LIMIT=1G` explicitly. `Infinity` removes this configurable ceiling for signed-in uploads, but does not change fixed route limits.
+
+`PUT /api/v1/assets` has a fixed 1 GiB aggregate request limit, including multipart framing. A larger `BODY_SIZE_LIMIT`, including `Infinity`, does not raise that limit. Set the adapter and reverse-proxy limits to at least `1G` to allow full asset batches. Upload routes authenticate before reading or parsing the body. Login remains limited to 64 KiB, ActivityPub inboxes to 2 MiB and ordinary requests to 1 MiB.

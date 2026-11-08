@@ -28,6 +28,8 @@ func ListFeedHandler() func(e *core.RecordsListRequestEvent) error {
 			return readable, nil
 		}
 
+		items := map[string]*core.Record{}
+		targetIDs := map[string][]string{}
 		for _, r := range e.Records {
 			expand := r.Expand()
 			delete(expand, "item")
@@ -61,6 +63,29 @@ func ListFeedHandler() func(e *core.RecordsListRequestEvent) error {
 				continue
 			}
 
+			items[r.Id] = item
+			if typ == string(util.TrailFeed) {
+				targetIDs["trail"] = append(targetIDs["trail"], item.Id)
+			}
+			if typ == string(util.SummitLogFeed) {
+				targetIDs["summit_log"] = append(targetIDs["summit_log"], item.Id)
+			}
+		}
+		previews := map[string]map[string][]*core.Record{}
+		for _, field := range []string{"trail", "summit_log"} {
+			rows, err := util.CardPhotoLinks(e.App, requestInfo, field, targetIDs[field])
+			if err != nil {
+				return err
+			}
+			previews[field] = rows
+		}
+		for _, r := range e.Records {
+			item := items[r.Id]
+			if item == nil {
+				continue
+			}
+			typ := strings.Trim(r.GetString("type"), "\"")
+
 			errs := e.App.ExpandRecord(item, []string{"author"}, fetchReadable)
 			if len(errs) > 0 {
 				return fmt.Errorf("failed to expand author: %v", errs)
@@ -78,6 +103,21 @@ func ListFeedHandler() func(e *core.RecordsListRequestEvent) error {
 				if len(errs) > 0 {
 					return fmt.Errorf("failed to expand summit log feed item: %v", errs)
 				}
+			}
+
+			field := ""
+			if typ == string(util.TrailFeed) {
+				field = "trail"
+			}
+			if typ == string(util.SummitLogFeed) {
+				field = "summit_log"
+			}
+			if field != "" {
+				rows := previews[field][item.Id]
+				if rows == nil {
+					rows = []*core.Record{}
+				}
+				item.MergeExpand(map[string]any{field + "_assets_via_" + field: rows})
 			}
 
 			r.MergeExpand(map[string]any{"item": item})

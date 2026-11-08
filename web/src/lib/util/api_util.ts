@@ -43,6 +43,10 @@ export enum Collection {
     waypoints = "waypoints",
     trails_filter = "trails_filter",
     users_anonymous = "users_anonymous",
+    assets = "assets",
+    trail_assets = "trail_assets",
+    waypoint_assets = "waypoint_assets",
+    summit_log_assets = "summit_log_assets",
     api_tokens = "api_tokens"
 
 }
@@ -95,7 +99,7 @@ export async function create<T>(event: RequestEvent, schema: ZodType<Record<stri
     return r
 }
 
-export async function update<T>(event: RequestEvent, schema: ZodType<Record<string, any>>, collection: Collection) {
+export async function update<T>(event: RequestEvent, schema: ZodType<Record<string, any>>, collection: Collection, options?: { expand?: string }) {
     const params = event.params
     const safeParams = RecordIdSchema.parse(params);
 
@@ -105,7 +109,7 @@ export async function update<T>(event: RequestEvent, schema: ZodType<Record<stri
     const data = await event.request.json();
     const safeData = schema.parse(data);
 
-    const r = await event.locals.pb.collection(Collection[collection]).update<T>(safeParams.id, safeData, safeSearchParams)
+    const r = await event.locals.pb.collection(Collection[collection]).update<T>(safeParams.id, safeData, { ...safeSearchParams, ...options })
 
     return r
 }

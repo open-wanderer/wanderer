@@ -10,6 +10,7 @@ export { UPLOAD_BODY_LIMIT };
 export const REQUEST_BODY_LIMIT = 1 << 20;
 export const INBOX_BODY_LIMIT = 2 << 20;
 export const LOGIN_BODY_LIMIT = 64 << 10;
+export const ASSET_BATCH_BODY_LIMIT = 1024 * 1024 * 1024;
 
 function checkDeclaredLength(request: Request, limit: number): void {
     const value = request.headers.get("content-length");
@@ -99,6 +100,7 @@ async function requestLimit(url: URL, request: Request): Promise<{ limit: number
     // Takes a raw GPX body as well as a multipart file.
     if (request.method === "POST" && /^\/api\/v1\/trail\/convert\/?$/.test(path)) return { limit: await trackBodyLimit(), upload: true };
     const multipart = request.headers.get("content-type")?.split(";", 1)[0].trim().toLowerCase() === "multipart/form-data";
+    if (multipart && request.method === "PUT" && path === "/api/v1/assets") return { limit: ASSET_BATCH_BODY_LIMIT, upload: true };
     if (multipart && request.method === "PUT" && path === "/api/v1/trail/upload") return { limit: await trackBodyLimit(), upload: true };
     // A gpx part is parsed here too; the body also carries photos.
     if (multipart && /^\/api\/v1\/trail\/form(?:\/[^/]+)?\/?$/.test(path)) await gpxFieldLimit();

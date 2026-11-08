@@ -64,7 +64,7 @@ services:
       <<: *env
       PUBLIC_POCKETBASE_URL: http://db:8090
       UPLOAD_FOLDER: /app/uploads
-      BODY_SIZE_LIMIT: ${BODY_SIZE_LIMIT:-2G}
+      BODY_SIZE_LIMIT: ${BODY_SIZE_LIMIT:-1G}
     volumes:
       - ./data/uploads:/app/uploads
       # - ./data/about.md:/app/build/client/md/about.md
