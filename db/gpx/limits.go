@@ -27,4 +27,9 @@ const (
 	maxWaypoints = 50_000
 	// maxTextBytes is the total retained name, desc, sym and type text.
 	maxTextBytes = 8 << 20
+	// maxNumberText bounds the text collected for one <ele>, <time> or <number>
+	// element and the length parseNumber accepts. A longer value is unusable,
+	// which is not an error: numeric fields are never retained, so this only
+	// bounds the per-element buffer. No real value is near 256 bytes.
+	maxNumberText = 256
 )

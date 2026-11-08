@@ -297,34 +297,39 @@ func TestLimits(t *testing.T) {
 
 	// 8 MiB of retained text is exactly 8192 chunks of 1 KiB. CDATA chunks are
 	// separate tokens, so the budget has to be charged as they arrive.
-	chunk := "<![CDATA[" + strings.Repeat("x", 1024-len("<![CDATA[]]>")) + "]]>"
-	if len(chunk) != 1024 {
-		t.Fatalf("test chunk is %d bytes", len(chunk))
-	}
+	const chunkText = 1024
+	chunk := "<![CDATA[" + strings.Repeat("x", chunkText) + "]]>"
 	descText := func(chunks int, extra string) io.Reader {
 		return &repeatReader{head: `<gpx><metadata><desc>`, item: chunk, n: chunks,
 			tail: extra + `</desc></metadata>` + onePoint + `</gpx>`}
 	}
-	chunkText := 1024 - len("<![CDATA[]]>")
 	t.Run("retained text of exactly maxTextBytes parses", func(t *testing.T) {
 		n := maxTextBytes / chunkText
+		if n*chunkText != maxTextBytes {
+			t.Fatalf("chunks do not add up to maxTextBytes")
+		}
 		res, err := Parse(descText(n, ""), 64<<20, "")
 		if err != nil {
 			t.Fatalf("got %v", err)
 		}
-		if len(res.Description) != n*chunkText {
-			t.Errorf("Description length %d, want %d", len(res.Description), n*chunkText)
+		if len(res.Description) != maxTextBytes {
+			t.Errorf("Description length %d, want %d", len(res.Description), maxTextBytes)
 		}
 	})
-	t.Run("retained text past maxTextBytes is too large", func(t *testing.T) {
-		res, err := Parse(descText(maxTextBytes/chunkText+2, ""), 64<<20, "")
+	t.Run("retained text one byte past maxTextBytes is too large", func(t *testing.T) {
+		res, err := Parse(descText(maxTextBytes/chunkText, "<![CDATA[x]]>"), 64<<20, "")
 		wantErr(t, res, err, ErrTooLarge)
 	})
 	t.Run("the text budget is shared between elements", func(t *testing.T) {
 		half := maxTextBytes / chunkText / 2
-		doc := &repeatReader{head: `<gpx><metadata><name>`, item: chunk, n: half + 1,
-			tail: `</name><desc>` + strings.Repeat(chunk, half+1) + `</desc></metadata>` + onePoint + `</gpx>`}
-		res, err := Parse(doc, 64<<20, "")
+		shared := func(extra string) io.Reader {
+			return &repeatReader{head: `<gpx><metadata><name>`, item: chunk, n: half,
+				tail: `</name><desc>` + strings.Repeat(chunk, half) + extra + `</desc></metadata>` + onePoint + `</gpx>`}
+		}
+		if _, err := Parse(shared(""), 64<<20, ""); err != nil {
+			t.Errorf("two halves of the budget must parse: %v", err)
+		}
+		res, err := Parse(shared("<![CDATA[x]]>"), 64<<20, "")
 		wantErr(t, res, err, ErrTooLarge)
 	})
 

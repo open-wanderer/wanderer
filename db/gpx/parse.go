@@ -14,10 +14,6 @@ import (
 // noTime marks a point whose <time> is absent or unparseable.
 const noTime int64 = math.MinInt64
 
-// maxNumberText bounds the text collected for one <ele> or <time> element. A
-// longer value is treated as unusable rather than buffered.
-const maxNumberText = 1024
-
 // measuredSegment is one run of usable points in struct-of-arrays form.
 type measuredSegment struct {
 	fileIndex int       // 0-based position among its <trk>'s <trkseg> elements; 0 for a promoted <rte>
@@ -98,10 +94,12 @@ var decimalNumber = regexp.MustCompile(`^[+-]?(?:[0-9]+\.?[0-9]*|\.[0-9]+)(?:[eE
 // parseNumber reads a coordinate or elevation. strconv.ParseFloat alone also
 // accepts NaN, Inf, hex floats and underscores, so the decimal grammar gates it
 // first, and a value out of float range is rejected rather than read as Inf.
-// strings.TrimSpace trims U+00A0 like JavaScript's trim.
+// Text longer than maxNumberText is rejected, which keeps an oversized
+// attribute value from being matched and parsed at all. strings.TrimSpace
+// trims U+00A0 like JavaScript's trim.
 func parseNumber(raw string) (float64, bool) {
 	s := strings.TrimSpace(raw)
-	if !decimalNumber.MatchString(s) {
+	if len(s) > maxNumberText || !decimalNumber.MatchString(s) {
 		return 0, false
 	}
 	f, err := strconv.ParseFloat(s, 64)
@@ -146,6 +144,7 @@ func decode(in io.Reader, fallbackName string) (*Result, error) {
 
 	b := newBuilder()
 	seenRoot := false
+	depth := 0
 	for {
 		tok, err := d.Token()
 		if err != nil {
@@ -157,11 +156,21 @@ func decode(in io.Reader, fallbackName string) (*Result, error) {
 		switch t := tok.(type) {
 		case xml.StartElement:
 			seenRoot = true
+			// The decoder allocates per open element, even inside an
+			// <extensions> subtree the builder skips, so the depth is
+			// bounded here on every element.
+			if depth++; depth > maxDepth {
+				return nil, fmt.Errorf("%w: nesting too deep", ErrMalformed)
+			}
 			b.start(t)
 		case xml.EndElement:
+			depth--
 			b.end(t.Name.Local)
 		case xml.CharData:
 			b.text(t)
+		}
+		if b.err != nil {
+			return nil, b.err
 		}
 	}
 	return b.finish(fallbackName)
@@ -204,8 +213,9 @@ func newSegBuilder(fileIndex int) *segBuilder {
 // add feeds a closed point. A point with a usable position is stored. Its time
 // and anchor also feed the duration, as does that of a positionless point when
 // timeAll is set: the app still reads the time of a <trkpt> without a position
-// (fixture 14), whereas a <rtept> is filtered before timing (fixture 17).
-func (sb *segBuilder) add(p *point, timeAll bool) {
+// (fixture 14), whereas a <rtept> is filtered before timing (fixture 17). It
+// reports whether the point was stored.
+func (sb *segBuilder) add(p *point, timeAll bool) (stored bool) {
 	usable := p.hasLat && p.hasLon
 	if usable || timeAll {
 		sb.legs.add(p.timeMs, p.anchor)
@@ -216,7 +226,7 @@ func (sb *segBuilder) add(p *point, timeAll bool) {
 		sb.timeSeen++
 	}
 	if !usable {
-		return
+		return false
 	}
 	ele := math.NaN()
 	if p.hasEle {
@@ -229,6 +239,7 @@ func (sb *segBuilder) add(p *point, timeAll bool) {
 	sb.seg.lon = append(sb.seg.lon, p.lon)
 	sb.seg.ele = append(sb.seg.ele, ele)
 	sb.seg.timeMs = append(sb.seg.timeMs, p.timeMs)
+	return true
 }
 
 // times is the first and last time of the points fed to the duration.
@@ -271,14 +282,39 @@ type builder struct {
 	// Names of the first <trk> and the first <rte> element, empty or not.
 	firstTrkName, firstRteName string
 
-	err error // first structural-limit error, checked by the token loop
+	// Running totals against the structural limits, and the first limit error,
+	// which the token loop returns.
+	points, segments, nWaypoints, textUsed int
+	err                                    error
 
 	collect      string   // element whose text is gathered: ele, time, or one of textKinds
 	collectOwner *textSet // receiver of a textKinds element, nil for ele and time
 	collectDepth int      // len(stack) while the collected element is open
-	limit        int      // collected bytes beyond which the value is unusable
+	budgeted     bool     // the text counts towards maxTextBytes
+	limit        int      // collected bytes beyond which a numeric value is unusable
 	buf          []byte
 	overflow     bool
+}
+
+// fail records the first structural-limit error. Its reason is static.
+func (b *builder) fail(kind error, reason string) {
+	if b.err == nil {
+		b.err = fmt.Errorf("%w: %s", kind, reason)
+	}
+}
+
+// addSegment counts a stored, non-empty segment.
+func (b *builder) addSegment() {
+	if b.segments++; b.segments > maxSegments {
+		b.fail(ErrTooLarge, "too many segments")
+	}
+}
+
+// addPoint counts a stored point.
+func (b *builder) addPoint() {
+	if b.points++; b.points > maxPoints {
+		b.fail(ErrTooLarge, "too many points")
+	}
 }
 
 func newBuilder() *builder {
@@ -350,10 +386,14 @@ func (b *builder) start(t xml.StartElement) {
 			b.beginText(name, nil, maxNumberText)
 		}
 	case "name", "desc", "sym", "type", "number":
-		// Retained-text budgets are 46-04's structural limits; until then the
-		// byte cap on the input bounds these.
+		// Retained text is charged against maxTextBytes as it arrives. <number>
+		// is numeric and is capped per element like <ele>.
 		if owner := b.owner(parent); owner != nil && b.collect == "" {
-			b.beginText(name, owner, math.MaxInt)
+			limit := math.MaxInt
+			if name == "number" {
+				limit = maxNumberText
+			}
+			b.beginText(name, owner, limit)
 		}
 	}
 }
@@ -384,6 +424,7 @@ func (b *builder) beginText(name string, owner *textSet, limit int) {
 	b.collect = name
 	b.collectOwner = owner
 	b.collectDepth = len(b.stack)
+	b.budgeted = owner != nil && name != "number"
 	b.limit = limit
 	b.buf = b.buf[:0]
 	b.overflow = false
@@ -435,7 +476,16 @@ func (b *builder) text(data xml.CharData) {
 	if b.collect == "" || b.skip > 0 {
 		return
 	}
-	if b.overflow || len(data) > b.limit-len(b.buf) {
+	if b.overflow {
+		return
+	}
+	if b.budgeted {
+		if b.textUsed+len(b.buf)+len(data) > maxTextBytes {
+			b.overflow = true
+			b.fail(ErrTooLarge, "too much text")
+			return
+		}
+	} else if len(data) > b.limit-len(b.buf) {
 		b.overflow = true
 		return
 	}
@@ -482,6 +532,9 @@ func (b *builder) closeElement(name string) {
 			return
 		}
 		b.collect = ""
+		if b.budgeted {
+			b.textUsed += len(b.buf)
+		}
 		if b.collectOwner == nil || b.overflow {
 			return
 		}
@@ -503,12 +556,16 @@ func (b *builder) closeElement(name string) {
 		}
 	case "trkpt":
 		if b.pt != nil && b.tsb != nil {
-			b.tsb.add(b.pt, true)
+			if b.tsb.add(b.pt, true) {
+				b.addPoint()
+			}
 		}
 		b.pt = nil
 	case "rtept":
 		if b.pt != nil && b.rsb != nil {
-			b.rsb.add(b.pt, false)
+			if b.rsb.add(b.pt, false) {
+				b.addPoint()
+			}
 		}
 		b.pt = nil
 	case "trk":
@@ -521,7 +578,11 @@ func (b *builder) closeElement(name string) {
 		}
 	case "wpt":
 		if w := b.wpt; w != nil && w.hasLat && w.hasLon {
-			b.waypoints = append(b.waypoints, *w)
+			if b.nWaypoints++; b.nWaypoints > maxWaypoints {
+				b.fail(ErrTooLarge, "too many waypoints")
+			} else {
+				b.waypoints = append(b.waypoints, *w)
+			}
 		}
 		b.wpt = nil
 	case "trkseg":
@@ -537,6 +598,7 @@ func (b *builder) closeElement(name string) {
 		if len(sb.seg.lat) > 0 {
 			tr := &b.tracks[len(b.tracks)-1]
 			tr.segments = append(tr.segments, sb.seg)
+			b.addSegment()
 		}
 	case "rte":
 		if b.rsb == nil || len(b.routes) == 0 {
@@ -555,6 +617,7 @@ func (b *builder) closeElement(name string) {
 		if len(sb.seg.lat) > 0 {
 			rt := &b.routes[len(b.routes)-1]
 			rt.segments = append(rt.segments, sb.seg)
+			b.addSegment()
 		}
 	}
 }
