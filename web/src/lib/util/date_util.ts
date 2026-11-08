@@ -160,20 +160,3 @@ export function convertGPSTimestampToDate(dateStamp: unknown, timeStamp: unknown
     date.setTime(date.getTime() + seconds * 1000);
     return date;
 }
-
-// EXIF DateTimeOriginal ("YYYY:MM:DD HH:MM:SS") is camera-local time, so it
-// only gives an exact time together with OffsetTimeOriginal ("+02:00").
-export function convertDateTimeOriginalToDate(dateTime: unknown, offset: unknown): Date | undefined {
-    if (typeof dateTime !== "string" || typeof offset !== "string") {
-        return undefined;
-    }
-    const date = dateTime.trim().match(/^(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2}):(\d{2})$/);
-    const zone = offset.trim().match(/^([+-])(\d{2}):(\d{2})$/);
-    if (!date || !zone) {
-        return undefined;
-    }
-    const [year, month, day, hours, minutes, seconds] = date.slice(1).map(Number);
-    const offsetMinutes = (zone[1] === "-" ? -1 : 1) * (Number(zone[2]) * 60 + Number(zone[3]));
-    const time = Date.UTC(year, month - 1, day, hours, minutes - offsetMinutes, seconds);
-    return Number.isFinite(time) ? new Date(time) : undefined;
-}

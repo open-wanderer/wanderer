@@ -2,6 +2,7 @@
     import { show_toast } from "#lib/stores/toast_store.svelte.ts";
     import { getFileURL } from "#lib/util/file_util.ts";
     import { photoFilePreview } from "#lib/util/photo_preview_util.ts";
+    import { MAX_PHOTO_SIZE_BYTES } from "#lib/util/photo_limits.ts";
     import { _ } from "svelte-i18n";
     import PhotoCard from "./photo_card.svelte";
 
@@ -25,7 +26,7 @@
         thumbnail = $bindable(0),
         showThumbnailControls = true,
         showExifControls = false,
-        maxSizeBytes = 20971520,
+        maxSizeBytes = MAX_PHOTO_SIZE_BYTES,
         onexif,
     }: Props = $props();
 

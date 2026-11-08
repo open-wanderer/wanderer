@@ -2,12 +2,11 @@
     import { type Snippet } from "svelte";
 
     import { WaypointCreateSchema } from "#lib/models/api/waypoint_schema.ts";
-    import { convertDMSToDD } from "#lib/models/gpx/utils.ts";
     import { show_toast } from "#lib/stores/toast_store.svelte.ts";
     import { waypoint } from "#lib/stores/waypoint_store.ts";
     import { cloneDeep } from "#lib/util/deep_util.ts";
     import { icons } from "#lib/util/icon_util.ts";
-    import EXIF from "#lib/vendor/exif-js/exif.js";
+    import { extractGPSCoordinates } from "#lib/util/exif_util.ts";
     import { validator } from "#lib/vendor/felte-validator-zod/index.ts";
     import { createForm } from "felte";
     import { _ } from "svelte-i18n";
@@ -82,24 +81,18 @@
             : [],
     );
 
-    function getCoordinatesFromPhoto(src: string) {
-        EXIF.getData({ src: src }, function (p) {
-            const lat = EXIF.getTag(p, "GPSLatitude");
-            const latDir = EXIF.getTag(p, "GPSLatitudeRef");
-            const lon = EXIF.getTag(p, "GPSLongitude");
-            const lonDir = EXIF.getTag(p, "GPSLongitudeRef");
-
-            if (lat && lon) {
-                setFields("lat", convertDMSToDD(lat, latDir));
-                setFields("lon", convertDMSToDD(lon, lonDir));
-            } else {
-                show_toast({
-                    text: $_('no-gps-data-in-image'),
-                    icon: "close",
-                    type: "error",
-                });
-            }
-        });
+    async function getCoordinatesFromPhoto(src: string) {
+        const coordinates = await extractGPSCoordinates(src);
+        if (coordinates) {
+            setFields("lat", coordinates.lat);
+            setFields("lon", coordinates.lon);
+        } else {
+            show_toast({
+                text: $_("no-gps-data-in-image"),
+                icon: "close",
+                type: "error",
+            });
+        }
     }
 
     const children_render = $derived(children);
