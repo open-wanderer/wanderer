@@ -70,6 +70,7 @@
     "chartjs-plugin-zoom": "^2.2.0",
     "chokidar": "^6.0.0",
     "crypto-random-string": "^6.0.0",
+    "exifreader": "^4.41.1",
     "felte": "^1.3.0",
     "heic2any": "^0.0.4",
     "htmlparser2": "^12.0.0",

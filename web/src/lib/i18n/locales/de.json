@@ -472,6 +472,7 @@
   "password-updated": "Passwort aktualisiert",
   "passwords-must-match": "Passwörter müssen übereinstimmen",
   "photos": "Fotos",
+  "waypoint-photos-skipped-limits": "{n, plural, one {# Foto wurde übersprungen} other {# Fotos wurden übersprungen}}. Fotos dürfen höchstens {size} MiB groß sein und ein Wegpunkt kann höchstens {max} Fotos enthalten.",
   "pick-a-trail": "Route auswählen",
   "planned-a-trail": "hat eine Route geplant",
   "planned-tours": "Geplante Touren",
