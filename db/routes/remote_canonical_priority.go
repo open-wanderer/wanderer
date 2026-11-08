@@ -41,7 +41,7 @@ func canonicalRotationStart(key string, size, take int) int {
 
 // New and changed references lead while a rotating refresh window keeps
 // the remaining known entries current.
-func selectCanonicalLogRequests(key string, priorities [2][]canonicalLogRequest) []canonicalLogRequest {
+func selectCanonicalLogRequests(key string, priorities [3][]canonicalLogRequest) []canonicalLogRequest {
 	return selectCanonicalRemoteRequests(key, priorities[:])
 }
 

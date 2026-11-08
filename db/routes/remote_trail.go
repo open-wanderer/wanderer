@@ -305,6 +305,14 @@ func performFullSyncDocument(app core.App, ctx context.Context, reqURL *url.URL,
 			return localTrail, err
 		}
 	}
+	storedWaypointIDs, err := storedRemoteTrailChildIDs(app, localTrail.Id, origin, "waypoints")
+	if err != nil {
+		return localTrail, err
+	}
+	storedLogIDs, err := storedRemoteTrailChildIDs(app, localTrail.Id, origin, "summit_logs")
+	if err != nil {
+		return localTrail, err
+	}
 	document, err := fetchRemoteSyncDocument(ctx, client, remoteUrl, "trail")
 	if err != nil {
 		return localTrail, err
@@ -324,7 +332,7 @@ func performFullSyncDocument(app core.App, ctx context.Context, reqURL *url.URL,
 	}
 	remoteMap := plan.data
 
-	canonicalLogs := fetchCanonicalRemoteSummitLogs(app, ctx, remoteMap, localTrail, origin)
+	canonicalLogs := fetchCanonicalRemoteSummitLogs(app, ctx, remoteMap, localTrail, origin, plan.completeSummitLogs)
 	ctx = prepareRemoteChildAuthors(app, ctx, remoteMap, origin, "summit_logs_via_trail", "summit-log")
 	ctx, cleanupMedia, err := prepareCollectedRemoteTrailMedia(app, ctx, plan.media, canonicalLogs)
 	if err != nil {
@@ -333,6 +341,8 @@ func performFullSyncDocument(app core.App, ctx context.Context, reqURL *url.URL,
 	defer cleanupMedia()
 	return document.process(ctx, func(remoteMap map[string]any) (*core.Record, error) {
 		remoteID, _ := remoteMap["id"].(string)
+		waypointIDs := remoteTrailChildIDs(app, remoteMap, origin, "waypoints_via_trail", "waypoints")
+		logIDs := remoteTrailChildIDs(app, remoteMap, origin, "summit_logs_via_trail", "summit_logs")
 		capRemoteSyncChildren(app, remoteMap, origin, "waypoints_via_trail", "summit_logs_via_trail")
 		ctx, err = prepareRemoteSyncTags(app, ctx, remoteMap, author, origin, "trail")
 		if err != nil {
@@ -377,9 +387,28 @@ func performFullSyncDocument(app core.App, ctx context.Context, reqURL *url.URL,
 				return finishRemoteTrailSync(app, ctx, localTrail, err)
 			}
 		}
+		if waypointIDs != nil {
+			err = app.RunInTransaction(func(tx core.App) error {
+				return pruneRemoteTrailChildren(tx, localTrail.Id, origin, "waypoints", waypointIDs, storedWaypointIDs)
+			})
+			if err != nil {
+				return finishRemoteTrailSync(app, ctx, localTrail, err)
+			}
+		}
 		if logs, ok := expand["summit_logs_via_trail"].([]any); ok {
 			err = remoteSyncChildBatches(app, ctx, logs, func(tx core.App, batch []any) error {
 				return syncSummitLogs(tx, ctx, localTrail, origin, batch, canonicalLogs)
+			})
+			if err != nil {
+				return finishRemoteTrailSync(app, ctx, localTrail, err)
+			}
+		}
+		if logIDs != nil {
+			err = app.RunInTransaction(func(tx core.App) error {
+				if err := applyOmittedRemoteSummitLogs(tx, localTrail, canonicalLogs); err != nil {
+					return err
+				}
+				return pruneRemoteTrailChildren(tx, localTrail.Id, origin, "summit_logs", logIDs, storedLogIDs)
 			})
 			if err != nil {
 				return finishRemoteTrailSync(app, ctx, localTrail, err)

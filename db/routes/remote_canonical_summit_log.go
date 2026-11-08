@@ -3,6 +3,7 @@ package routes
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"sync"
@@ -18,6 +19,7 @@ type canonicalRemoteSummitLog struct {
 	remoteID, origin, author string
 	authorIRI                string
 	removed                  bool
+	omitted                  bool
 	cacheKey, updatedHint    string
 }
 
@@ -35,24 +37,64 @@ type canonicalLogRequest struct {
 	url                    *url.URL
 	storedAuthor           string
 	parentPublic           bool
+	omitted                bool
 }
 
-func fetchCanonicalRemoteSummitLogs(app core.App, ctx context.Context, trailData map[string]any, trail *core.Record, origin string) map[string]canonicalRemoteSummitLog {
+type canonicalLogReference struct {
+	data    map[string]any
+	omitted bool
+}
+
+func canonicalLogReferences(app core.App, trail *core.Record, origin string, logs []any, authoritative bool) []canonicalLogReference {
+	references := make([]canonicalLogReference, 0, len(logs))
+	listed := map[string]struct{}{}
+	for _, entry := range logs {
+		raw, _ := entry.(map[string]any)
+		id, _ := raw["id"].(string)
+		iri, _ := raw["iri"].(string)
+		if iri == "" {
+			iri = fmt.Sprintf("%s/api/v1/summit-log/%s", origin, id)
+		}
+		listed[iri] = struct{}{}
+		references = append(references, canonicalLogReference{data: raw})
+	}
+	if !authoritative || trail.Id == "" {
+		return references
+	}
+	stored, err := app.FindRecordsByFilter("summit_logs", "trail={:trail}", "", -1, 0, map[string]any{"trail": trail.Id})
+	if err != nil {
+		return references
+	}
+	for _, record := range stored {
+		iri := record.GetString("iri")
+		if _, exists := listed[iri]; exists || util.RecordHasLocalIdentity(app, record) || remoteSyncIRIMatchesOrigin(iri, origin) {
+			continue
+		}
+		references = append(references, canonicalLogReference{data: map[string]any{"iri": iri, "updated": "canonical-absence"}, omitted: true})
+	}
+	return references
+}
+
+func fetchCanonicalRemoteSummitLogs(app core.App, ctx context.Context, trailData map[string]any, trail *core.Record, origin string, complete ...bool) map[string]canonicalRemoteSummitLog {
 	result := map[string]canonicalRemoteSummitLog{}
 	expand, _ := trailData["expand"].(map[string]any)
 	logs, _ := expand["summit_logs_via_trail"].([]any)
+	authoritative := remoteTrailChildIDs(app, trailData, origin, "summit_logs_via_trail", "summit_logs") != nil
+	if len(complete) > 0 {
+		authoritative = complete[0]
+	}
 	fetchCtx, cancel := context.WithTimeout(withCanonicalRemoteBodyBudget(ctx), canonicalRemoteFetchBudget)
 	defer cancel()
 	client := *newRemoteSyncHTTPClient()
 	client.CheckRedirect = canonicalRemoteRedirect
 	seen := map[string]struct{}{}
-	priorities := [2][]canonicalLogRequest{}
+	priorities := [3][]canonicalLogRequest{}
 	parentPublic := trailData["public"] == true
-	for _, entry := range logs {
+	for _, reference := range canonicalLogReferences(app, trail, origin, logs, authoritative) {
 		if fetchCtx.Err() != nil {
 			break
 		}
-		raw, _ := entry.(map[string]any)
+		raw := reference.data
 		iri, _ := raw["iri"].(string)
 		if iri == "" || util.IsLocalIRI(iri) || remoteSyncIRIMatchesOrigin(iri, origin) {
 			continue
@@ -83,11 +125,13 @@ func fetchCanonicalRemoteSummitLogs(app core.App, ctx context.Context, trailData
 		if canonicalRemoteLogCache.skip(key, hint, storedUpdated, existing != nil) {
 			continue
 		}
-		priority := 1
-		if existing == nil || knownHint && previousHint != hint {
+		priority := 2
+		if reference.omitted {
+			priority = 1
+		} else if existing == nil || knownHint && previousHint != hint {
 			priority = 0
 		}
-		priorities[priority] = append(priorities[priority], canonicalLogRequest{iri: iri, updated: hint, cacheKey: key, url: parsed, storedAuthor: storedAuthor, parentPublic: parentPublic})
+		priorities[priority] = append(priorities[priority], canonicalLogRequest{iri: iri, updated: hint, cacheKey: key, url: parsed, storedAuthor: storedAuthor, parentPublic: parentPublic, omitted: reference.omitted})
 	}
 	jobs := selectCanonicalLogRequests(canonicalLogCacheKey(app, trail, "refresh-window"), priorities)
 	work := make(chan canonicalLogRequest, len(jobs))
@@ -159,7 +203,7 @@ func fetchCanonicalRemoteSummitLog(app core.App, ctx context.Context, client *ht
 		var status *remoteFetchStatusError
 		final := errors.As(err, &status) && (status.StatusCode == http.StatusGone || job.parentPublic)
 		if errors.Is(err, errRemoteGone) && final && job.storedAuthor != "" {
-			return canonicalRemoteSummitLog{removed: true, author: job.storedAuthor, cacheKey: job.cacheKey, updatedHint: job.updated}, true
+			return canonicalRemoteSummitLog{removed: true, omitted: job.omitted, author: job.storedAuthor, cacheKey: job.cacheKey, updatedHint: job.updated}, true
 		}
 		return canonicalRemoteSummitLog{}, false
 	}
@@ -183,7 +227,7 @@ func fetchCanonicalRemoteSummitLog(app core.App, ctx context.Context, client *ht
 		return canonicalRemoteSummitLog{}, false
 	}
 
-	return canonicalRemoteSummitLog{data: canonicalSummitLogData(data), remoteID: remoteID, origin: job.url.Scheme + "://" + job.url.Host, authorIRI: authorIRI, cacheKey: job.cacheKey, updatedHint: job.updated}, true
+	return canonicalRemoteSummitLog{data: canonicalSummitLogData(data), remoteID: remoteID, origin: job.url.Scheme + "://" + job.url.Host, authorIRI: authorIRI, omitted: job.omitted, cacheKey: job.cacheKey, updatedHint: job.updated}, true
 }
 
 func canonicalSummitLogURL(iri string) (*url.URL, error) {

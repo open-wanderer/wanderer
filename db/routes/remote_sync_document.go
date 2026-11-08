@@ -117,8 +117,9 @@ func (document *remoteSyncDocument) identity(app core.App, ctx context.Context, 
 }
 
 type remoteSyncNetworkPlan struct {
-	data  map[string]any
-	media remoteMediaCollector
+	data               map[string]any
+	media              remoteMediaCollector
+	completeSummitLogs bool
 }
 
 func (document *remoteSyncDocument) networkPlan(app core.App, ctx context.Context, record *core.Record, origin, kind string) (remoteSyncNetworkPlan, error) {
@@ -133,6 +134,7 @@ func (document *remoteSyncDocument) networkPlan(app core.App, ctx context.Contex
 			plan.media = remoteMediaCollector{seen: map[string]bool{}}
 			plan.media.record(app, "list", id, origin, record.GetString("iri"), data)
 		} else {
+			plan.completeSummitLogs = remoteTrailChildIDs(app, data, origin, "summit_logs_via_trail", "summit_logs") != nil
 			capRemoteSyncChildren(app, data, origin, "waypoints_via_trail", "summit_logs_via_trail")
 			plan.media = collectRemoteTrailMedia(app, record, origin, id, data)
 		}

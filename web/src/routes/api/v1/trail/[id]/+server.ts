@@ -1,3 +1,4 @@
+import { completeRequestedTrailChildren } from "#lib/server/trail_child_completeness.ts";
 import { TrailUpdateSchema } from '#lib/models/api/trail_schema.ts';
 import type { Trail } from "#lib/models/trail.ts";
 import { Collection, handleError, remove, update } from "#lib/util/api_util.ts";
@@ -10,7 +11,7 @@ import { acceptsActivityPub, activityPubObject } from "#lib/server/activitypub_o
  * /api/v1/trail/{id}:
  *   get:
  *     summary: Get trail
- *     description: Retrieves a trail by ID
+ *     description: Retrieves a trail by ID. Requested empty waypoint and summit log relations are explicit only after a successful check.
  *     tags:
  *       - Trails
  *     parameters:
@@ -48,6 +49,7 @@ export async function GET(event: RequestEvent) {
             fetch: event.fetch,
         })
 
+        await completeRequestedTrailChildren(event, trail, url.searchParams);
         await enrichRecord(event.locals.pb, trail);
         trail.expand?.waypoints_via_trail?.sort((a, b) => (a.distance_from_start ?? 0) - (b.distance_from_start ?? 0))
         return Response.json(trail, { headers: { vary: "Accept" } })
