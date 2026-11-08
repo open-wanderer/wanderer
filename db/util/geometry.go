@@ -1,9 +1,7 @@
 package util
 
 import (
-	"bytes"
 	"fmt"
-	"io"
 
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/tkrajina/gpxgo/gpx"
@@ -22,31 +20,17 @@ type trailPoint struct {
 }
 
 func TrailCoordinates(app core.App, r *core.Record) ([][2]float64, error) {
-	gpxPath := r.GetString("gpx")
-	if gpxPath == "" {
+	content, err := ReadTrailGPX(app, r)
+	if err != nil {
+		return nil, err
+	}
+	if content == nil {
 		return nil, nil
 	}
 
-	fsys, err := app.NewFilesystem()
+	gpxData, err := gpx.ParseBytes(content)
 	if err != nil {
-		return nil, err
-	}
-	defer fsys.Close()
-
-	reader, err := fsys.GetReader(r.BaseFilesPath() + "/" + gpxPath)
-	if err != nil {
-		return nil, err
-	}
-	defer reader.Close()
-
-	content := new(bytes.Buffer)
-	if _, err := io.Copy(content, reader); err != nil {
-		return nil, err
-	}
-
-	gpxData, err := gpx.Parse(content)
-	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("parse gpx file %q: %w", r.BaseFilesPath()+"/"+r.GetString("gpx"), err)
 	}
 
 	points := make([][2]float64, 0)
