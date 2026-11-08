@@ -1,0 +1,494 @@
+import 'dart:async';
+
+import 'package:dio/dio.dart';
+import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
+import 'package:objectbox/objectbox.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:wanderer/entities/actor_entity.dart';
+import 'package:wanderer/entities/user_entity.dart';
+import 'package:wanderer/models/auth_response.dart';
+import 'package:wanderer/models/oauth_provider.dart';
+import 'package:wanderer/models/user.dart';
+import 'package:wanderer/provider/api_provider.dart';
+import 'package:wanderer/provider/cookie_jar_provider.dart';
+import 'package:wanderer/provider/objectbox_store_provider.dart';
+import 'package:wanderer/provider/settings_provider.dart';
+import 'package:wanderer/provider/welcome/recent_servers_provider.dart';
+import 'package:wanderer/provider/welcome/server_compatibility_provider.dart';
+import 'package:wanderer/provider/welcome/server_selection_provider.dart';
+import 'package:wanderer/store/account_data_purge.dart';
+import 'package:wanderer/store/avatar_cache.dart';
+import 'package:wanderer/util/oauth_app_state.dart';
+import 'package:wanderer/util/server_compatibility.dart';
+
+part 'auth_provider.g.dart';
+
+/// The custom URL scheme registered natively (Android intent-filter, iOS
+/// CFBundleURLSchemes) to receive the OAuth callback from the web app's
+/// `/login/redirect` page. That page hands the login over once the user
+/// confirms it: on Android through an `intent:` URL bound to the app's package,
+/// which resolves to flutter_web_auth_2's CallbackActivity, elsewhere through
+/// `wanderer://oauth-callback`.
+const _oauthCallbackScheme = "wanderer";
+
+/// Appended to the PocketBase-generated `state` to mark an app login, for
+/// servers that predate `POST /auth/oauth/app-state` only. Their
+/// `/login/redirect` looks for this suffix and relays the callback to
+/// `wanderer://` with the state untouched.
+///
+/// Anyone can compute this suffix, which is why servers that have the endpoint
+/// ignore it and treat such a login as a plain web login. Remove it once no
+/// supported server lacks the endpoint.
+const _legacyOAuthAppStateMarker = ".wanderer-app";
+
+@Riverpod(keepAlive: true)
+class Auth extends _$Auth {
+  Box<UserEntity> get _box => ref.read(objectBoxProvider).box<UserEntity>();
+
+  @override
+  FutureOr<UserEntity?> build() async {
+    final store = ref.watch(objectBoxProvider);
+
+    final box = store.box<UserEntity>();
+
+    final savedUserEntity = box.getAll().firstOrNull;
+    if (savedUserEntity == null) {
+      return null;
+    }
+
+    ref.read(apiProvider.notifier).updateBaseUrl(savedUserEntity.serverUrl);
+
+    final jar = ref.watch(cookieJarProvider);
+
+    final cookies = await jar.loadForRequest(
+      Uri.parse(savedUserEntity.serverUrl),
+    );
+    final pbAuthCookie = cookies.where((c) => c.name == 'pb_auth').firstOrNull;
+
+    if (pbAuthCookie == null) {
+      return null;
+    }
+
+    unawaited(_validateInBackground(savedUserEntity));
+    return savedUserEntity;
+  }
+
+  /// Re-reads the signed-in user from the server without holding up the
+  /// session.
+  ///
+  /// Everything the router needs is one bit — whether anyone is signed in —
+  /// and [build] has already resolved it from disk above: a cached
+  /// [UserEntity] plus an unexpired `pb_auth` cookie. `PersistCookieJar` drops
+  /// expired cookies as it loads them, and the server stamps the cookie's
+  /// `expires` from the token's own `exp` claim (`exportToCookie` in
+  /// web/src/hooks.server.ts), so cookie-present *is* token-unexpired. An
+  /// expired token therefore resolves to `/welcome` off local disk, with no
+  /// request at all. Awaiting the network to learn the same bit again is what
+  /// left the splash sitting on a finished animation.
+  ///
+  /// What the round-trip still buys is a session the server revoked inside a
+  /// still-valid token window, plus fresher profile data. Both are fine to
+  /// land late.
+  Future<void> _validateInBackground(UserEntity cached) async {
+    final UserEntity? fresh;
+    try {
+      fresh = await _updateUserEntity(cached.id);
+    } catch (err) {
+      if (_isAuthError(err)) {
+        await logout();
+      }
+      // Any other error (a 5xx, or a Dio connectionError/connectionTimeout) is
+      // treated as offline: the cached session stands.
+      return;
+    }
+
+    if (fresh == null || !ref.mounted) return;
+
+    // Only a material change is published. 29 call sites watch this provider,
+    // and two of them (trail_search_provider, profile_provider) watch
+    // `.future` — so an unconditional emission would refetch trails and
+    // profile a beat after every cold start, to redisplay identical data. Same
+    // reasoning as the flip-only filter in `routerListenable`
+    // (router_provider.dart), one layer up.
+    if (_materiallyDiffers(state.value, fresh)) {
+      state = AsyncData(fresh);
+    }
+  }
+
+  /// Whether re-publishing [fresh] would change anything a widget can see.
+  ///
+  /// Compares the scalar fields read off this provider and nothing else. The
+  /// two related rows the fetch also refreshes are deliberately out of scope:
+  /// settings propagate through `settingsProvider.updateFromServer`, and the
+  /// actor row is upserted in place — no caller reads `user.actor.target` off
+  /// the auth state, only the scalar [UserEntity.actorId].
+  ///
+  /// `updated` is excluded on purpose: any server-side bump unrelated to what
+  /// is displayed would defeat the filter and make every launch emit.
+  bool _materiallyDiffers(UserEntity? cached, UserEntity fresh) {
+    if (cached == null) return true;
+    return cached.id != fresh.id ||
+        cached.actorId != fresh.actorId ||
+        cached.username != fresh.username ||
+        cached.preferredUsername != fresh.preferredUsername ||
+        cached.email != fresh.email ||
+        cached.avatar != fresh.avatar ||
+        cached.iri != fresh.iri ||
+        cached.serverUrl != fresh.serverUrl;
+  }
+
+  bool _isAuthError(Object err) {
+    if (err is DioException) {
+      final statusCode = err.response?.statusCode;
+      return statusCode == 401 || statusCode == 403 || statusCode == 404;
+    }
+    return false;
+  }
+
+  /// Records the currently selected instance as "last used", best-effort.
+  ///
+  /// Called only from `_passwordSignIn()` and `loginWithOAuth()`'s
+  /// `AsyncValue.guard` body, immediately after `_updateUserEntity`
+  /// returns — i.e. only once sign-in has fully succeeded. Deliberately NOT
+  /// called from `_updateUserEntity` itself (shared by `refresh()` and
+  /// `_validateInBackground()`, neither of which is a login), nor from
+  /// `register()` directly (it signs in through `_passwordSignIn()`, which
+  /// already calls this).
+  ///
+  /// `serverSelectionProvider` is read, never watched or listened to: `Auth`
+  /// is keepAlive and `serverSelectionProvider` is autoDispose, so a
+  /// watch/listen here would keep it alive indefinitely.
+  ///
+  /// Wrapped in a swallow-everything try/catch: remembering the server is a
+  /// convenience, and a persistence or provider failure here must never turn
+  /// a successful sign-in into an error.
+  void _recordLastUsedServer() {
+    try {
+      final selected = ref.read(serverSelectionProvider).value?.selectedServer;
+      if (selected == null) return;
+      ref.read(recentServersProvider.notifier).record(selected);
+    } catch (_) {
+      // Best-effort — see doc comment above.
+    }
+  }
+
+  /// Backstop for the screens' block on an incompatible server: a sign-in
+  /// started before the check for the selected server had answered waits for
+  /// it here, sharing that same request.
+  ///
+  /// An undecided answer (the server was unreachable when selected) is asked
+  /// again, since being online now is what makes sign-in possible at all.
+  /// Invalidating rather than calling the check directly also brings up the
+  /// screens' alert if the fresh answer is "incompatible".
+  Future<void> _ensureSelectedServerCompatible() async {
+    final url = ref.read(serverSelectionProvider).value?.selectedServer?.url;
+    if (url == null) return;
+
+    final provider = serverCompatibilityProvider(url);
+    // Listened to rather than read: the provider is auto-dispose, and the
+    // screens watching it may unmount while this awaits.
+    Future<ServerCompatibility> check() async {
+      final sub = ref.listen(provider.future, (_, _) {});
+      try {
+        return await sub.read();
+      } finally {
+        sub.close();
+      }
+    }
+
+    var result = await check();
+    if (result.isCompatible == null) {
+      ref.invalidate(provider);
+      result = await check();
+    }
+    if (result.isIncompatible) {
+      throw IncompatibleServerException(result.serverVersion);
+    }
+  }
+
+  Future<UserEntity?> register(
+    String username,
+    String email,
+    String password,
+  ) async {
+    if (username.isEmpty || email.isEmpty || password.isEmpty) {
+      state = AsyncError(
+        Exception("Fields cannot be empty"),
+        StackTrace.current,
+      );
+      return null;
+    }
+
+    state = const AsyncLoading();
+
+    // register
+    state = await AsyncValue.guard(() async {
+      // Before the PUT, so an incompatible server never gets an account
+      // created on it that the app then cannot sign in to.
+      await _ensureSelectedServerCompatible();
+      await ref
+          .read(apiProvider)
+          .put(
+            '/user',
+            data: {
+              'username': username,
+              'email': email,
+              'password': password,
+              'passwordConfirm': password,
+            },
+          );
+      return await _passwordSignIn(username, password);
+    });
+    return state.value;
+  }
+
+  Future<UserEntity?> login(String username, String password) async {
+    if (username.isEmpty || password.isEmpty) {
+      state = AsyncError(
+        Exception("Fields cannot be empty"),
+        StackTrace.current,
+      );
+      return null;
+    }
+
+    state = const AsyncLoading();
+
+    // Login
+    state = await AsyncValue.guard(() async {
+      await _ensureSelectedServerCompatible();
+      return _passwordSignIn(username, password);
+    });
+    return state.value;
+  }
+
+  Future<UserEntity?> _passwordSignIn(String username, String password) async {
+    final loginResponse = await ref
+        .read(apiProvider)
+        .post(
+          '/auth/login',
+          data: {'username': username, 'password': password},
+        );
+    final authData = AuthResponse.fromJson(loginResponse.data);
+
+    // Fetch user data with expanded actor
+    final userEntity = await _updateUserEntity(authData.record.id);
+    _recordLastUsedServer();
+    return userEntity;
+  }
+
+  /// The `state` for one OAuth login attempt, sent to the provider unchanged
+  /// and compared exactly on the callback. Requested per attempt, as it expires
+  /// 600 seconds after it is issued; opaque to the app.
+  ///
+  /// Only a 404 falls back to the marker flow: it is how a server without the
+  /// endpoint answers, on private instances too, since `/api/v1/auth` is public
+  /// there. A server that has the endpoint ignores the marker, so if a 404
+  /// reaches this on one (a proxy, say), the login fails in the browser and the
+  /// code is not handed over. Anything else ends the login rather than falling
+  /// back. Network failures stay [DioException]s, like every other request here.
+  Future<String> _requestOAuthState(OAuthProvider provider) async {
+    final Response<dynamic> response;
+    try {
+      response = await ref
+          .read(apiProvider)
+          .post('/auth/oauth/app-state', data: {'provider': provider.name});
+    } on DioException catch (err) {
+      final errorResponse = err.response;
+      if (errorResponse == null) rethrow;
+      if (errorResponse.statusCode == 404) {
+        return '${provider.state}$_legacyOAuthAppStateMarker';
+      }
+      throw OAuthAppStateException.fromResponse(errorResponse);
+    }
+
+    final data = response.data;
+    final issued = data is Map ? data['state'] : null;
+    if (issued is! String || issued.isEmpty) {
+      throw const OAuthAppStateException(OAuthAppStateFailure.rejected);
+    }
+    return issued;
+  }
+
+  Future<UserEntity?> loginWithOAuth(OAuthProvider provider) async {
+    state = const AsyncLoading();
+
+    state = await AsyncValue.guard(() async {
+      // Before the browser opens: an incompatible server would otherwise
+      // take the user through the whole provider sign-in only to fail after.
+      await _ensureSelectedServerCompatible();
+
+      final sentState = await _requestOAuthState(provider);
+
+      final authUrl = Uri.parse(provider.url);
+      final launchUrl = authUrl.replace(
+        queryParameters: {...authUrl.queryParameters, 'state': sentState},
+      );
+
+      final callbackUrl = await FlutterWebAuth2.authenticate(
+        url: launchUrl.toString(),
+        callbackUrlScheme: _oauthCallbackScheme,
+        // Also activates flutter_web_auth_2's browser-compatibility check for
+        // Chrome's Auth Tab feature (unsupported by most non-Chrome browsers,
+        // e.g. Firefox): without this, it unconditionally opts into Auth Tab,
+        // which can race the OAuth redirect and report a spurious cancel.
+        options: const FlutterWebAuth2Options(),
+      );
+
+      // Before anything else in the callback is read: one that does not
+      // belong to this attempt has no say, not even in the error shown.
+      final callback = Uri.parse(callbackUrl);
+      if (callback.queryParameters['state'] != sentState) {
+        throw Exception(
+          "OAuth provider response did not match the requested login.",
+        );
+      }
+
+      final oauthError = callback.queryParameters['error'];
+      if (oauthError != null) {
+        throw Exception(
+          callback.queryParameters['error_description'] ?? oauthError,
+        );
+      }
+
+      final code = callback.queryParameters['code'];
+      if (code == null) {
+        throw Exception(
+          "OAuth provider response did not match the requested login.",
+        );
+      }
+
+      final exchangeResponse = await ref
+          .read(apiProvider)
+          .post(
+            '/auth/oauth',
+            data: {
+              'name': provider.name,
+              'code': code,
+              'codeVerifier': provider.codeVerifier,
+            },
+          );
+      final authData = AuthResponse.fromJson(exchangeResponse.data);
+
+      final userEntity = await _updateUserEntity(authData.record.id);
+      _recordLastUsedServer();
+      return userEntity;
+    });
+    return state.value;
+  }
+
+  Future<void> refresh() async {
+    final id = state.value?.id;
+    if (id == null) return;
+    state = await AsyncValue.guard(() => _updateUserEntity(id));
+  }
+
+  /// Signs the current user out.
+  ///
+  /// Note for callers reading the auth state: this drops the provider to a
+  /// value-less [AsyncLoading] for the duration, which `settings_screen`
+  /// renders as a spinner on the sign-out button. Widgets that read the user
+  /// must therefore tolerate a null — see the note on [_validateInBackground],
+  /// which can now trigger this with `/map` live rather than during the splash.
+  Future<void> logout() async {
+    state = const AsyncLoading();
+    // Abort anything already awaiting a response on the shared client BEFORE
+    // touching local state below: a request that lands afterwards would
+    // otherwise resurrect exactly what this method clears — its response
+    // could still carry a fresh `pb_auth` Set-Cookie (every response through
+    // web/src/hooks.server.ts appends one) that CookieManager would write
+    // into the jar right after `jar.deleteAll()` runs. See
+    // Api.cancelPendingRequests and .planning/debug/app-relogin-after-logout.md.
+    ref.read(apiProvider.notifier).cancelPendingRequests();
+    final jar = ref.read(cookieJarProvider);
+    await jar.deleteAll();
+    _box.removeAll();
+    // Privacy invariant: after logout, no content belonging to the signed-out
+    // account is REACHABLE by whoever signs in next. Not
+    // the same as erasing it -- the offline library deliberately survives and
+    // is scoped per account via `TrailEntity.savedByUserIds`, because deleting
+    // it meant signing out of an account destroyed every trail it had
+    // downloaded.
+    await purgeAccountScopedData(ref.read(objectBoxProvider));
+    ref.invalidateSelf();
+  }
+
+  Future<UserEntity?> _updateUserEntity(String id) async {
+    final userResponse = await ref
+        .read(apiProvider)
+        .get(
+          "/user/$id",
+          queryParameters: {
+            "expand": "activitypub_actors_via_user, settings_via_user",
+          },
+        );
+
+    // A concurrent `logout()` can invalidate this notifier while the request
+    // above was in flight (`ref.invalidateSelf()` swaps in a brand-new `Auth`
+    // instance and disposes this one — see `auth_provider.g.dart`'s
+    // `create()`). Bail out before writing anything: every write below would
+    // resurrect the just-cleared session, since `Auth.build()` re-derives
+    // "signed in" purely from a `UserEntity` row being present in the box.
+    // This mirrors the existing `!ref.mounted` check in
+    // `_validateInBackground` below, just applied before the box write it
+    // needs to protect rather than after it.
+    if (!ref.mounted) return null;
+
+    final userData = User.fromJson(userResponse.data);
+
+    final UserEntity userEntity = userData.toEntity(
+      serverUrl: ref.read(apiProvider.notifier).serverUrl,
+    );
+
+    // `toEntity()` builds a fresh ActorEntity (obxId 0); putting that would
+    // replace the existing row under a new ObjectBox id and orphan every
+    // `TrailEntity.author` ToOne pointing at it -- which is what made
+    // already-recorded local trails degrade to "Unknown" with a blank avatar
+    // after a re-auth. Reuse the cached row's id so the put updates in place.
+    final incomingActor = userData.expand?.actor;
+    if (incomingActor != null) {
+      userEntity.actor.target = actorEntityForUpsert(
+        ref.read(objectBoxProvider),
+        incomingActor,
+      );
+    }
+
+    // Defense in depth for a logout that never ran or was interrupted
+    // mid-flight: if the incoming account differs from whatever is cached,
+    // purge before this account's data is written. Must run before the
+    // `updateFromServer` call below (it purges SettingsEntity, so the
+    // incoming account's settings must not be written first), and
+    // `_box.removeAll()` must run before the later `_box.put(userEntity)` so
+    // the store can never hold two UserEntity rows — every reader resolves
+    // the session via `getAll().firstOrNull`, which would otherwise be able
+    // to return the previous account.
+    final cachedUserId = _box.getAll().firstOrNull?.id;
+    if (shouldPurgeForIncomingUser(cachedUserId, userEntity.id)) {
+      _box.removeAll();
+      await purgeAccountScopedData(ref.read(objectBoxProvider));
+    }
+
+    if (userData.expand?.settings != null) {
+      await ref
+          .read(settingsProvider.notifier)
+          .updateFromServer(userData.expand!.settings!);
+    }
+    _box.put(userEntity);
+
+    // Best-effort avatar cache refresh — fire-and-forget so a slow or failed
+    // download never delays or breaks sign-in/refresh. cacheAvatar() itself
+    // swallows all errors.
+    final avatar = userEntity.avatar;
+    if (avatar != null && avatar.isNotEmpty) {
+      unawaited(
+        cacheAvatar(
+          ref.read(apiProvider),
+          userEntity.getFileUrl(userEntity.serverUrl, avatar)!,
+          userEntity.id,
+          avatar,
+        ),
+      );
+    }
+
+    return userEntity;
+  }
+}

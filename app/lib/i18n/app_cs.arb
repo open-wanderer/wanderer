@@ -1,0 +1,665 @@
+{
+  "@@locale": "cs",
+  "about": "O aplikaci",
+  "@about": {
+    "description": "Standalone heading used in three places: the 'About' tab on the trail detail panel (about the trail), prefixed to a username as 'About <username>' on the account screen, and the settings entry and title of the screen about the app itself. Needs to read as a section heading in all of them."
+  },
+  "about_changelog": "What's new",
+  "@about_changelog": {
+    "description": "About screen: link to the wanderer changelog website."
+  },
+  "about_discord_subtitle": "Chat with the community",
+  "@about_discord_subtitle": {
+    "description": "About screen: subtitle under the 'Discord' link."
+  },
+  "about_github_subtitle": "Source code, issues and contributions",
+  "@about_github_subtitle": {
+    "description": "About screen: subtitle under the 'GitHub' link."
+  },
+  "about_license": "License",
+  "@about_license": {
+    "description": "About screen: link to wanderer's own license on GitHub. Singular, as opposed to 'about_licenses' (the libraries' licenses)."
+  },
+  "about_licenses": "Open source licenses",
+  "@about_licenses": {
+    "description": "About screen: opens the list of licenses of the libraries the app uses."
+  },
+  "about_privacy_policy": "Privacy policy",
+  "@about_privacy_policy": {
+    "description": "About screen: link to the privacy policy website."
+  },
+  "about_report_bug": "Report a bug",
+  "@about_report_bug": {
+    "description": "About screen: opens the app bug report form on GitHub."
+  },
+  "about_version": "Version {version}",
+  "@about_version": {
+    "description": "About screen: the installed app version below the logo. {version} is e.g. '0.1.0 (10)', the number in brackets being the build.",
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "appearance": "Vzhled",
+  "account": "Účet",
+  "account_delete_confirm": "Chystáte se smazat svůj účet. Smazány budou i všechny vaše trasy. Chcete pokračovat?",
+  "account_privacy": "Ochrana osobních údajů",
+  "add_bio": "Přidat informace o mně",
+  "add_waypoint": "Přidat bod trasy",
+  "after": "Po",
+  "@after": {
+    "description": "Used two ways. (1) Label above the date picker that filters for trails dated after the chosen day. (2) Prefixed to a distance on the waypoint sheet as 'After 2.4 km', meaning how far along the trail the waypoint sits. Pick wording that works for both a date and a distance."
+  },
+  "all": "Vše",
+  "@all": {
+    "description": "Filter chip in global search meaning 'all result categories' (trails, lists, places and users together), as opposed to one specific category."
+  },
+  "altitude": "Nadmořská výška",
+  "author": "Autor",
+  "@author": {
+    "description": "Noun. Heading and input placeholder for the filter that narrows trails to a specific author's username."
+  },
+  "average_speed": "Průměrná rychlost",
+  "background_location_body": "Aplikace Wanderer shromažďuje údaje o poloze na pozadí, takže se vaše trasa nadále zaznamenává i při vypnuté obrazovce nebo zavřené aplikaci. Zaznamenaná trasa zůstává ve vašem zařízení, dokud se nerozhodnete ji uložit.\n\nSystém Android nabízí tuto možnost pouze v nastavení systému: otevřete Oprávnění → Poloha a vyberte možnost „Povolit vždy“.",
+  "background_location_confirm": "Otevřít nastavení",
+  "background_location_title": "Pokračovat v zaznamenávání na pozadí",
+  "basic_info": "Základní informace",
+  "before": "Před",
+  "@before": {
+    "description": "Label above the date picker that filters for trails dated before the chosen day. Pairs with the 'after' string."
+  },
+  "by": "od",
+  "@by": {
+    "description": "Byline preposition, rendered lowercase and immediately followed by a username: 'by alice'. Appears on trail cards, list cards and summit log entries. Not the standalone word 'by' in any other sense."
+  },
+  "cancel": "Zrušit",
+  "discard": "Zahodit",
+  "discard_trail_confirm": "Zahodit tuto trasu a její změny?",
+  "card": "{n, plural, =1 {Karta} few {Karty} other {Karet}}",
+  "@card": {
+    "placeholders": {
+      "n": {
+        "type": "num",
+        "description": "The number of cards to pluralize the label for"
+      }
+    }
+  },
+  "categories": "Kategorie",
+  "category": "Kategorie",
+  "change_email": "Změnit e-mail",
+  "change_password": "Změnit heslo",
+  "clear_all": "Vymazat vše",
+  "close": "Zavřít",
+  "comment": "{n, plural, =1 {Komentář} few {Komentáře} other {Komentářů}}",
+  "@comment": {
+    "placeholders": {
+      "n": {
+        "type": "num",
+        "description": "The number of comments to pluralize the label for"
+      }
+    }
+  },
+  "completed": "Dokončeno",
+  "completion_status": "Stav dokončení",
+  "confirm_deletion": "Potvrdit odstranění",
+  "couldnt_start_navigation": "Navigaci se nepodařilo spustit. Zkontrolujte připojení a zkuste to znovu.",
+  "location_services_disabled": "Polohové služby jsou vypnuté. Chcete-li používat navigaci, zapněte GPS.",
+  "location_permission_denied": "Navigace vyžaduje oprávnění k poloze.",
+  "location_permission_permanently_denied": "Přístup k poloze je trvale zamítnut. Povolte jej v nastavení.",
+  "location_unavailable": "Vaši polohu se nepodařilo určit. Zkuste to znovu.",
+  "copy_link": "Kopírovat odkaz",
+  "create_waypoint": "Vytvořit bod trasy",
+  "creation_date": "Datum vytvoření",
+  "current_password": "Současné heslo",
+  "danger_zone": "Nebezpečná zóna",
+  "date": "Datum",
+  "@date": {
+    "description": "Noun. Used as a sort option ('sort trails by date'), as the heading of the date-range filter sheet, and as the label of the date field in the trail form. A single neutral noun is needed for all three."
+  },
+  "delete": "Vymazat",
+  "not_now": "Teď ne",
+  "open": "Otevřít",
+  "@open": {
+    "description": "Verb. Menu action that opens a downloaded trail from the library. Not the adjective 'open' and not the opposite of 'closed'."
+  },
+  "delete_account": "Odstranit účet",
+  "delete_trail_confirm": "Doopravdy chcete tuto trasu smazat? Tuto akci nelze vrátit zpět.",
+  "delete_blocked_while_uploading": "Tato trasa se právě nahrává. Počkejte na dokončení nahrávání a poté to zkuste znovu.",
+  "delete_unsynced_trail_confirm": "Smazat tuto trasu? Ještě nebyla nahrána, takže tuto akci nelze vrátit zpět.",
+  "delete_needs_connection": "Tato trasa již je na serveru. Chcete-li ji smazat, připojte se k internetu.",
+  "description": "Popis",
+  "difficult": "Náročné",
+  "difficulty": "Obtížnost",
+  "directions": "Navigovat",
+  "distance": "Vzdálenost",
+  "download": "Stáhnout",
+  "duration": "Doba trvání",
+  "easy": "Snadné",
+  "edit": "Upravit",
+  "edit_needs_connection": "Úpravy se provádějí na kopii této trasy uložené na serveru. Chcete-li ji upravit, připojte se k internetu.",
+  "edit_waypoint": "Upravit bod trasy",
+  "edited": "upraveno",
+  "@edited": {
+    "description": "Adjective appended in parentheses after a comment's timestamp to mark that the comment was changed after posting: '2 hours ago (edited)'. Rendered lowercase."
+  },
+  "elevation_gain": "Stoupání",
+  "elevation_loss": "Klesání",
+  "elevation_profile": "Výškový profil",
+  "email": "E-mail",
+  "email_not_unique": "Tato e-mailová adresa je již obsazena.",
+  "email_updated": "E-mail byl aktualizován",
+  "error_deleting_trail": "Chyba při mazání trasy",
+  "error_reading_file": "Soubor nelze načíst",
+  "error_saving_settings": "Chyba při ukládání nastavení",
+  "error_saving_trail": "Chyba při ukládání trasy",
+  "error_updating_password": "Chyba během aktualizace hesla",
+  "explore": "Objevování",
+  "exit_navigation": "Ukončit",
+  "stop_navigation_confirm": "Zastavit navigaci a vrátit se k trase?",
+  "stop_recording": "Zastavit nahrávání",
+  "stop_recording_confirm": "Zastavit nahrávání?",
+  "search_this_area": "Hledat v této oblasti",
+  "filter_tags": "Filtrovat podle štítků",
+  "filter_trails": "Filtrovat trasy",
+  "finish": "Konec",
+  "@finish": {
+    "description": "Used two ways. (1) Noun: label of the last row in the trail's waypoint timeline, marking the end of the trail. (2) Tooltip on the route planner's confirm action, meaning 'finish planning this route'. Prefer wording that carries both, or the noun sense if it must be one."
+  },
+  "finish_disabled_hint": "K dokončení trasy přidejte alespoň 2 body trasy.",
+  "follow": "Sledovat",
+  "followers": "Sledující",
+  "following": "Sleduji",
+  "from_photos": "Z fotografií",
+  "help": "Nápověda",
+  "hiking": "Turistika",
+  "home": "Hlavní stránka",
+  "icon": "Ikonka",
+  "@icon": {
+    "description": "Noun. Label of the icon picker field in the waypoint form — which symbol to show for this waypoint on the map."
+  },
+  "imperial": "Imperiální jednotky",
+  "joined": "Připojeno",
+  "language": "Jazyk",
+  "latitude": "Zeměpisná šířka",
+  "like_status": "Status „Líbí se mi“",
+  "liked": "Líbilo se",
+  "@liked": {
+    "description": "Adjective. Filter toggle that narrows the list to trails you have liked."
+  },
+  "likes": "Líbí se",
+  "list": "{n, plural, =1 {Seznam} few {Seznamy} other {Seznamů}}",
+  "@list": {
+    "placeholders": {
+      "n": {
+        "type": "num",
+        "description": "The number of lists to pluralize the label for"
+      }
+    }
+  },
+  "location": "Poloha",
+  "locations": "Místa",
+  "center_on_my_location": "Vycentrovat na mou polohu",
+  "location_tracking_notification_title": "Wanderer",
+  "location_tracking_notification_text": "Probíhá záznam trasy",
+  "location_tracking_notification_text_navigating": "Navigace po trase {trail}",
+  "@location_tracking_notification_text_navigating": {
+    "placeholders": {
+      "trail": {
+        "type": "String"
+      }
+    }
+  },
+  "login": "Přihlásit se",
+  "logout": "Odhlásit se",
+  "longitude": "Zeměpisná délka",
+  "map": "Mapa",
+  "metric": "Metrické jednotky",
+  "moderate": "Středně náročné",
+  "my_account": "Můj účet",
+  "in_distance": "za {distance}",
+  "@in_distance": {
+    "placeholders": {
+      "distance": {
+        "type": "String"
+      }
+    }
+  },
+  "name": "Název",
+  "@name": {
+    "description": "Noun. Used as a sort option ('sort by name') and as the label of the trail name field in the trail form."
+  },
+  "navigate": "Navigovat",
+  "new_password": "Nové heslo",
+  "new_password_success": "Nové heslo bylo nastaveno",
+  "new_trail": "Nová trasa",
+  "trail_source_planner": "Otevřít plánovač tras",
+  "trail_source_planner_description": "Nakreslete na mapu novou trasu bod po bodu.",
+  "trail_source_record": "Zaznamenat trasu",
+  "trail_source_record_description": "Sledujte své aktuální souřadnice a zaznamenávejte cestu v reálném čase.",
+  "trail_source_import": "Importovat soubor",
+  "trail_source_import_description": "Nahrajte soubory GPX, KML, KMZ, TCX nebo FIT přímo z úložiště zařízení.",
+  "trail_source_import_error": "Soubor se nepodařilo importovat",
+  "trail_source_offline_import_error": "Offline lze importovat pouze soubory GPX",
+  "@trail_source_offline_import_error": {
+    "description": "Shown when the user picks a non-GPX file for import while offline. Names the formats that need a connection and points at GPX as the offline-capable alternative."
+  },
+  "no_comments_so_far": "Zatím žádné komentáře",
+  "no_data": "Žádná data",
+  "no_description_for_now": "Zatím bez popisu",
+  "no_gps_data_in_image": "Obrázek neobsahuje GPS data",
+  "no_preference": "Bez preference",
+  "no_trails_found": "Nebyly nalezeny žádné trasy",
+  "not_completed": "Nedokončeno",
+  "notifications": "Oznámení",
+  "only_me": "Jen já",
+  "or": "nebo",
+  "@or": {
+    "description": "Divider word between the email login form and the OAuth provider buttons on the login screen."
+  },
+  "own_trails_empty_body": "Trasy, které zaznamenáte nebo uložíte offline, se zobrazí zde a automaticky se nahrají, jakmile budete znovu online.",
+  "own_trails_empty_title": "Zatím nic uloženo",
+  "own_trails_offline_banner": "Offline — zobrazují se pouze trasy v tomto zařízení.",
+  "trails_on_device": "Trasy (v zařízení)",
+  "@trails_on_device": {
+    "description": "Label of the profile trail count card when the count comes from local storage (unsynced captures plus downloaded trails) because the device is offline."
+  },
+  "pause": "Pozastavit",
+  "password": "Heslo",
+  "password_confirm": "Potvrďte heslo",
+  "passwords_must_match": "Hesla se musí shodovat",
+  "photo_copy_failed_toast": "{count, plural, =1 {Trasa byla uložena, ale 1 fotografii se nepodařilo uložit.} few {Trasa byla uložena, ale {count} fotografie se nepodařilo uložit.} other {Trasa byla uložena, ale {count} fotografií se nepodařilo uložit.}}",
+  "@photo_copy_failed_toast": {
+    "placeholders": {
+      "count": {
+        "type": "num",
+        "description": "The number of photos that failed to copy into app-owned storage while saving a trail"
+      }
+    }
+  },
+  "photos": "Fotografie a videa",
+  "photos_skipped_no_gps": "{count, plural, =1 {1 fotografie přeskočena — chybí data GPS} few {{count} fotografie přeskočeny — chybí data GPS} other {{count} fotografií přeskočeno — chybí data GPS}}",
+  "@photos_skipped_no_gps": {
+    "placeholders": {
+      "count": {
+        "type": "num",
+        "description": "The number of photos skipped because they had no GPS data"
+      }
+    }
+  },
+  "privacy": "Soukromí",
+  "private": "Soukromé",
+  "profile": "Profil",
+  "public": "Veřejné",
+  "reached_end_of_trail": "Dorazili jste na konec trasy.",
+  "register": "Registrace",
+  "reorder_photos_hint": "Dlouhým stisknutím a přetažením změníte pořadí fotografií.",
+  "reset": "Obnovit",
+  "@reset": {
+    "description": "Verb. Button that clears every active filter back to its default. Not 'restart' and not 'reset password'."
+  },
+  "resume": "Pokračovat",
+  "resume_navigation_prompt": "Pokračovat v navigaci po trase {trail}?",
+  "@resume_navigation_prompt": {
+    "placeholders": {
+      "trail": {
+        "type": "String"
+      }
+    }
+  },
+  "resume_recording_prompt": "Obnovit nahrávání?",
+  "route": "{n, plural, =1 {Trasa} few {Trasy} other {Tras}}",
+  "@route": {
+    "placeholders": {
+      "n": {
+        "type": "num",
+        "description": "The number of routes to pluralize the label for"
+      }
+    }
+  },
+  "follow_roads": "Vést po cestách",
+  "follow_roads_description": "Přizpůsobit zaznamenanou trasu nejbližším silnicím a stezkám.",
+  "recalculate_heights": "Přepočítat nadmořské výšky",
+  "recalculate_heights_description": "Nahradit zaznamenané údaje o nadmořské výšce z GPS přesnějšími hodnotami z mapy.",
+  "save": "Uložit",
+  "save_track": "Uložit trasu",
+  "search": "Vyhledat",
+  "search_for_trails_places": "Vyhledat trasy, seznamy, místa",
+  "select_date": "Vybrat datum",
+  "settings": "Nastavení",
+  "settings_notification_comment_mention": "Někdo vás zmínil v komentáři",
+  "settings_notification_list_share": "Někdo s vámi sdílel seznam",
+  "settings_notification_new_follower": "Máte nového sledujícího",
+  "settings_notification_summit_log_create": "Někdo přidal záznam o výstupu na vaší trase",
+  "settings_notification_summit_log_mention": "Někdo vás zmínil v záznamu o výstupu",
+  "settings_notification_trail_comment": "Někdo zanechal komentář k vaší trase",
+  "settings_notification_trail_like": "Někomu se líbí vaše trasa",
+  "settings_notification_trail_mention": "Někdo vás zmínil u trasy",
+  "settings_notification_trail_share": "Někdo s vámi sdílel trasu",
+  "settings_privacy_account_private": "Váš profil vidíte pouze vy. Nebudete se zobrazovat ve výsledcích vyhledávání. Ostatní uživatelé vás nemohou sledovat ani s vámi sdílet trasy. Stále však můžete trasy nebo seznamy zveřejňovat.",
+  "settings_privacy_account_public": "Váš profil může vidět kdokoli. Budete se zobrazovat ve výsledcích vyhledávání. Ostatní uživatelé vás mohou sledovat a sdílet s vámi trasy.",
+  "settings_privacy_lists_private": "Vaše seznamy jsou ve výchozím nastavení soukromé. Nikdo kromě vás je neuvidí. Toto nastavení můžete u jednotlivých seznamů kdykoli změnit.",
+  "settings_privacy_lists_public": "Vaše seznamy jsou ve výchozím nastavení veřejné. Uvidí je kdokoli. Toto nastavení můžete u jednotlivých seznamů kdykoli změnit.",
+  "settings_privacy_trails_private": "Vaše trasy jsou ve výchozím nastavení soukromé. Nikdo kromě vás je neuvidí. Toto nastavení můžete u jednotlivých tras kdykoli změnit.",
+  "settings_privacy_trails_public": "Vaše trasy jsou ve výchozím nastavení veřejné. Uvidí je kdokoli. Toto nastavení můžete u jednotlivých tras kdykoli změnit.",
+  "share": "Sdílet",
+  "share_profile": "Sdílet profil",
+  "shared": "Sdíleno",
+  "@shared": {
+    "description": "Adjective. Filter toggle that narrows the list to trails other users have shared with you."
+  },
+  "show_on_map": "Zobrazit na mapě",
+  "signout_unsynced_warning": "{count, plural, =1 {Máte 1 dosud nenahranou trasu. Odhlášením ji nesmažete — po opětovném přihlášení zde zůstane — ale do té doby se nenahraje.} few {Máte {count} dosud nenahrané trasy. Odhlášením je nesmažete — po opětovném přihlášení zde zůstanou — ale do té doby se nenahrají.} other {Máte {count} dosud nenahraných tras. Odhlášením je nesmažete — po opětovném přihlášení zde zůstanou — ale do té doby se nenahrají.}}",
+  "@signout_unsynced_warning": {
+    "placeholders": {
+      "count": {
+        "type": "num",
+        "description": "The number of unsynced (not-yet-uploaded) trails owned by the account currently signing out"
+      }
+    }
+  },
+  "slogan": "Vaše trasy. Vaše data. Váš server.",
+  "sort": "Seřadit",
+  "@sort": {
+    "description": "Button label that opens the sort options for a trail or list collection. Verb or noun, whichever reads better as a short button."
+  },
+  "speed": "Rychlost",
+  "@speed": {
+    "description": "Noun. Label of the current-speed readout on the live navigation screen."
+  },
+  "start": "Spustit",
+  "@start": {
+    "description": "Noun. Label of the first row in the trail's waypoint timeline, marking the trailhead. Not the verb 'to start'."
+  },
+  "subcategories": "Podkategorie",
+  "@subcategories": {
+    "description": "Label for the subcategories filter section"
+  },
+  "summit_book": "Vrcholová kniha",
+  "sync_discard_draft_confirm": "Delete this recording? It hasn't been uploaded anywhere.",
+  "sync_draft": "Draft",
+  "sync_failed": "Nahrávání selhalo · Klepnutím opakujete",
+  "sync_pending": "Čeká na nahrání",
+  "sync_section_failed_body": "The upload didn't go through. Try again.",
+  "sync_section_pending_online_body": "Uploads automatically in a moment.",
+  "sync_section_uploading_body": "Sending this trail to your server.",
+  "sync_section_draft_body": "This recording is only on this device.",
+  "sync_section_draft_title": "Not uploaded yet",
+  "sync_section_failed_title": "Upload failed",
+  "sync_section_pending_offline_body": "Uploads when you're back online",
+  "sync_section_retry": "Retry",
+  "sync_section_upload": "Upload",
+  "sync_section_upload_now": "Upload now",
+  "sync_uploading": "Nahrávání…",
+  "tags": "Štítky",
+  "theme_dark": "Tmavý",
+  "theme_light": "Světlý",
+  "theme_system": "Podle systému",
+  "time_in_motion": "Čas v pohybu",
+  "trail": "{n, plural, =1 {Trasa} few {Trasy} other {Tras}}",
+  "@trail": {
+    "placeholders": {
+      "n": {
+        "type": "num",
+        "description": "The number of trails to pluralize the label for"
+      }
+    }
+  },
+  "trail_saved_successfully": "Trasa úspěšně uložena",
+  "trail_not_on_this_device": "Tato trasa již není v tomto zařízení.",
+  "trail_uploaded_reopen_to_edit": "Nahrávání této trasy bylo dokončeno. Chcete-li pokračovat v úpravách, znovu ji otevřete ze svých tras.",
+  "some_waypoints_failed_to_save": "Trasa byla uložena, některé body trasy se však nepodařilo uložit",
+  "units": "Jednotky",
+  "users": "Uživatelé",
+  "username": "Uživatelské jméno",
+  "username_not_unique": "Toto uživatelské jméno je již obsazeno. Zkuste prosím jiné.",
+  "visibilty_status": "Stav viditelnosti",
+  "web": "Web",
+  "@web": {
+    "description": "Noun naming a notification delivery channel: notifications shown in the web app, as opposed to push notifications on the phone. Appears as a toggle label under each notification type."
+  },
+  "waypoints": "{n, plural, =1 {Bod trasy} few {Body trasy} other {Bodů trasy}}",
+  "@waypoints": {
+    "placeholders": {
+      "n": {
+        "type": "num",
+        "description": "The number of waypoints to pluralize the label for"
+      }
+    }
+  },
+  "welcome_to": "Vítejte v",
+  "@welcome_to": {
+    "description": "Sentence fragment on the welcome screen, followed by the untranslated product name: 'Welcome to wanderer'. Keep it as a fragment; the brand name is appended in code and must not be included in the translation."
+  },
+  "wrong_username_or_password": "Nesprávné uživatelské jméno nebo heslo",
+  "server_incompatible_title": "Server not supported",
+  "server_incompatible": "This server runs a version of wanderer that the app does not support. Signing in becomes possible once it is updated.",
+  "server_incompatible_version": "Server version: {version}",
+  "@server_incompatible_version": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "server_incompatible_docs": "How to update the server",
+  "you_have_arrived": "Dorazili jste",
+  "settings_categories_confirm_disable_title": "Skrýt tuto kategorii?",
+  "settings_categories_confirm_disable_subcategory_title": "Skrýt tuto podkategorii?",
+  "settings_categories_confirm_disable_body": "Počet vašich tras používajících tuto kategorii: {count}. Trasy zůstanou zveřejněné, ale tento filtr bude skrytý.",
+  "@settings_categories_confirm_disable_body": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "settings_categories_confirm_view_trails": "Zobrazit trasy",
+  "settings_categories_confirm_disable_confirm": "Přesto skrýt",
+  "settings_categories_empty_title": "Žádné podkategorie",
+  "settings_categories_empty_body": "Tato kategorie nemá žádné podkategorie, které by bylo možné nastavit.",
+  "settings_categories_reorder_hint": "Kategorie určují, které typy tras uvidíte a v jakém pořadí. Vypnutím kategorie ji skryjete ve filtrech — vaše trasy zůstanou zveřejněné, pouze se přestanou zobrazovat pod touto kategorií. Klepnutím na kategorii můžete samostatně spravovat její podkategorie.\n\nChcete-li změnit pořadí, dlouze stiskněte řádek a přetáhněte jej na nové místo. Zvolené pořadí se použije všude, kde se zobrazují kategorie.",
+  "something_went_wrong": "Něco se pokazilo",
+  "technical_details": "Technické podrobnosti",
+  "link": "Propojit",
+  "url": "Adresa URL",
+  "open_in_new_tab": "Otevřít na nové kartě",
+  "remove": "Odebrat",
+  "remove_download_confirm_body": "Tímto odeberete staženou kopii z tohoto zařízení. Samotná trasa nebude smazána — pro použití offline ji budete muset stáhnout znovu.",
+  "apply": "Použít",
+  "@apply": {
+    "description": "Verb. Confirm button in the rich text editor's link dialog — applies the entered link to the selected text."
+  },
+  "add_at_least_2_anchors_hint": "K zobrazení výškového profilu přidejte alespoň 2 body trasy.",
+  "reverse_direction": "Obrátit směr",
+  "delete_all": "Vymazat vše",
+  "auto_routing": "Automatické trasování",
+  "auto_routing_hint": "Automaticky vést po silnicích a cestách mezi body trasy.",
+  "travel_profile": "Způsob přesunu",
+  "no_track_data": "Žádná data trasy",
+  "available_offline": "Dostupné offline",
+  "no_lists_found": "Nebyly nalezeny žádné seznamy",
+  "search_lists": "Vyhledat v seznamech…",
+  "search_for_a_location": "Vyhledat místo",
+  "no_results_for_query": "Pro „{query}“ nebyly nalezeny žádné výsledky",
+  "@no_results_for_query": {
+    "placeholders": {
+      "query": {
+        "type": "String",
+        "description": "The search query the user entered, echoed back in the empty-results message"
+      }
+    }
+  },
+  "filter": "Filtrovat",
+  "@filter": {
+    "description": "Button label that opens the filter options for a trail collection. Verb or noun, whichever reads better as a short button."
+  },
+  "no_label_yet": "Zatím žádné {label}.",
+  "@no_label_yet": {
+    "placeholders": {
+      "label": {
+        "type": "String",
+        "description": "The already-localized noun describing what's missing, e.g. 'followers' or 'following'"
+      }
+    }
+  },
+  "no_lists_yet": "Zatím žádné seznamy.",
+  "no_bio_yet": "Zatím bez informací o uživateli.",
+  "show_more": "Zobrazit více",
+  "@show_more": {
+    "description": "Button label that expands a truncated profile bio to its full text"
+  },
+  "show_less": "Zobrazit méně",
+  "@show_less": {
+    "description": "Button label that collapses an expanded profile bio back to its truncated form"
+  },
+  "feed": "Kanál",
+  "profile_feed_empty_own": "Zatím nemáte žádnou aktivitu.",
+  "@profile_feed_empty_own": {
+    "description": "Shown under the Feed heading on your own profile when it has no activity yet. A New Trail button follows it."
+  },
+  "profile_feed_empty_other": "{username} zatím nemá žádnou aktivitu.",
+  "@profile_feed_empty_other": {
+    "description": "Shown under the Feed heading on another user profile when it has no activity yet.",
+    "placeholders": {
+      "username": {
+        "type": "String",
+        "description": "Preferred username of the profile being viewed, for example alice"
+      }
+    }
+  },
+  "no_trails_yet": "Zatím žádné trasy.",
+  "library_empty_title": "Žádné stažené trasy",
+  "library_empty_body": "Stažené trasy jsou uloženy zde, abyste je mohli otevírat offline.",
+  "library_empty_search_body": "Zkuste jiný hledaný výraz nebo vymažte filtry.",
+  "search_location": "Vyhledat místo",
+  "no_servers_match_query": "Výrazu „{query}“ neodpovídají žádné servery",
+  "@no_servers_match_query": {
+    "placeholders": {
+      "query": {
+        "type": "String",
+        "description": "The search query the user entered, echoed back when no server instances match"
+      }
+    }
+  },
+  "use_custom_url_instead": "Místo toho použít vlastní URL",
+  "select_instance": "Vybrat instanci",
+  "enter_server_url_hint": "Zadejte URL serveru (např. wanderer.to)",
+  "last_used": "Naposledy použité",
+  "community_instances": "Komunitní instance",
+  "search_library": "Prohledat knihovnu…",
+  "language_and_units": "{language} a {units}",
+  "@language_and_units": {
+    "placeholders": {
+      "language": {
+        "type": "String",
+        "description": "The already-localized name of the selected display language"
+      },
+      "units": {
+        "type": "String",
+        "description": "The already-localized name of the selected measurement units (e.g. metric or imperial)"
+      }
+    }
+  },
+  "edit_route": "Upravit trasu",
+  "undo": "Vrátit zpět",
+  "redo": "Znovu",
+  "bold": "Tučně",
+  "italic": "Kurzíva",
+  "underline": "Podtržení",
+  "bullet_list": "Seznam s odrážkami",
+  "ordered_list": "Číslovaný seznam",
+  "blockquote": "Citace",
+  "library": "Knihovna",
+  "settings_offline_regions_title": "Offline mapy a oblasti",
+  "regions_search_hint": "Vyhledat oblasti",
+  "regions_dem_toggle_label": "Stáhnout výšková data (DEM)",
+  "regions_dem_toggle_caption": "Přidá stínování reliéfu; zvětší velikost stahovaných dat",
+  "regions_update_available": "Je dostupná aktualizace",
+  "regions_update_action": "Aktualizovat",
+  "regions_retry": "Opakovat",
+  "regions_not_yet_available": "Zatím nedostupné",
+  "regions_build_failed": "Příprava selhala",
+  "regions_delete_confirm_title": "Smazat oblast {name}?",
+  "@regions_delete_confirm_title": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "regions_delete_confirm_body": "Tímto smažete staženou mapu a výšková data této oblasti. Pro použití offline je budete muset stáhnout znovu.",
+  "regions_delete_confirm_action": "Vymazat",
+  "regions_disk_usage_summary": "Stažených oblastí: {count} · využito {size}",
+  "@regions_disk_usage_summary": {
+    "placeholders": {
+      "size": {
+        "type": "String"
+      },
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "regions_empty_search_title": "Žádné odpovídající oblasti",
+  "regions_empty_search_body": "Zkuste jiný hledaný výraz.",
+  "regions_empty_catalog_title": "Nejsou dostupné žádné offline oblasti",
+  "regions_empty_catalog_body": "Požádejte správce své instance Wandereru, aby nastavil oblasti ke stažení.",
+  "regions_vector_tile_title": "Vektorová mapa",
+  "regions_dem_tile_title": "Výšková data",
+  "regions_download_failed": "Stahování selhalo",
+  "regions_dem_locked_subtitle": "Nejprve stáhněte mapová data",
+  "regions_offline_unavailable_title": "Oblasti nelze načíst",
+  "regions_offline_unavailable_body": "Chcete-li procházet a spravovat oblasti ke stažení, připojte se k internetu.",
+  "regions_map_geometry_failed": "Obrys oblasti se nepodařilo načíst",
+  "regions_map_back_label": "Zpět na oblasti",
+  "regions_group_expand_label": "Rozbalit {name}",
+  "@regions_group_expand_label": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "regions_group_collapse_label": "Sbalit {name}",
+  "@regions_group_collapse_label": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "offline_title": "Jste offline",
+  "@offline_title": {
+    "description": "Title shown by the shared offline takeover state (map, list, profile) when the backend is unreachable."
+  },
+  "offline_try_again": "Zkusit znovu",
+  "@offline_try_again": {
+    "description": "Retry button label on the shared offline takeover state."
+  },
+  "offline_map_body": "Chcete-li načíst mapu, připojte se k internetu. Stažené trasy jsou nadále dostupné.",
+  "@offline_map_body": {
+    "description": "Body copy for the map screen's offline takeover."
+  },
+  "offline_list_body": "Chcete-li načíst seznamy, připojte se k internetu.",
+  "@offline_list_body": {
+    "description": "Body copy for the list screen's offline takeover."
+  },
+  "offline_profile_body": "Chcete-li načíst celý profil, připojte se k internetu.",
+  "@offline_profile_body": {
+    "description": "Body copy for the profile screen's offline takeover of network-only sections."
+  },
+  "offline_settings_banner": "Jste offline. Nastavení je až do obnovení připojení pouze pro čtení.",
+  "offline_action_unavailable": "Jste offline — zkuste to znovu, až budete opět online.",
+  "offline_categories_body": "Chcete-li spravovat kategorie, připojte se k internetu.",
+  "@offline_categories_body": {
+    "description": "Body copy for the categories and subcategories settings screens' offline state."
+  },
+  "offline_trail_search_body": "Chcete-li vyhledávat trasy, připojte se k internetu. Stažené trasy jsou nadále dostupné.",
+  "@offline_trail_search_body": {
+    "description": "Body copy shown inside the map screen's draggable trail-results sheet when offline."
+  },
+  "selected_location": "Selected location",
+  "distance_from_your_location": "{distance} from your location",
+  "plan_route_from_here": "Plan route from here"
+}

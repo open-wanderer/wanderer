@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- App shortcut icon, see lib/services/app_shortcuts.dart. Glyph is
+     Font Awesome 7 Free Solid "plus" (CC BY 4.0), the + button's icon. -->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/ic_launcher_background" />
+    <foreground>
+        <vector
+            android:width="108dp"
+            android:height="108dp"
+            android:viewportWidth="108"
+            android:viewportHeight="108">
+            <group
+                android:scaleX="0.05804"
+                android:scaleY="0.05804"
+                android:translateX="41"
+                android:translateY="41">
+                <path
+                    android:fillColor="#FFFFFF"
+                    android:pathData="M256 32C256 14 242 0 224 0C206 0 192 14 192 32V192H32C14 192 0 206 0 224C0 242 14 256 32 256H192V416C192 434 206 448 224 448C242 448 256 434 256 416V256H416C434 256 448 242 448 224C448 206 434 192 416 192H256V32Z" />
+            </group>
+        </vector>
+    </foreground>
+</adaptive-icon>
