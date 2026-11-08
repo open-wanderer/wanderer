@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<gpx xmlns="http://www.topografix.com/GPX/1/1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="1.1" creator="GaiaGPS" xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">
+  <wpt lat="46.85410" lon="11.00220">
+    <ele>1210.5</ele>
+    <name>Lake Camp</name>
+    <desc>Flat spot above the lake</desc>
+    <sym>campground</sym>
+  </wpt>
+  <wpt lat="46.86010" lon="11.01310">
+    <ele>1380.0</ele>
+    <name>Viewpoint</name>
+    <sym>Waypoint</sym>
+  </wpt>
+  <rte>
+    <name>Hochplateau Traverse</name>
+    <rtept lat="46.85410" lon="11.00220"><ele>1210.5</ele></rtept>
+    <rtept lat="46.85530" lon="11.00480"><ele>1228.0</ele></rtept>
+    <rtept lat="46.85690" lon="11.00710"><ele>1251.3</ele></rtept>
+    <rtept lat="46.85820" lon="11.00990"><ele>1290.7</ele></rtept>
+    <rtept lat="46.85940" lon="11.01120"><ele>1334.2</ele></rtept>
+    <rtept lat="46.86010" lon="11.01310"><ele>1380.0</ele></rtept>
+    <rtept lat="46.86130" lon="11.01540"><ele>1362.4</ele></rtept>
+    <rtept lat="46.86260" lon="11.01800"><ele>1341.9</ele></rtept>
+  </rte>
+</gpx>

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<gpx version="1.1" creator="Legacy Desktop Tool" xmlns="http://www.topografix.com/GPX/1/1">
+  <metadata>
+    <name>“Grüné”</name>
+    <desc>Steep 35° incline</desc>
+  </metadata>
+  <trk>
+    <trkseg>
+      <trkpt lat="47.20000" lon="11.30000"><ele>640</ele></trkpt>
+      <trkpt lat="47.20100" lon="11.30100"><ele>655</ele></trkpt>
+      <trkpt lat="47.20200" lon="11.30200"><ele>671</ele></trkpt>
+    </trkseg>
+  </trk>
+</gpx>

@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="Locus Map" xmlns="http://www.topografix.com/GPX/1/1">
+  <metadata>
+    <name>Caf&eacute;&nbsp;Tour</name>
+    <desc><![CDATA[Line one & <b>two</b>]]></desc>
+  </metadata>
+  <trk>
+    <name>Defective exporter sample</name>
+    <trkseg>
+      <trkpt lat="47.00000" lon="11.00000">
+        <ele>100</ele>
+        <time>2024-05-01T06:00:00Z</time>
+        <hdop></hdop>
+        <pdop>N/A</pdop>
+      </trkpt>
+      <trkpt lat="47.00100" lon="11.00000">
+        <ele></ele>
+        <time>2024-05-01T06:00:30Z</time>
+        <hdop></hdop>
+        <pdop>N/A</pdop>
+      </trkpt>
+      <trkpt lat="47.00200" lon="11.00100">
+        <ele>&nbsp;</ele>
+        <time>2024-05-01T06:01:00Z</time>
+      </trkpt>
+      <trkpt lat="47.00300" lon="11.00100">
+        <ele>N/A</ele>
+        <time>N/A</time>
+      </trkpt>
+      <trkpt lat="" lon="11.00150"><ele>101</ele></trkpt>
+      <trkpt lat="N/A" lon="11.00150"><ele>101</ele></trkpt>
+      <trkpt lat="1e999" lon="11.00150"><ele>101</ele></trkpt>
+      <trkpt lat="47.00350" lon="NaN"><ele>101</ele></trkpt>
+      <trkpt lat="47.00350"><ele>101</ele></trkpt>
+      <trkpt lat="47.00400" lon="11.00200">
+        <ele>110</ele>
+        <time>2024-05-01T06:02:00Z</time>
+      </trkpt>
+      <trkpt lat="47.00500" lon="11.00300">
+        <ele>112</ele>
+        <time>2024-05-01T06:02:30Z</time>
+      </trkpt>
+    </trkseg>
+  </trk>
+</gpx>
