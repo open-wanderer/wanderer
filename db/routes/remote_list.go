@@ -19,6 +19,15 @@ import (
 
 // --- Main Handler ---
 
+var remoteListSyncCoreExpandPaths = []string{
+	"author",
+	"trails",
+	"trails.author",
+	"trails.category",
+	"trails.subcategory",
+	"trails.tags",
+}
+
 func RemoteListGet(e *core.RequestEvent) error {
 	handle := e.Request.URL.Query().Get("handle")
 	listID := e.Request.PathValue("id")
@@ -215,24 +224,7 @@ func performFullListSyncDocument(app core.App, ctx context.Context, reqURL *url.
 
 	client := newRemoteSyncHTTPClient()
 	remoteUrl, _ := url.Parse(iri)
-	query := url.Values{}
-	if reqURL != nil {
-		query = reqURL.Query()
-	}
-	query.Del("handle")
-	expands := strings.Split(query.Get("expand"), ",")
-	hasAuthor := false
-	for _, path := range expands {
-		if strings.TrimSpace(path) == "author" {
-			hasAuthor = true
-			break
-		}
-	}
-	if !hasAuthor {
-		expands = append(expands, "author")
-	}
-	query.Set("expand", strings.Trim(strings.Join(expands, ","), ","))
-	remoteUrl.RawQuery = query.Encode()
+	remoteUrl.RawQuery = remoteListSyncQuery(reqURL).Encode()
 	origin := fmt.Sprintf("%s://%s", remoteUrl.Scheme, remoteUrl.Host)
 
 	document, err := fetchRemoteSyncDocument(ctx, client, remoteUrl, "list")
@@ -305,6 +297,12 @@ func performFullListSyncDocument(app core.App, ctx context.Context, reqURL *url.
 		util.SanitizeHTMLFieldsWithLimits(localList)
 		return finishRemoteSyncChildren(app, ctx, localList, err)
 	})
+}
+
+func remoteListSyncQuery(reqURL *url.URL) url.Values {
+	query := remoteSyncQueryParameters(reqURL)
+	setMergedExpandQuery(query, remoteListSyncCoreExpandPaths)
+	return query
 }
 
 func syncListMetadata(record *core.Record, data map[string]any) {
