@@ -1195,7 +1195,7 @@
  *       properties:
  *         seen:
  *           type: boolean
- *           const: true
+ *           enum: [true]
  *           description: Mark as read
  *
  *     Settings:
