@@ -128,6 +128,8 @@ describe("GPX corpus - metrics", () => {
   for (const fixture of fixtures) {
     it(`${fixture.dir}: GPX.parse() reproduces the corpus's metrics`, () => {
       const gpx = GPX.parse(fixture.inputGpx);
+      // Mirrors the import path (gpx_util.ts converts on import); a no-op whenever a <trk> exists.
+      gpx.convertRoutesToTracks();
 
       expectCorpusMatch(
         {

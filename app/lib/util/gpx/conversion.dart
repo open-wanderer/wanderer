@@ -375,6 +375,37 @@ class GpxTrailMetrics {
   });
 }
 
+/// The tracks that metrics are measured from (#1356).
+///
+/// A file with any `<trk>` element, even an empty one, is measured from its
+/// tracks alone, so a `<rte>` beside a `<trk>` contributes nothing. Only a
+/// file with no `<trk>` at all is measured from its routes, one segment per
+/// route, with positionless route points dropped before timing. This mirrors
+/// TS `Gpx.convertRoutesToTracks`, which the web import applies before it
+/// measures.
+///
+/// Pure and non-mutating: the parsed [gpx] keeps its `<rte>` elements, which
+/// `GpxWriter` round-trips and `mergeHeightsIntoGpx` copies as read.
+List<Trk> measuredTracks(Gpx gpx) {
+  if (gpx.trks.isNotEmpty || gpx.rtes.isEmpty) return gpx.trks;
+  return [
+    for (final rte in gpx.rtes)
+      Trk(
+        name: rte.name,
+        cmt: rte.cmt,
+        desc: rte.desc,
+        src: rte.src,
+        links: List.of(rte.links),
+        number: rte.number,
+        type: rte.type,
+        extensions: Map.of(rte.extensions),
+        trksegs: [
+          Trkseg(trkpts: rte.rtepts.where(hasUsablePosition).toList()),
+        ],
+      ),
+  ];
+}
+
 /// Line-for-line Dart port of the public-metrics assembly logic at
 /// `gpx.ts:97-167`, minus the per-point cumulative-distance array and
 /// `hash`.
@@ -402,7 +433,7 @@ GpxTrailMetrics computeTrailMetrics(Gpx gpx) {
 
   final metrics = GpxMetricsComputation(5, 5);
 
-  for (final track in gpx.trks) {
+  for (final track in measuredTracks(gpx)) {
     for (final segment in track.trksegs) {
       final points = segment.trkpts;
 
@@ -566,7 +597,8 @@ Trail trailFromGpx(
         ),
   ];
 
-  final trackPoints = gpx.trks.firstOrNull?.trksegs.firstOrNull?.trkpts;
+  final measured = measuredTracks(gpx);
+  final trackPoints = measured.firstOrNull?.trksegs.firstOrNull?.trkpts;
   final routePoints = gpx.rtes.firstOrNull?.rtepts;
   // The FIRST USABLE point, not merely the first. A leading malformed
   // point otherwise produced a trail with null lat/lon — no map pin, no

@@ -1,0 +1,50 @@
+{
+  "id": "17-route-only-promotion",
+  "covers": [
+    "route-only-promotion",
+    "positionless-route-point"
+  ],
+  "derivation": "hand",
+  "notes": "A file with no <trk> element is measured from its <rte> elements, one segment per route, with positionless route points dropped before timing. The two routes are measured continuously: the hop from the end of the first route into the start of the second is counted and the elevation filter does not reset. The positionless first route point (ele 990, 23:59 the day before) contributes no position, elevation, time or date.",
+  "metrics": {
+    "distance": 558.314502163481,
+    "elevationGain": 20,
+    "elevationLoss": 24,
+    "durationMs": 240000,
+    "pointCount": 6,
+    "boundingBox": {
+      "minLat": 47.1,
+      "maxLat": 47.102,
+      "minLon": 11.2,
+      "maxLon": 11.2015
+    },
+    "centroid": {
+      "lat": 47.101,
+      "lon": 11.200749999999998
+    }
+  },
+  "trail": {
+    "name": "Route Only North",
+    "description": null,
+    "lat": 47.1,
+    "lon": 11.2,
+    "date": "2024-05-01",
+    "distance": 558.314502163481,
+    "elevationGain": 20,
+    "elevationLoss": 24,
+    "duration": 240.0,
+    "minLat": 47.1,
+    "maxLat": 47.102,
+    "minLon": 11.2,
+    "maxLon": 11.2015,
+    "waypoints": [
+      {
+        "lat": 47.1015,
+        "lon": 11.2008,
+        "name": "Route Camp",
+        "description": "Camp beside the route",
+        "icon": "campground"
+      }
+    ]
+  }
+}

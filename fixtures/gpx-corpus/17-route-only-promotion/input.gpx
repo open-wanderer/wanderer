@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="wanderer-corpus" xmlns="http://www.topografix.com/GPX/1/1">
+  <wpt lat="47.1015" lon="11.2008">
+    <name>Route Camp</name>
+    <desc>Camp beside the route</desc>
+    <sym>campground</sym>
+  </wpt>
+  <rte>
+    <name>Route Only North</name>
+    <rtept lat="47.1000"><ele>990</ele><time>2024-04-30T23:59:00Z</time></rtept>
+    <rtept lat="47.1000" lon="11.2000"><ele>1000</ele><time>2024-05-01T08:00:00Z</time></rtept>
+    <rtept lat="47.1010" lon="11.2000"><ele>1010</ele><time>2024-05-01T08:01:00Z</time></rtept>
+    <rtept lat="47.1020" lon="11.2000"><ele>1020</ele><time>2024-05-01T08:02:00Z</time></rtept>
+  </rte>
+  <rte>
+    <name>Route Only Return</name>
+    <rtept lat="47.1020" lon="11.2015"><ele>1012</ele><time>2024-05-01T09:00:00Z</time></rtept>
+    <rtept lat="47.1010" lon="11.2015"><ele>1004</ele><time>2024-05-01T09:01:00Z</time></rtept>
+    <rtept lat="47.1000" lon="11.2015"><ele>996</ele><time>2024-05-01T09:02:00Z</time></rtept>
+  </rte>
+</gpx>
