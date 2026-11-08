@@ -89,7 +89,7 @@ func decode(in io.Reader, fallbackName string) (*Result, error) {
 	d.Entity = xml.HTMLEntity
 	d.CharsetReader = func(_ string, r io.Reader) (io.Reader, error) { return r, nil }
 
-	b := &builder{}
+	b := newBuilder()
 	seenRoot := false
 	for {
 		tok, err := d.Token()
@@ -112,6 +112,15 @@ func decode(in io.Reader, fallbackName string) (*Result, error) {
 	return b.finish(fallbackName)
 }
 
+// wandererNamespace is the namespace of the wanderer:anchor leg marker, as
+// route_anchor_marks.dart and gpx_segment_util.ts write it. An undeclared
+// prefix leaves the decoder's Name.Space as the literal prefix, which TS and
+// Dart also match.
+const (
+	wandererNamespace = "https://wanderer.to/xmlns/gpx/1"
+	wandererPrefix    = "wanderer"
+)
+
 // point is the <trkpt> or <rtept> being read.
 type point struct {
 	lat, lon       float64
@@ -119,24 +128,93 @@ type point struct {
 	ele            float64
 	hasEle         bool
 	seenEle        bool
+	timeMs         int64
+	seenTime       bool
+	anchor         bool
 }
+
+// segBuilder collects one <trkseg>, or the usable points of one <rte>.
+type segBuilder struct {
+	seg      measuredSegment
+	legs     legsAccumulator // duration, fed per the rules of the point kind
+	first    int64           // time of the first point fed to legs
+	last     int64           // time of the last point fed to legs
+	timeSeen int             // points fed to legs
+}
+
+func newSegBuilder(fileIndex int) *segBuilder {
+	return &segBuilder{seg: measuredSegment{fileIndex: fileIndex}, first: noTime, last: noTime}
+}
+
+// add feeds a closed point. A point with a usable position is stored. Its time
+// and anchor also feed the duration, as does that of a positionless point when
+// timeAll is set: the app still reads the time of a <trkpt> without a position
+// (fixture 14), whereas a <rtept> is filtered before timing (fixture 17).
+func (sb *segBuilder) add(p *point, timeAll bool) {
+	usable := p.hasLat && p.hasLon
+	if usable || timeAll {
+		sb.legs.add(p.timeMs, p.anchor)
+		if sb.timeSeen == 0 {
+			sb.first = p.timeMs
+		}
+		sb.last = p.timeMs
+		sb.timeSeen++
+	}
+	if !usable {
+		return
+	}
+	ele := math.NaN()
+	if p.hasEle {
+		ele = p.ele
+	}
+	if p.anchor {
+		sb.seg.anchors = append(sb.seg.anchors, len(sb.seg.lat))
+	}
+	sb.seg.lat = append(sb.seg.lat, p.lat)
+	sb.seg.lon = append(sb.seg.lon, p.lon)
+	sb.seg.ele = append(sb.seg.ele, ele)
+	sb.seg.timeMs = append(sb.seg.timeMs, p.timeMs)
+}
+
+// times is the first and last time of the points fed to the duration.
+func (sb *segBuilder) times() segmentTimes { return segmentTimes{start: sb.first, end: sb.last} }
 
 // builder turns the token stream into measured tracks. GPX structure is
 // matched on Name.Local only, so prefixed GPX elements work. Everything inside
-// an <extensions> subtree is skipped.
+// an <extensions> subtree is skipped, except a wanderer:anchor directly below
+// the <extensions> of a point.
+//
+// Tracks and routes go to separate stores because a <rte> may precede a <trk>
+// in the file: which one is measured is decided in finish().
 type builder struct {
 	stack []string // open element names, outermost first
 	skip  int      // depth inside an <extensions> subtree, 0 outside
+	// pointExt is set while inside the <extensions> of a point.
+	pointExt bool
 
-	tracks []measuredTrack
-	seg    *measuredSegment
-	pt     *point
-
+	sawTrk     bool
+	tracks     []measuredTrack
+	routes     []measuredTrack
 	segOrdinal int // <trkseg> elements seen so far in the current <trk>
 
-	collecting bool // text of the current <ele> is being gathered
-	buf        []byte
-	overflow   bool
+	tsb *segBuilder // open <trkseg>
+	rsb *segBuilder // open <rte>
+	pt  *point
+
+	// Signed duration sums of each store: a segment counts even when all of
+	// its points are positionless.
+	trkDuration, rteDuration int64
+	// Times of the first <trkseg> of the first <trk>, and of the first <rte>.
+	trkFirst, rteFirst segmentTimes
+
+	collect  string // "ele" or "time" while that element's text is gathered
+	buf      []byte
+	overflow bool
+}
+
+func newBuilder() *builder {
+	none := segmentTimes{start: noTime, end: noTime}
+	return &builder{trkFirst: none, rteFirst: none}
 }
 
 func (b *builder) parent() string {
@@ -146,8 +224,15 @@ func (b *builder) parent() string {
 	return b.stack[len(b.stack)-1]
 }
 
+func isAnchor(name xml.Name) bool {
+	return name.Local == "anchor" && (name.Space == wandererNamespace || name.Space == wandererPrefix)
+}
+
 func (b *builder) start(t xml.StartElement) {
 	if b.skip > 0 {
+		if b.skip == 1 && b.pointExt && b.pt != nil && isAnchor(t.Name) {
+			b.pt.anchor = true
+		}
 		b.skip++
 		return
 	}
@@ -157,30 +242,49 @@ func (b *builder) start(t xml.StartElement) {
 	switch name {
 	case "extensions":
 		b.skip = 1
+		b.pointExt = b.pt != nil && (parent == "trkpt" || parent == "rtept")
 	case "trk":
+		// Any <trk> element, even an empty one, blocks route promotion.
+		b.sawTrk = true
 		b.tracks = append(b.tracks, measuredTrack{})
 		b.segOrdinal = 0
 	case "trkseg":
-		if parent == "trk" && len(b.tracks) > 0 {
-			b.seg = &measuredSegment{fileIndex: b.segOrdinal}
+		if parent == "trk" {
+			b.tsb = newSegBuilder(b.segOrdinal)
 			b.segOrdinal++
 		}
+	case "rte":
+		b.routes = append(b.routes, measuredTrack{})
+		b.rsb = newSegBuilder(0)
 	case "trkpt":
-		if parent == "trkseg" && b.seg != nil {
+		if parent == "trkseg" && b.tsb != nil {
+			b.pt = newPoint(t)
+		}
+	case "rtept":
+		if parent == "rte" && b.rsb != nil {
 			b.pt = newPoint(t)
 		}
 	case "ele":
-		if parent == "trkpt" && b.pt != nil && !b.pt.seenEle {
+		if b.pt != nil && (parent == "trkpt" || parent == "rtept") && !b.pt.seenEle {
 			b.pt.seenEle = true
-			b.collecting = true
-			b.buf = b.buf[:0]
-			b.overflow = false
+			b.beginText(name)
+		}
+	case "time":
+		if b.pt != nil && (parent == "trkpt" || parent == "rtept") && !b.pt.seenTime {
+			b.pt.seenTime = true
+			b.beginText(name)
 		}
 	}
 }
 
+func (b *builder) beginText(name string) {
+	b.collect = name
+	b.buf = b.buf[:0]
+	b.overflow = false
+}
+
 func newPoint(t xml.StartElement) *point {
-	p := &point{}
+	p := &point{timeMs: noTime}
 	for _, a := range t.Attr {
 		if a.Name.Space != "" {
 			continue
@@ -200,7 +304,7 @@ func newPoint(t xml.StartElement) *point {
 }
 
 func (b *builder) text(data xml.CharData) {
-	if !b.collecting || b.skip > 0 {
+	if b.collect == "" || b.skip > 0 {
 		return
 	}
 	if len(b.buf)+len(data) > maxNumberText {
@@ -221,6 +325,7 @@ func (b *builder) end(name string) {
 	}
 	if b.skip == 1 {
 		b.skip = 0
+		b.pointExt = false
 		b.stack = b.stack[:len(b.stack)-1]
 		return
 	}
@@ -243,70 +348,95 @@ func (b *builder) end(name string) {
 
 func (b *builder) closeElement(name string) {
 	switch name {
-	case "ele":
-		if b.collecting {
-			b.collecting = false
-			if b.pt != nil && !b.overflow {
-				if v, ok := parseNumber(string(b.buf)); ok {
-					b.pt.ele, b.pt.hasEle = v, true
-				}
+	case "ele", "time":
+		if b.collect != name {
+			return
+		}
+		b.collect = ""
+		if b.pt == nil || b.overflow {
+			return
+		}
+		if name == "ele" {
+			if v, ok := parseNumber(string(b.buf)); ok {
+				b.pt.ele, b.pt.hasEle = v, true
 			}
+		} else if ms, ok := parseTime(string(b.buf)); ok {
+			b.pt.timeMs = ms
 		}
 	case "trkpt":
-		if b.pt != nil && b.seg != nil {
-			if b.pt.hasLat && b.pt.hasLon {
-				ele := math.NaN()
-				if b.pt.hasEle {
-					ele = b.pt.ele
-				}
-				b.seg.lat = append(b.seg.lat, b.pt.lat)
-				b.seg.lon = append(b.seg.lon, b.pt.lon)
-				b.seg.ele = append(b.seg.ele, ele)
-				b.seg.timeMs = append(b.seg.timeMs, noTime)
-			}
+		if b.pt != nil && b.tsb != nil {
+			b.tsb.add(b.pt, true)
+		}
+		b.pt = nil
+	case "rtept":
+		if b.pt != nil && b.rsb != nil {
+			b.rsb.add(b.pt, false)
 		}
 		b.pt = nil
 	case "trkseg":
-		if b.seg != nil && len(b.tracks) > 0 {
-			if len(b.seg.lat) > 0 {
-				tr := &b.tracks[len(b.tracks)-1]
-				tr.segments = append(tr.segments, *b.seg)
-			}
+		if b.tsb == nil || len(b.tracks) == 0 {
+			return
 		}
-		b.seg = nil
+		sb := b.tsb
+		b.tsb = nil
+		b.trkDuration += sb.legs.total()
+		if len(b.tracks) == 1 && sb.seg.fileIndex == 0 {
+			b.trkFirst = sb.times()
+		}
+		if len(sb.seg.lat) > 0 {
+			tr := &b.tracks[len(b.tracks)-1]
+			tr.segments = append(tr.segments, sb.seg)
+		}
+	case "rte":
+		if b.rsb == nil || len(b.routes) == 0 {
+			return
+		}
+		sb := b.rsb
+		b.rsb = nil
+		b.rteDuration += sb.legs.total()
+		if len(b.routes) == 1 {
+			b.rteFirst = sb.times()
+		}
+		if len(sb.seg.lat) > 0 {
+			rt := &b.routes[len(b.routes)-1]
+			rt.segments = append(rt.segments, sb.seg)
+		}
 	}
 }
 
-// finish chooses the measured source and measures it.
+// finish chooses the measured source and measures it. The source is the
+// tracks when the file has any <trk> element, otherwise its routes promoted to
+// one segment each (D-04). A <rte> beside a <trk> contributes nothing.
 func (b *builder) finish(fallbackName string) (*Result, error) {
-	tracks := b.tracks
-	points := 0
-	for ti := range tracks {
-		for si := range tracks[ti].segments {
-			points += len(tracks[ti].segments[si].lat)
-		}
+	source, duration, first := b.routes, b.rteDuration, b.rteFirst
+	if b.sawTrk {
+		source, duration, first = b.tracks, b.trkDuration, b.trkFirst
 	}
-	if points == 0 {
-		return nil, ErrNoTrack
-	}
-	m := measure(tracks)
-	first := &tracks[0]
-	for ti := range tracks {
-		if len(tracks[ti].segments) > 0 {
-			first = &tracks[ti]
+	var start *measuredSegment
+	for ti := range source {
+		if len(source[ti].segments) > 0 {
+			start = &source[ti].segments[0]
 			break
 		}
 	}
-	seg := first.segments[0]
+	if start == nil {
+		return nil, ErrNoTrack
+	}
+	m := measure(source)
+	if duration < 0 {
+		duration = -duration
+	}
 	return &Result{
-		Start:         LatLon{Lat: seg.lat[0], Lon: seg.lon[0]},
+		Start:         LatLon{Lat: start.lat[0], Lon: start.lon[0]},
 		Distance:      m.distance,
 		ElevationGain: m.gain,
 		ElevationLoss: m.loss,
+		DurationMs:    duration,
 		PointCount:    m.count,
 		Bounds:        m.bounds,
 		Centroid:      m.centroid,
 		HasElevation:  m.hasElevation,
-		tracks:        tracks,
+		tracks:        source,
+		firstTimes:    first,
 	}, nil
 }

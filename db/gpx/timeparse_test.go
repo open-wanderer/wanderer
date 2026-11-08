@@ -36,6 +36,8 @@ func TestParseTime(t *testing.T) {
 		{"one millisecond before the epoch", "1969-12-31T23:59:59.999Z", -1, true},
 		{"year zero", "0000-01-01", -62167219200000, true},
 		{"hour 24 is the next midnight", "2024-12-31T24:00:00Z", 1735689600000, true},
+		{"hour 24 with a zero fraction", "2024-05-01T24:00:00.000Z", 1714608000000, true},
+		{"hour 24 with an offset", "2024-05-01T24:00:00+01:00", 1714604400000, true},
 		{"signed six-digit year", "+012345-01-01T00:00:00Z", 327403382400000, true},
 		{"negative six-digit year", "-000001-01-01T00:00:00Z", -62198755200000, true},
 

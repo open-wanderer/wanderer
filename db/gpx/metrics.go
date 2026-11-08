@@ -194,12 +194,57 @@ func measure(tracks []measuredTrack) measurement {
 	}
 }
 
-// legsAccumulator is the incremental form of legsDurationMs in
-// web/src/lib/models/gpx/track-segment.ts.
+// legsAccumulator is the incremental, exact form of legsDurationMs in
+// web/src/lib/models/gpx/track-segment.ts: the summed time of a segment's legs,
+// where a marked anchor opens a new leg and the hop into it belongs to neither.
 //
-// Stub: the real accumulator follows in the implementation commit.
-type legsAccumulator struct{}
+//	for i in 1..n-2: if point i is an anchor { addLeg(i-1); legStart = i }
+//	addLeg(n-1)
+//
+// addLeg(end) adds time(end) - time(legStart) only when end > legStart and both
+// times exist. Point i is only known to be interior once point i+1 arrives, so
+// the accumulator keeps the last two points' times and the last point's anchor
+// flag, plus the leg start, and total() closes the final leg without mutating.
+type legsAccumulator struct {
+	n              int   // points added so far
+	sum            int64 // legs closed so far
+	legStart       int   // index of the current leg's first point
+	legStartTime   int64 // its time, noTime when absent
+	lastTime       int64 // time of point n-1
+	beforeLastTime int64 // time of point n-2
+	lastAnchor     bool  // whether point n-1 is an anchor
+}
 
-func (l *legsAccumulator) add(timeMs int64, anchor bool) {}
+// leg is addLeg(end) for a point at index end with the given time.
+func (l *legsAccumulator) leg(end int, endTime int64) int64 {
+	if end > l.legStart && l.legStartTime != noTime && endTime != noTime {
+		return endTime - l.legStartTime
+	}
+	return 0
+}
 
-func (l *legsAccumulator) total() int64 { return 0 }
+// add feeds the next point of the segment: its time (noTime when absent) and
+// whether it carries a wanderer:anchor mark.
+func (l *legsAccumulator) add(timeMs int64, anchor bool) {
+	if l.n == 0 {
+		l.legStartTime = timeMs
+	}
+	// Point n-1 is interior (index >= 1, with a successor) once n >= 2.
+	if l.n >= 2 && l.lastAnchor {
+		l.sum += l.leg(l.n-2, l.beforeLastTime)
+		l.legStart = l.n - 1
+		l.legStartTime = l.lastTime
+	}
+	l.beforeLastTime = l.lastTime
+	l.lastTime = timeMs
+	l.lastAnchor = anchor
+	l.n++
+}
+
+// total is the summed leg duration of the points added so far.
+func (l *legsAccumulator) total() int64 {
+	if l.n == 0 {
+		return 0
+	}
+	return l.sum + l.leg(l.n-1, l.lastTime)
+}
