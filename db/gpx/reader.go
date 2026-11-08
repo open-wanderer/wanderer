@@ -62,3 +62,15 @@ func newPipeline(r io.Reader, maxBytes int64) io.Reader {
 	}
 	return bufio.NewReaderSize(&capReader{r: r, limit: maxBytes}, readBufferSize)
 }
+
+// RED-only compile stubs, replaced in the GREEN commit.
+type sanitizer struct{ src io.Reader }
+
+func (s *sanitizer) Read(p []byte) (int, error) { return s.src.Read(p) }
+
+type runGuard struct {
+	r   io.Reader
+	max int
+}
+
+func (g *runGuard) Read(p []byte) (int, error) { return g.r.Read(p) }
