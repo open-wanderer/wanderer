@@ -33,3 +33,11 @@ curl --location --request PUT 'http://localhost:3000/api/v1/trail/upload' \
 --cookie './wanderer-credentials' \
 --data-binary '@my_trail.gpx'
 ```
+
+## Photo file caching
+
+Only successful photo file responses and their redirects use
+`Cache-Control: private, max-age=3600`; error responses use `no-store` and are not cached.
+A viewer who already loaded a photo may see their browser’s cached copy for up to
+one hour after access is revoked. New requests check access immediately; shared
+caches never store these responses. Error responses never use the photo cache policy.

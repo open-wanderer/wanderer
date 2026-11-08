@@ -1,3 +1,4 @@
+import type { Asset, AssetLink } from "./asset";
 import cryptoRandomString from "crypto-random-string";
 import type { Actor } from "./activitypub/actor";
 import type { Category } from "./category";
@@ -54,6 +55,8 @@ class Trail {
     min_lon?: number;
     max_lon?: number;
     expand?: {
+        assets_via_trail?: Asset[];
+        trail_assets_via_trail?: AssetLink[];
         tags?: Tag[]
         category?: Category;
         subcategory?: Subcategory;

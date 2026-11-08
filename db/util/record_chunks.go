@@ -66,3 +66,19 @@ func recordsByFieldValues(app core.App, collection string, field string, values 
 	}
 	return records, nil
 }
+
+func recordFieldValues(records []*core.Record, field string) []string {
+	values := make([]string, 0, len(records))
+	for _, record := range records {
+		values = append(values, record.GetString(field))
+	}
+	return values
+}
+
+func recordIDs(records []*core.Record) []string {
+	values := make([]string, 0, len(records))
+	for _, record := range records {
+		values = append(values, record.Id)
+	}
+	return values
+}
