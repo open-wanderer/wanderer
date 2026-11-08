@@ -124,7 +124,7 @@ type syncLimitTestSession struct {
 	call func(context.Context, string, []byte) ([]byte, error)
 }
 
-func (s syncLimitTestSession) Call(ctx context.Context, export string, input []byte) ([]byte, error) {
+func (s syncLimitTestSession) Call(ctx context.Context, export string, input []byte, _ pluginsystem.RuntimeCallOptions) ([]byte, error) {
 	return s.call(ctx, export, input)
 }
 

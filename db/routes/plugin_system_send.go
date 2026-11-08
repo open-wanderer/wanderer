@@ -114,7 +114,7 @@ func PluginSystemTrailSend(e *core.RequestEvent) error {
 	defer func() {
 		_ = session.Close(context.Background())
 	}()
-	output, err := session.Call(e.Request.Context(), capability.Export, inputBytes)
+	output, err := session.Call(e.Request.Context(), capability.Export, inputBytes, pluginsystem.RuntimeCallOptions{MaxHostRequests: 8})
 	if err != nil {
 		return err
 	}

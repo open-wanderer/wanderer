@@ -154,7 +154,7 @@ type reopenTestRuntime struct {
 	session pluginsystem.RuntimeSession
 }
 
-func (r *reopenTestRuntime) Call(context.Context, pluginsystem.LocalPlugin, string, []byte, pluginsystem.RequestPolicyContext) ([]byte, error) {
+func (r *reopenTestRuntime) Call(context.Context, pluginsystem.LocalPlugin, string, []byte, pluginsystem.RequestPolicyContext, pluginsystem.RuntimeCallOptions) ([]byte, error) {
 	return nil, errors.New("not used")
 }
 
