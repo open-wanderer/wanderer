@@ -57,7 +57,7 @@ func NewWorkerRuntime() WorkerRuntime {
 	return WorkerRuntime{}
 }
 
-func (r WorkerRuntime) Call(ctx context.Context, plugin LocalPlugin, export string, input []byte, policy RequestPolicyContext) ([]byte, error) {
+func (r WorkerRuntime) Call(ctx context.Context, plugin LocalPlugin, export string, input []byte, policy RequestPolicyContext, options RuntimeCallOptions) ([]byte, error) {
 	session, err := r.OpenSession(ctx, plugin, policy)
 	if err != nil {
 		return nil, err
@@ -65,7 +65,7 @@ func (r WorkerRuntime) Call(ctx context.Context, plugin LocalPlugin, export stri
 	defer func() {
 		_ = session.Close(context.Background())
 	}()
-	return session.Call(ctx, export, input)
+	return session.Call(ctx, export, input, options)
 }
 
 func (r WorkerRuntime) OpenSession(ctx context.Context, plugin LocalPlugin, policy RequestPolicyContext) (RuntimeSession, error) {
@@ -120,13 +120,11 @@ func (r WorkerRuntime) OpenSession(ctx context.Context, plugin LocalPlugin, poli
 		stderr:           stderr,
 		requestMaxBytes:  envInt("WANDERER_PLUGIN_WORKER_REQUEST_BYTES", defaultWorkerRequestMaxBytes),
 		responseMaxBytes: envInt("WANDERER_PLUGIN_WORKER_RESPONSE_BYTES", defaultWorkerResponseMaxBytes),
+		sessionTimeout:   envDuration("WANDERER_PLUGIN_WORKER_SESSION_TIMEOUT", defaultWorkerSessionTimeout),
 		exportTimeout:    envDuration("WANDERER_PLUGIN_WORKER_EXPORT_TIMEOUT", defaultWorkerExportTimeout),
 		slot:             slot,
 	}
-	session.sessionTimer = time.AfterFunc(envDuration("WANDERER_PLUGIN_WORKER_SESSION_TIMEOUT", defaultWorkerSessionTimeout), func() {
-		session.markFatal("worker session timeout")
-		session.kill()
-	})
+	session.resetSessionTimerLocked()
 
 	releaseSlot = false
 	return session, nil
@@ -143,6 +141,8 @@ type workerRuntimeSession struct {
 	requestMaxBytes  int
 	responseMaxBytes int
 	exportTimeout    time.Duration
+	sessionTimeout   time.Duration
+	timerGeneration  uint64
 	sessionTimer     *time.Timer
 	slot             *semaphore.Weighted
 
@@ -156,7 +156,44 @@ type workerRuntimeSession struct {
 	fatalMsg string
 }
 
-func (s *workerRuntimeSession) Call(ctx context.Context, export string, input []byte) ([]byte, error) {
+// Renew keeps an active sync session alive between exports. An expired session
+// stays fatal so its caller can release it and open a fresh worker.
+func (s *workerRuntimeSession) Renew(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.closed {
+		return RuntimeSessionFatalError{Err: fmt.Errorf("worker session is closed")}
+	}
+	if s.fatal {
+		return RuntimeSessionFatalError{Err: fmt.Errorf("worker session is invalid: %s", s.fatalMsg)}
+	}
+	s.resetSessionTimerLocked()
+	return nil
+}
+
+func (s *workerRuntimeSession) resetSessionTimerLocked() {
+	if s.sessionTimer != nil {
+		s.sessionTimer.Stop()
+	}
+	s.timerGeneration++
+	generation := s.timerGeneration
+	s.sessionTimer = time.AfterFunc(s.sessionTimeout, func() {
+		s.mu.Lock()
+		// A previous timer may already be firing when renewal stops it.
+		if s.closed || s.fatal || generation != s.timerGeneration {
+			s.mu.Unlock()
+			return
+		}
+		s.fatal, s.fatalMsg = true, "worker session timeout"
+		s.mu.Unlock()
+		s.kill()
+	})
+}
+
+func (s *workerRuntimeSession) Call(ctx context.Context, export string, input []byte, options RuntimeCallOptions) ([]byte, error) {
 	s.callMu.Lock()
 	defer s.callMu.Unlock()
 
@@ -186,7 +223,7 @@ func (s *workerRuntimeSession) Call(ctx context.Context, export string, input []
 				result <- workerCallOutcome{err: RuntimeSessionFatalError{Err: errors.New("worker call panicked")}}
 			}
 		}()
-		result <- s.call(callCtx, export, input)
+		result <- s.call(callCtx, export, input, options)
 	}()
 
 	select {
@@ -211,7 +248,10 @@ type workerCallOutcome struct {
 	err    error
 }
 
-func (s *workerRuntimeSession) call(ctx context.Context, export string, input []byte) workerCallOutcome {
+func (s *workerRuntimeSession) call(ctx context.Context, export string, input []byte, options RuntimeCallOptions) workerCallOutcome {
+	hostRequestLimit := EffectiveMaxHostRequests(options)
+	hostRequestCount := 0
+	var budgetErr error
 	msg, err := workerMessageWithData(workerMessageCallExport, workerCallExport{
 		WASMPath:    s.plugin.WASMPath,
 		Export:      export,
@@ -236,6 +276,20 @@ func (s *workerRuntimeSession) call(ctx context.Context, export string, input []
 		}
 		switch msg.Type {
 		case workerMessageHostHTTPRequest:
+			hostRequestCount++
+			if hostRequestCount > hostRequestLimit {
+				if budgetErr == nil {
+					budgetErr = HostRequestBudgetError{Limit: hostRequestLimit}
+				}
+				if err := s.writeHostHTTPResponse(hostHTTPResponse{
+					Error: &PluginError{Code: "request_budget_exceeded", Message: budgetErr.Error()},
+				}); err != nil {
+					s.markFatal("host http budget response failed")
+					s.kill()
+					return workerCallOutcome{err: RuntimeSessionFatalError{Err: s.withStderr(err)}}
+				}
+				continue
+			}
 			if err := s.handleHostHTTPRequest(ctx, msg); err != nil {
 				s.markFatal("host http rpc failed")
 				s.kill()
@@ -249,6 +303,9 @@ func (s *workerRuntimeSession) call(ctx context.Context, export string, input []
 				s.markFatal("invalid call_result payload")
 				s.kill()
 				return workerCallOutcome{err: RuntimeSessionFatalError{Err: err}}
+			}
+			if budgetErr != nil {
+				return workerCallOutcome{err: budgetErr}
 			}
 			if result.PluginError != nil {
 				return workerCallOutcome{err: PluginCallError{
@@ -312,6 +369,10 @@ func (s *workerRuntimeSession) handleHostHTTPRequest(ctx context.Context, msg wo
 		return err
 	}
 	response := executeHostHTTPRequest(ctx, s.plugin.Manifest, s.policy, requestBytes)
+	return s.writeHostHTTPResponse(response)
+}
+
+func (s *workerRuntimeSession) writeHostHTTPResponse(response hostHTTPResponse) error {
 	responseBytes, err := json.Marshal(response)
 	if err != nil {
 		return err
@@ -333,11 +394,10 @@ func (s *workerRuntimeSession) Close(ctx context.Context) error {
 	}
 	s.closed = true
 	fatal := s.fatal
-	s.mu.Unlock()
-
 	if s.sessionTimer != nil {
 		s.sessionTimer.Stop()
 	}
+	s.mu.Unlock()
 	if !fatal {
 		_ = writeWorkerMessage(s.stdin, s.requestMaxBytes, workerMessage{Type: workerMessageShutdown})
 	}
@@ -407,6 +467,9 @@ func (s *workerRuntimeSession) withStderr(err error) error {
 
 func acquireWorkerSlot(ctx context.Context) (*semaphore.Weighted, error) {
 	timeout := envDuration("WANDERER_PLUGIN_WORKER_SLOT_TIMEOUT", defaultWorkerSlotAcquireTimeout)
+	if scoped, ok := ctx.Value(workerSlotAcquireTimeoutKey{}).(time.Duration); ok {
+		timeout = scoped
+	}
 	acquireCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	slot := workerSemaphore()

@@ -339,11 +339,27 @@ type pluginSyncRuntimeSession struct {
 }
 
 func (s *pluginSyncRuntimeSession) open(ctx context.Context) error {
+	ctx = pluginsystem.WithWorkerSlotAcquireTimeout(ctx, 5*time.Minute)
 	session, err := s.runtime.OpenSession(ctx, s.plugin, s.policy)
 	if err != nil {
 		return err
 	}
 	s.session = session
+	return nil
+}
+
+func (s *pluginSyncRuntimeSession) ensureOpen(ctx context.Context) error {
+	if s.session == nil {
+		return s.open(ctx)
+	}
+	if renewable, ok := s.session.(pluginsystem.RuntimeSessionRenewal); ok {
+		if err := renewable.Renew(ctx); err != nil {
+			if pluginsystem.IsRuntimeSessionFatalError(err) {
+				return s.reopen(ctx)
+			}
+			return err
+		}
+	}
 	return nil
 }
 
@@ -375,6 +391,9 @@ func syncPluginCapability(ctx context.Context, app core.App, client meilisearch.
 		providerCategoryBackfillsRemaining = defaultPluginProviderCategoryBackfillLimit
 	}
 	for batch := 0; hasMore && batch < defaultPluginSyncMaxBatches; batch++ {
+		if err := sessions.ensureOpen(ctx); err != nil {
+			return nil, err
+		}
 		input := pluginSystemListInput{
 			Instance: pluginsystem.InstanceRef{
 				ID:       instance.Id,
@@ -389,14 +408,14 @@ func syncPluginCapability(ctx context.Context, app core.App, client meilisearch.
 		if err != nil {
 			return nil, err
 		}
-		outputBytes, err := sessions.session.Call(ctx, capability.Export, inputBytes)
+		outputBytes, err := sessions.session.Call(ctx, capability.Export, inputBytes, pluginsystem.RuntimeCallOptions{MaxHostRequests: 8})
 		if err != nil && pluginsystem.IsRuntimeSessionFatalError(err) && ctx.Err() == nil {
 			// The worker ends a session after WANDERER_PLUGIN_WORKER_SESSION_TIMEOUT,
 			// which a long sync can outlast. Reopen it once, as for detail calls.
 			if reopenErr := sessions.reopen(ctx); reopenErr != nil {
 				return nil, reopenErr
 			}
-			outputBytes, err = sessions.session.Call(ctx, capability.Export, inputBytes)
+			outputBytes, err = sessions.session.Call(ctx, capability.Export, inputBytes, pluginsystem.RuntimeCallOptions{MaxHostRequests: 8})
 		}
 		if err != nil {
 			return nil, err
@@ -465,6 +484,9 @@ func syncPluginCapability(ctx context.Context, app core.App, client meilisearch.
 					}
 				}
 				continue
+			}
+			if err := sessions.ensureOpen(ctx); err != nil {
+				return nil, err
 			}
 			item, err := pluginDetail(ctx, sessions.session, plugin, detailCapability, instance, auth, pluginConfig, summary)
 			if err != nil {
@@ -548,6 +570,9 @@ func backfillProviderCategoryDuringSync(ctx context.Context, app core.App, sessi
 		return false, nil
 	}
 
+	if err := sessions.ensureOpen(ctx); err != nil {
+		return false, err
+	}
 	item, err := pluginDetail(ctx, sessions.session, plugin, detailCapability, instance, auth, pluginConfig, summary)
 	if err != nil {
 		app.Logger().Warn("skipping provider category backfill after detail fetch failed", "plugin", plugin.Manifest.ID, "instance", instance.Id, "provider", summary.Source.Provider, "external_id", summary.Source.ExternalID, "error", err)
@@ -581,7 +606,7 @@ func pluginDetail(ctx context.Context, session pluginsystem.RuntimeSession, plug
 	if err != nil {
 		return pluginsystem.TrailImport{}, err
 	}
-	outputBytes, err := session.Call(ctx, capability.Export, inputBytes)
+	outputBytes, err := session.Call(ctx, capability.Export, inputBytes, pluginsystem.RuntimeCallOptions{MaxHostRequests: 32})
 	if err != nil {
 		return pluginsystem.TrailImport{}, err
 	}

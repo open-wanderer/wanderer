@@ -337,6 +337,10 @@ manifest, for example:
 
 The host enforces `limits.maxItems` for each sync response. Returning more items fails the call with `sync_item_limit_exceeded`; the host does not silently truncate the response.
 
+For sync plugins, the hard budgets are 8 for list and trail-send calls, 32 for
+detail calls, and 4 for session refresh. Each call resets its budget even when
+the worker session is reused. Syncs renew their session before list, detail and backfill calls, reopening an expired worker while preserving the current cursor.
+
 `auth` contains only values the host is allowed to pass to the plugin. For
 OAuth plugins, refresh tokens and client secrets are not included in normal sync
 capability input. Depending on the auth model, `auth` may contain values such
