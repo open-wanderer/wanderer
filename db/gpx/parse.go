@@ -271,6 +271,8 @@ type builder struct {
 	// Names of the first <trk> and the first <rte> element, empty or not.
 	firstTrkName, firstRteName string
 
+	err error // first structural-limit error, checked by the token loop
+
 	collect      string   // element whose text is gathered: ele, time, or one of textKinds
 	collectOwner *textSet // receiver of a textKinds element, nil for ele and time
 	collectDepth int      // len(stack) while the collected element is open
