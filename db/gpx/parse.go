@@ -35,8 +35,61 @@ type measuredTrack struct {
 	segments        []measuredSegment // only segments with at least one usable point
 }
 
+// setText copies the collected text children onto the track or route. number
+// goes through parseNumber, like a coordinate.
+func (t *measuredTrack) setText(ts *textSet) {
+	t.name, t.desc, t.typ = ts.name, ts.desc, ts.typ
+	t.number, t.hasNumber = parseNumber(ts.number)
+}
+
 // segmentTimes is the first and last point time of a segment, noTime when absent.
 type segmentTimes struct{ start, end int64 }
+
+// textSet holds the text children of one owner element: <metadata>, a <trk>,
+// a <rte> or a <wpt>. The first value of each child wins, and every value is
+// whitespace-trimmed (A7). An owner only ever receives the children that are
+// meaningful for it, so the rest stay empty.
+type textSet struct {
+	name, desc, sym, typ, number string
+	seen                         uint8 // one bit per child kind
+}
+
+// textKinds are the element names whose text is collected, in seen-bit order.
+var textKinds = [...]string{"name", "desc", "sym", "type", "number"}
+
+// put stores the trimmed text of a child element unless that child was seen.
+func (ts *textSet) put(kind, value string) {
+	for i, k := range textKinds {
+		if k != kind {
+			continue
+		}
+		if ts.seen&(1<<i) != 0 {
+			return
+		}
+		ts.seen |= 1 << i
+		value = strings.TrimSpace(value)
+		switch kind {
+		case "name":
+			ts.name = value
+		case "desc":
+			ts.desc = value
+		case "sym":
+			ts.sym = value
+		case "type":
+			ts.typ = value
+		case "number":
+			ts.number = value
+		}
+		return
+	}
+}
+
+// rawWaypoint is a <wpt> with a usable position, before its icon is resolved.
+type rawWaypoint struct {
+	lat, lon       float64
+	hasLat, hasLon bool
+	text           textSet
+}
 
 // decimalNumber is the TypeScript decimal grammar (web/src/lib/models/gpx/number.ts),
 // ASCII digits only.
@@ -207,9 +260,21 @@ type builder struct {
 	// Times of the first <trkseg> of the first <trk>, and of the first <rte>.
 	trkFirst, rteFirst segmentTimes
 
-	collect  string // "ele" or "time" while that element's text is gathered
-	buf      []byte
-	overflow bool
+	// Text of the elements PARSE-04 reads. Only direct children of <metadata>,
+	// <trk>, <rte> and <wpt> are collected, never <author><name> or
+	// <copyright>.
+	metaText, trkText, rteText textSet
+	wpt                        *rawWaypoint // open <wpt>
+	waypoints                  []rawWaypoint
+	// Names of the first <trk> and the first <rte> element, empty or not.
+	firstTrkName, firstRteName string
+
+	collect      string   // element whose text is gathered: ele, time, or one of textKinds
+	collectOwner *textSet // receiver of a textKinds element, nil for ele and time
+	collectDepth int      // len(stack) while the collected element is open
+	limit        int      // collected bytes beyond which the value is unusable
+	buf          []byte
+	overflow     bool
 }
 
 func newBuilder() *builder {
@@ -247,6 +312,7 @@ func (b *builder) start(t xml.StartElement) {
 		// Any <trk> element, even an empty one, blocks route promotion.
 		b.sawTrk = true
 		b.tracks = append(b.tracks, measuredTrack{})
+		b.trkText = textSet{}
 		b.segOrdinal = 0
 	case "trkseg":
 		if parent == "trk" {
@@ -255,7 +321,12 @@ func (b *builder) start(t xml.StartElement) {
 		}
 	case "rte":
 		b.routes = append(b.routes, measuredTrack{})
+		b.rteText = textSet{}
 		b.rsb = newSegBuilder(0)
+	case "wpt":
+		if len(b.stack) == 2 {
+			b.wpt = newWaypoint(t)
+		}
 	case "trkpt":
 		if parent == "trkseg" && b.tsb != nil {
 			b.pt = newPoint(t)
@@ -267,20 +338,73 @@ func (b *builder) start(t xml.StartElement) {
 	case "ele":
 		if b.pt != nil && (parent == "trkpt" || parent == "rtept") && !b.pt.seenEle {
 			b.pt.seenEle = true
-			b.beginText(name)
+			b.beginText(name, nil, maxNumberText)
 		}
 	case "time":
 		if b.pt != nil && (parent == "trkpt" || parent == "rtept") && !b.pt.seenTime {
 			b.pt.seenTime = true
-			b.beginText(name)
+			b.beginText(name, nil, maxNumberText)
+		}
+	case "name", "desc", "sym", "type", "number":
+		// Retained-text budgets are 46-04's structural limits; until then the
+		// byte cap on the input bounds these.
+		if owner := b.owner(parent); owner != nil && b.collect == "" {
+			b.beginText(name, owner, math.MaxInt)
 		}
 	}
 }
 
-func (b *builder) beginText(name string) {
+// owner is the textSet that receives a text child of parent, or nil when that
+// child is not one the parser reads. The depth check keeps it to direct
+// children of the root's own <metadata>, <trk>, <rte> and <wpt>.
+func (b *builder) owner(parent string) *textSet {
+	if len(b.stack) != 3 {
+		return nil
+	}
+	switch parent {
+	case "metadata":
+		return &b.metaText
+	case "trk":
+		return &b.trkText
+	case "rte":
+		return &b.rteText
+	case "wpt":
+		if b.wpt != nil {
+			return &b.wpt.text
+		}
+	}
+	return nil
+}
+
+func (b *builder) beginText(name string, owner *textSet, limit int) {
 	b.collect = name
+	b.collectOwner = owner
+	b.collectDepth = len(b.stack)
+	b.limit = limit
 	b.buf = b.buf[:0]
 	b.overflow = false
+}
+
+// newWaypoint reads the position of a <wpt>. A coordinate that is not a number
+// leaves the waypoint unusable, so it is dropped and never placed at 0,0.
+func newWaypoint(t xml.StartElement) *rawWaypoint {
+	w := &rawWaypoint{}
+	for _, a := range t.Attr {
+		if a.Name.Space != "" {
+			continue
+		}
+		switch a.Name.Local {
+		case "lat":
+			if !w.hasLat {
+				w.lat, w.hasLat = parseNumber(a.Value)
+			}
+		case "lon":
+			if !w.hasLon {
+				w.lon, w.hasLon = parseNumber(a.Value)
+			}
+		}
+	}
+	return w
 }
 
 func newPoint(t xml.StartElement) *point {
@@ -307,7 +431,7 @@ func (b *builder) text(data xml.CharData) {
 	if b.collect == "" || b.skip > 0 {
 		return
 	}
-	if len(b.buf)+len(data) > maxNumberText {
+	if b.overflow || len(data) > b.limit-len(b.buf) {
 		b.overflow = true
 		return
 	}
@@ -348,8 +472,18 @@ func (b *builder) end(name string) {
 
 func (b *builder) closeElement(name string) {
 	switch name {
+	case "name", "desc", "sym", "type", "number":
+		// len(stack) is already popped, so the collected element sat one deeper.
+		if b.collect != name || b.collectDepth != len(b.stack)+1 {
+			return
+		}
+		b.collect = ""
+		if b.collectOwner == nil || b.overflow {
+			return
+		}
+		b.collectOwner.put(name, string(b.buf))
 	case "ele", "time":
-		if b.collect != name {
+		if b.collect != name || b.collectDepth != len(b.stack)+1 {
 			return
 		}
 		b.collect = ""
@@ -373,6 +507,19 @@ func (b *builder) closeElement(name string) {
 			b.rsb.add(b.pt, false)
 		}
 		b.pt = nil
+	case "trk":
+		if len(b.tracks) == 0 {
+			return
+		}
+		b.tracks[len(b.tracks)-1].setText(&b.trkText)
+		if len(b.tracks) == 1 {
+			b.firstTrkName = b.trkText.name
+		}
+	case "wpt":
+		if w := b.wpt; w != nil && w.hasLat && w.hasLon {
+			b.waypoints = append(b.waypoints, *w)
+		}
+		b.wpt = nil
 	case "trkseg":
 		if b.tsb == nil || len(b.tracks) == 0 {
 			return
@@ -390,6 +537,10 @@ func (b *builder) closeElement(name string) {
 	case "rte":
 		if b.rsb == nil || len(b.routes) == 0 {
 			return
+		}
+		b.routes[len(b.routes)-1].setText(&b.rteText)
+		if len(b.routes) == 1 {
+			b.firstRteName = b.rteText.name
 		}
 		sb := b.rsb
 		b.rsb = nil
@@ -412,22 +563,14 @@ func (b *builder) finish(fallbackName string) (*Result, error) {
 	if b.sawTrk {
 		source, duration, first = b.tracks, b.trkDuration, b.trkFirst
 	}
-	var start *measuredSegment
-	for ti := range source {
-		if len(source[ti].segments) > 0 {
-			start = &source[ti].segments[0]
-			break
-		}
-	}
-	if start == nil {
+	if _, ok := firstPoint(source); !ok {
 		return nil, ErrNoTrack
 	}
 	m := measure(source)
 	if duration < 0 {
 		duration = -duration
 	}
-	return &Result{
-		Start:         LatLon{Lat: start.lat[0], Lon: start.lon[0]},
+	r := &Result{
 		Distance:      m.distance,
 		ElevationGain: m.gain,
 		ElevationLoss: m.loss,
@@ -438,5 +581,7 @@ func (b *builder) finish(fallbackName string) (*Result, error) {
 		HasElevation:  m.hasElevation,
 		tracks:        source,
 		firstTimes:    first,
-	}, nil
+	}
+	b.deriveTrail(r, fallbackName)
+	return r, nil
 }
