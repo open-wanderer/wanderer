@@ -467,6 +467,86 @@ func TestLimits(t *testing.T) {
 	})
 }
 
+// TestNesting pins WR-03: only the element that directly encloses a child may
+// receive it, as in the TypeScript reader, which looks at direct children only.
+// Malformed nesting must neither move data to another owner nor end an owner
+// early.
+func TestNesting(t *testing.T) {
+	const pointA, pointB = `<trkpt lat="47" lon="11"/>`, `<trkpt lat="47.001" lon="11"/>`
+
+	t.Run("nested trk", func(t *testing.T) {
+		res, err := parseString(`<gpx><trk><name>A</name><trk><name>B</name></trk>` +
+			`<trkseg>` + pointA + pointB + `</trkseg></trk></gpx>`)
+		if err != nil {
+			t.Fatalf("got %v", err)
+		}
+		if res.Name != "A" || res.PointCount != 2 {
+			t.Errorf("Name %q PointCount %d, want A and 2", res.Name, res.PointCount)
+		}
+		if len(res.tracks) != 1 || len(res.tracks[0].segments) != 1 {
+			t.Errorf("%d tracks, want exactly one with one segment", len(res.tracks))
+		}
+	})
+	t.Run("nested trkseg", func(t *testing.T) {
+		res, err := parseString(`<gpx><trk><trkseg>` + pointA + `<trkseg></trkseg>` + pointB + `</trkseg></trk></gpx>`)
+		if err != nil {
+			t.Fatalf("got %v", err)
+		}
+		if res.PointCount != 2 {
+			t.Errorf("PointCount = %d, want 2", res.PointCount)
+		}
+		if len(res.tracks) != 1 || len(res.tracks[0].segments) != 1 {
+			t.Errorf("want one track with one segment holding both points")
+		}
+	})
+	t.Run("nested wpt", func(t *testing.T) {
+		res, err := parseString(`<gpx><wpt lat="47.5" lon="11.5"><name>outer</name>` +
+			`<wpt lat="1" lon="1"><name>inner</name></wpt><desc>d</desc></wpt>` + onePoint + `</gpx>`)
+		if err != nil {
+			t.Fatalf("got %v", err)
+		}
+		if len(res.Waypoints) != 1 {
+			t.Fatalf("%d waypoints, want exactly the outer one: %+v", len(res.Waypoints), res.Waypoints)
+		}
+		if w := res.Waypoints[0]; w.Lat != 47.5 || w.Lon != 11.5 || w.Name != "outer" || w.Description != "d" {
+			t.Errorf("waypoint %+v, want 47.5, 11.5, outer, d", w)
+		}
+	})
+	t.Run("nested trkpt", func(t *testing.T) {
+		res, err := parseString(`<gpx><trk><trkseg><trkpt lat="47" lon="11">` +
+			`<trkpt lat="1" lon="1"><ele>999</ele></trkpt><ele>100</ele></trkpt></trkseg></trk></gpx>`)
+		if err != nil {
+			t.Fatalf("got %v", err)
+		}
+		if res.PointCount != 1 {
+			t.Fatalf("PointCount = %d, want 1", res.PointCount)
+		}
+		seg := res.tracks[0].segments[0]
+		if seg.lat[0] != 47 || seg.lon[0] != 11 || seg.ele[0] != 100 {
+			t.Errorf("point %v,%v ele %v, want 47,11 and 100", seg.lat[0], seg.lon[0], seg.ele[0])
+		}
+	})
+	t.Run("trk inside rte does not block promotion", func(t *testing.T) {
+		res, err := parseString(`<gpx><rte><name>R</name><rtept lat="47" lon="11"/><trk/>` +
+			`<rtept lat="47.001" lon="11"/></rte></gpx>`)
+		if err != nil {
+			t.Fatalf("got %v", err)
+		}
+		if res.Name != "R" || res.PointCount != 2 {
+			t.Errorf("Name %q PointCount %d, want R and 2", res.Name, res.PointCount)
+		}
+	})
+	t.Run("root-level trkseg is ignored", func(t *testing.T) {
+		res, err := parseString(`<gpx><trkseg><trkpt lat="1" lon="1"/></trkseg>` + onePoint + `</gpx>`)
+		if err != nil {
+			t.Fatalf("got %v", err)
+		}
+		if want := (LatLon{Lat: 47, Lon: 11}); res.PointCount != 1 || res.Start != want {
+			t.Errorf("PointCount %d Start %+v, want 1 and %+v", res.PointCount, res.Start, want)
+		}
+	})
+}
+
 func TestNoInputEcho(t *testing.T) {
 	const marker = "ZZ-SECRET-MARKER"
 	cases := map[string]string{

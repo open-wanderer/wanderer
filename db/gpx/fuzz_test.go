@@ -78,6 +78,10 @@ func fuzzSeeds(f *testing.F) [][]byte {
 		[]byte(`<gpx><trk><trkseg><trkpt lat="1e308" lon="11"/><trkpt lat="1e308" lon="11"/><trkpt lat="47" lon="11"/></trkseg></trk></gpx>`),
 		// CR-02: a flood of empty track and route elements, then one real track.
 		[]byte("<gpx>"+strings.Repeat("<trk/><rte/>", 40)+track+"</gpx>"),
+		// WR-03: malformed nesting of tracks, segments and waypoints.
+		[]byte(`<gpx><trk><name>A</name><trk><name>B</name></trk><trkseg><trkpt lat="47" lon="11"/><trkpt lat="47.001" lon="11"/></trkseg></trk></gpx>`),
+		[]byte(`<gpx><trk><trkseg><trkpt lat="47" lon="11"/><trkseg></trkseg><trkpt lat="47.001" lon="11"/></trkseg></trk></gpx>`),
+		[]byte(`<gpx><wpt lat="47.5" lon="11.5"><name>outer</name><wpt lat="1" lon="1"><name>inner</name></wpt><desc>d</desc></wpt>`+track+`</gpx>`),
 	)
 	return seeds
 }
