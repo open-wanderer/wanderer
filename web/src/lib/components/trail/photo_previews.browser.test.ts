@@ -85,15 +85,15 @@ it("reads only the three visible waypoint uploads and shares previews between ca
     flushSync();
     await vi.waitFor(() => expect(first.querySelectorAll("img")).toHaveLength(3));
     expect([...first.querySelectorAll("img")].map((image) => image.getAttribute("src"))).toEqual([
-        "data:photo-0.jpg", "data:photo-1.jpg", "data:photo-2.jpg",
+        "data:photo-4.jpg", "data:photo-3.jpg", "data:photo-2.jpg",
     ]);
-    expect(reader.mock.calls.map(([file]) => file)).toEqual(waypoint._photos.slice(0, 3));
+    expect(reader.mock.calls.map(([file]) => file)).toEqual(waypoint._photos.slice(-3));
     const second = target();
     mounted.push(mount(WaypointCard, { target: second, props: { waypoint, mode: "edit" } }));
     flushSync();
     await vi.waitFor(() => expect(second.querySelectorAll("img")).toHaveLength(3));
     expect([...second.querySelectorAll("img")].map((image) => image.getAttribute("src"))).toEqual([
-        "data:photo-0.jpg", "data:photo-1.jpg", "data:photo-2.jpg",
+        "data:photo-4.jpg", "data:photo-3.jpg", "data:photo-2.jpg",
     ]);
     expect(reader).toHaveBeenCalledTimes(3);
 });

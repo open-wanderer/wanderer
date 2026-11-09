@@ -17,12 +17,12 @@ describe("waypoint photo previews", () => {
         const reader = vi.spyOn(files, "readAsDataURLAsync").mockImplementation(async (file) => `data:${file.name}`);
         try {
             const photos = Array.from({ length: 30 }, (_, i) => new File(["photo"], `photo-${i}.jpg`));
-            expect(await waypointFilePreviews(photos)).toEqual(["data:photo-0.jpg", "data:photo-1.jpg", "data:photo-2.jpg"]);
+            expect(await waypointFilePreviews(photos)).toEqual(["data:photo-27.jpg", "data:photo-28.jpg", "data:photo-29.jpg"]);
             for (let i = 0; i < 5; i++) await waypointFilePreviews([...photos]);
             expect(reader).toHaveBeenCalledTimes(3);
 
-            photos[2] = new File(["replacement"], "replacement.jpg");
-            expect(await waypointFilePreviews(photos)).toEqual(["data:photo-0.jpg", "data:photo-1.jpg", "data:replacement.jpg"]);
+            photos[29] = new File(["replacement"], "replacement.jpg");
+            expect(await waypointFilePreviews(photos)).toEqual(["data:photo-27.jpg", "data:photo-28.jpg", "data:replacement.jpg"]);
             expect(reader).toHaveBeenCalledTimes(4);
         } finally {
             reader.mockRestore();

@@ -43,7 +43,7 @@ The upgrade keeps existing trail, waypoint and summit-log photos as assets, with
 
 Trail and waypoint photo links can be edited by the trail's author or a user with a current edit share. Creating a waypoint does not grant separate photo rights after the share ends. Summit-log photo links can be edited only by the entry's author or the trail's author. Asset authors can still withdraw their own photos by unlinking or deleting them.
 
-Server-generated route-placeholder SVGs are generated assets. Real photos take precedence in thumbnails and previews, and a trail with only its placeholder still shows it. Placeholders are not attached to outgoing federation activities.
+Server-generated route-placeholder SVGs are generated assets linked to a trail or summit-log entry. A usable GPX produces one when the record has no real photos. GPX changes redraw it; unrelated metadata edits keep the existing image. Attaching a real photo removes the generated link, and removing the last real photo restores it from the route. Shared generated assets remain available to their other targets, and selected real thumbnails stay selected. Real photos take precedence in thumbnails and previews, and a trail with only its placeholder still shows it. Placeholders are not attached to outgoing federation activities.
 
 ## Contributed photos
 

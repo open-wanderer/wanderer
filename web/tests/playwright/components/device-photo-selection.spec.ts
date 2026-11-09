@@ -4,7 +4,7 @@ import { buildDevicePhotoFixture, devicePhoto } from './device-photo-fixture';
 declare global {
     interface Window {
         photoToasts: { type: string; icon: string; text: string; duration: number }[];
-        readDevicePhoto: (bytes: number[]) => Promise<{ coordinates?: { lat: number; lon: number }; fileType?: string }>;
+        readDevicePhoto: (bytes: number[]) => Promise<{ coordinates?: { lat: number; lon: number }; metadata?: { coordinates?: { lat: number; lon: number } }; fileType?: string }>;
         photoReads: string[];
     }
 }
@@ -146,7 +146,7 @@ for (const format of ['jpeg', 'png', 'webp', 'heic', 'heif'] as const) {
             expect(await page.evaluate(() => window.photoToasts)).toEqual([]);
         } else {
             await expect.poll(() => page.evaluate(() => window.photoToasts)).toEqual([
-                { type: 'warning', icon: 'warning', text: `${name}: no-gps-data-in-image`, duration: 10000 },
+                { type: 'error', icon: 'warning', text: `photo-conversion-failed {"file":"${name}"}`, duration: 10000 },
             ]);
             await expect(page.getByTestId('photo-waypoint')).toHaveCount(0);
         }

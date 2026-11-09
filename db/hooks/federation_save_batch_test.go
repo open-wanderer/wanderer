@@ -215,3 +215,31 @@ func TestCompletingSaveReturnsWhileActivityDeliveryIsBlocked(t *testing.T) {
 		}
 	})
 }
+
+func TestFederationSaveBatchAnnouncesEntryAfterPhotoRemoval(t *testing.T) {
+	f := newFederationUpdatesFixture(t)
+	synctest.Test(t, func(t *testing.T) {
+		f.t = t
+		author := f.save(f.actors, map[string]any{"is_local": true})
+		trail := f.save(f.trails, map[string]any{"public": true, "author": author.Id})
+		entry := f.save(f.logs, map[string]any{"trail": trail.Id, "author": author.Id})
+		removed := f.link("summit_log_assets", "summit_log", entry)
+		f.link("summit_log_assets", "summit_log", entry)
+		time.Sleep(6 * testFederationUpdateDelay)
+		f.check(federatedActivity{typ: pub.UpdateType, target: "summit_logs/" + entry.Id, photos: 2})
+		const token = "entry-editor-save-token"
+		if !f.updates.BeginSave(entry, token) {
+			t.Fatal("entry lease not acquired")
+		}
+		f.updates.Enqueue(entry)
+		time.Sleep(6 * testFederationUpdateDelay)
+		f.check()
+		if err := f.app.Delete(removed); err != nil {
+			t.Fatal(err)
+		}
+		if !f.updates.CompleteSave(entry, token) {
+			t.Fatal("entry lease not completed")
+		}
+		f.expect(federatedActivity{typ: pub.UpdateType, target: "summit_logs/" + entry.Id, photos: 1})
+	})
+}

@@ -19,10 +19,10 @@ export class IndexPage {
       resp.url().includes('/api/v1/search/multi') && resp.status() === 200
     );
     
-    await this.page.locator('input[name="q"]').fill('Munich');
+    await this.page.getByRole('searchbox').fill('Munich');
     await responsePromise;
     
-    await this.page.locator('.menu-item').first().click();
+    await this.page.locator('.menu-item:visible').first().click();
     await this.page.waitForURL(url => url.pathname === '/map' && url.searchParams.has('lat') && url.searchParams.has('lon'));
     await expect(this.page.locator('.maplibregl-canvas')).toBeVisible();
 

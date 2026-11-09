@@ -169,3 +169,17 @@ describe("PhotoPicker photo removal", () => {
         expect(form.target.querySelector('[style*="background-image"]')?.getAttribute("style")).toContain("new.jpg");
     });
 });
+
+it("deletes a pending photo when saved photos were omitted", async () => {
+    const target = document.createElement("div");
+    document.body.append(target);
+    const photoFile = new File(["photo"], "pending.jpg", { type: "image/jpeg" });
+    vi.spyOn(files, "readAsDataURLAsync").mockResolvedValue("data:image/jpeg;base64,cGhvdG8=");
+    mounted.push(mount(PhotoPicker, { target, props: { id: "optional", parent: {}, photos: undefined, photoFiles: [photoFile] } }));
+    await tick();
+    flushSync();
+    await tick();
+    await vi.waitFor(() => expect(target.querySelectorAll('button[aria-label="Delete photo"]')).toHaveLength(1));
+    await removePhoto(target, 0);
+    expect(target.querySelectorAll('button[aria-label="Delete photo"]')).toHaveLength(0);
+});

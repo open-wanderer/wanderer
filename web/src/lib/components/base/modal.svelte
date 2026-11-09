@@ -69,6 +69,10 @@
     let dialog: HTMLDialogElement | undefined;
     let lockedDialog: HTMLDialogElement | undefined;
 
+    export function isOpen() {
+        return dialog?.open ?? false;
+    }
+
     export function openModal() {
         if (!dialog || dialog.open) return;
         acquireScrollLock(dialog);

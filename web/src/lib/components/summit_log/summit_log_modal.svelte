@@ -17,21 +17,27 @@
     import TrailPicker from "../trail/trail_picker.svelte";
     import type { SummitLog } from "#lib/models/summit_log.ts";
     import Editor from "../base/editor.svelte";
+    import Button from "../base/button.svelte";
     interface Props {
         children?: Snippet<[any]>;
-        onsave?: (summitLog: SummitLog) => void;
+        onsave?: (summitLog: SummitLog) => void | boolean | Promise<void | boolean>;
     }
 
     let { children, onsave }: Props = $props();
 
     let modal: Modal;
+    let saving = $state(false);
+    let openGeneration = 0;
 
     export function openModal() {
+        openGeneration++;
         modal.openModal();
     }
 
     const ClientSummitLogCreateSchema = SummitLogCreateSchema.extend({
         _photos: z.array(z.instanceof(File)).optional(),
+        photos: z.array(z.string()).optional(),
+        _assetLinks: z.array(z.string()).optional(),
         _gpx: z.instanceof(Blob).optional().nullable(),
         expand: z
             .object({
@@ -46,8 +52,19 @@
         initialValues: $summitLog,
         extend: validator({ schema: ClientSummitLogCreateSchema }),
         onSubmit: async (form) => {
-            onsave?.(form);
-            modal.closeModal!();
+            if (saving) return;
+            saving = true;
+            const generation = openGeneration;
+            try {
+                const shouldClose = await onsave?.(form);
+                // Closing/reopening must not let this save overwrite a new draft.
+                // Read live state: a native close event can be queued past reopen.
+                if (generation !== openGeneration || !modal?.isOpen()) return;
+                if (shouldClose === false) setFields(form);
+                else modal.closeModal!();
+            } finally {
+                saving = false;
+            }
         },
     });
 
@@ -133,7 +150,7 @@
     size="md:min-w-2xl"
     bind:this={modal}
 >
-    {#snippet children({ openModal })}
+    {#snippet children()}
         {@render children_render?.({ openModal })}
     {/snippet}
     {#snippet content()}
@@ -156,7 +173,7 @@
                 <PhotoPicker
                     id="summitlog-photo-input"
                     parent={$data}
-                    bind:photos={$data.photos}
+                    bind:photos={() => $data.photos ?? [], (value) => $data.photos = value}
                     bind:photoFiles={$data._photos}
                     showThumbnailControls={false}
                 ></PhotoPicker>
@@ -188,9 +205,10 @@
             <button class="btn-secondary" onclick={() => modal.closeModal()}
                 >{$_("cancel")}</button
             >
-            <button class="btn-primary" type="submit" form="summit-log-form"
-                >{$_("save")}</button
-            >
+            <Button primary type="submit" form="summit-log-form" loading={saving}
+                aria-label={$_("save")} aria-busy={saving}>
+                {$_("save")}
+            </Button>
         </div>
     {/snippet}
 </Modal>
