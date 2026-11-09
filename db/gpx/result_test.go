@@ -169,6 +169,13 @@ func TestStartDate(t *testing.T) {
 		{"first point has no time", at("", "2024-05-01T11:00:00Z"), ""},
 		{"no times", at("", ""), ""},
 		{"date is UTC", at("2024-05-01T23:30:00-02:00", "2024-05-02T01:00:00Z"), "2024-05-02"},
+		// WR-01: StartDate is YYYY-MM-DD or empty. TS's substring(0, 10) of an
+		// expanded-year ISO string is not a date, so years outside 0000-9999 give "".
+		{"six-digit year gives no date", at("+012345-01-01T00:00:00Z", "+012345-01-01T01:00:00Z"), ""},
+		{"negative year gives no date", at("-000001-06-01T00:00:00Z", "-000001-06-01T01:00:00Z"), ""},
+		{"year 9999 keeps its date", at("9999-12-31T10:00:00Z", "9999-12-31T11:00:00Z"), "9999-12-31"},
+		{"year 0000 keeps its date", at("0000-01-01T10:00:00Z", "0000-01-01T11:00:00Z"), "0000-01-01"},
+		{"offset moves year 0000 into year -1", at("0000-01-01T00:30:00+01:00", "0000-01-01T02:00:00Z"), ""},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			res := mustParse(t, tt.doc, "")

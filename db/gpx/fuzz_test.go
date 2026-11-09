@@ -9,6 +9,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -82,9 +83,18 @@ func fuzzSeeds(f *testing.F) [][]byte {
 		[]byte(`<gpx><trk><name>A</name><trk><name>B</name></trk><trkseg><trkpt lat="47" lon="11"/><trkpt lat="47.001" lon="11"/></trkseg></trk></gpx>`),
 		[]byte(`<gpx><trk><trkseg><trkpt lat="47" lon="11"/><trkseg></trkseg><trkpt lat="47.001" lon="11"/></trkseg></trk></gpx>`),
 		[]byte(`<gpx><wpt lat="47.5" lon="11.5"><name>outer</name><wpt lat="1" lon="1"><name>inner</name></wpt><desc>d</desc></wpt>`+track+`</gpx>`),
+		// WR-01: times in the six-digit signed and four-digit boundary years.
+		[]byte(`<gpx><trk><trkseg><trkpt lat="47" lon="11"><time>+012345-01-01T00:00:00Z</time></trkpt><trkpt lat="47.001" lon="11"><time>-000001-06-01T12:00:00Z</time></trkpt><trkpt lat="47.002" lon="11"><time>9999-12-31T23:59:59.999Z</time></trkpt></trkseg></trk></gpx>`),
 	)
 	return seeds
 }
+
+var (
+	// isoTimePattern is every non-null GeoJSON time: Date.prototype.toISOString.
+	isoTimePattern = regexp.MustCompile(`^(\d{4}|[+-]\d{6})-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$`)
+	// startDatePattern is a non-empty StartDate.
+	startDatePattern = regexp.MustCompile(`^\d{4}-\d\d-\d\d$`)
+)
 
 func finite(vs ...float64) bool {
 	for _, v := range vs {
@@ -180,13 +190,37 @@ func checkResult(t *testing.T, res *Result) {
 		t.Fatalf("GeoJSON is not valid JSON")
 	}
 	var doc struct {
-		Bbox []float64 `json:"bbox"`
+		Bbox     []float64 `json:"bbox"`
+		Features []struct {
+			Properties struct {
+				CoordinateProperties struct {
+					Times []*string `json:"times"`
+				} `json:"coordinateProperties"`
+			} `json:"properties"`
+		} `json:"features"`
 	}
 	if err := json.Unmarshal(raw, &doc); err != nil {
 		t.Fatalf("GeoJSON decode: %v", err)
 	}
 	if len(doc.Bbox) != 4 || !finite(doc.Bbox...) {
 		t.Fatalf("GeoJSON bbox = %v, want four finite numbers", doc.Bbox)
+	}
+	// WR-01: every stored time is a toISOString string that parseTime reads back.
+	for fi, feat := range doc.Features {
+		for ti, ts := range feat.Properties.CoordinateProperties.Times {
+			if ts == nil {
+				continue
+			}
+			if !isoTimePattern.MatchString(*ts) {
+				t.Fatalf("feature %d time %d = %q, want the toISOString form", fi, ti, *ts)
+			}
+			if _, ok := parseTime(*ts); !ok {
+				t.Fatalf("feature %d time %d = %q does not read back through parseTime", fi, ti, *ts)
+			}
+		}
+	}
+	if res.StartDate != "" && !startDatePattern.MatchString(res.StartDate) {
+		t.Fatalf("StartDate = %q, want empty or YYYY-MM-DD", res.StartDate)
 	}
 }
 
