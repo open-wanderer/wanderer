@@ -556,6 +556,111 @@ func TestNesting(t *testing.T) {
 			t.Errorf("PointCount %d Start %+v, want 1 and %+v", res.PointCount, res.Start, want)
 		}
 	})
+
+	// Content after the first top-level element is not parsed, as the node
+	// (xml2js) path of the TypeScript reader does (WR-02).
+	t.Run("double root reads only the first", func(t *testing.T) {
+		res, err := parseString(`<gpx>` + onePoint + `</gpx><gpx><trk><trkseg><trkpt lat="48" lon="12"/></trkseg></trk></gpx>`)
+		if err != nil {
+			t.Fatalf("got %v", err)
+		}
+		if res.PointCount != 1 {
+			t.Errorf("PointCount = %d, want 1", res.PointCount)
+		}
+		if want := (LatLon{Lat: 47, Lon: 11}); res.Start != want {
+			t.Errorf("Start %+v, want %+v", res.Start, want)
+		}
+		if want := (Bounds{MinLat: 47, MaxLat: 47, MinLon: 11, MaxLon: 11}); res.Bounds != want {
+			t.Errorf("Bounds %+v, want %+v", res.Bounds, want)
+		}
+		if len(res.tracks) != 1 {
+			t.Errorf("%d tracks, want 1", len(res.tracks))
+		}
+	})
+	t.Run("incomplete tail after the root is ignored", func(t *testing.T) {
+		for _, tail := range []string{`<!-- c`, `<tr`, `<![CDATA[x`, `<?pi x`} {
+			res, err := parseString(`<gpx>` + onePoint + `</gpx>` + tail)
+			if err != nil {
+				t.Errorf("tail %q: got %v", tail, err)
+				continue
+			}
+			if res.PointCount != 1 {
+				t.Errorf("tail %q: PointCount = %d, want 1", tail, res.PointCount)
+			}
+		}
+	})
+	t.Run("stray end tag after the root is ignored", func(t *testing.T) {
+		res, err := parseString(`<gpx>` + onePoint + `</gpx></foo>`)
+		if err != nil {
+			t.Fatalf("got %v", err)
+		}
+		if res.PointCount != 1 {
+			t.Errorf("PointCount = %d, want 1", res.PointCount)
+		}
+	})
+	t.Run("leading non-GPX root ends the document", func(t *testing.T) {
+		res, err := parseString(`<foo/><gpx>` + onePoint + `</gpx>`)
+		wantErr(t, res, err, ErrNoTrack)
+	})
+	t.Run("stray end tag inside the root stays malformed", func(t *testing.T) {
+		docs := map[string]string{
+			"between points": `<gpx><trk><trkseg><trkpt lat="47" lon="11"/></foo>` +
+				`<trkpt lat="47.001" lon="11"/></trkseg></trk></gpx>`,
+			"after the last child": `<gpx>` + onePoint + `</foo></gpx>`,
+		}
+		for name, doc := range docs {
+			t.Run(name, func(t *testing.T) {
+				res, err := parseString(doc)
+				wantErr(t, res, err, ErrMalformed)
+			})
+		}
+	})
+	t.Run("bytes past the cap after a complete root are not read", func(t *testing.T) {
+		head := `<gpx>` + onePoint + `</gpx>`
+		src := hostileSource(head, " x", 4096, "")
+		res, err := Parse(src, int64(len(head)), "")
+		if err != nil {
+			t.Fatalf("got %v", err)
+		}
+		if res.PointCount != 1 {
+			t.Errorf("PointCount = %d, want 1", res.PointCount)
+		}
+		if src.n > int64(len(head))+1 {
+			t.Errorf("read %d bytes, want at most %d", src.n, len(head)+1)
+		}
+	})
+	t.Run("stdlib unwinds a stray end tag without reading input", func(t *testing.T) {
+		d := xml.NewDecoder(strings.NewReader(`<a><b></c>`))
+		d.Strict = false
+		var got []string
+		var offsets []int64
+		var final error
+		for {
+			tok, err := d.Token()
+			if err != nil {
+				final = err
+				offsets = append(offsets, d.InputOffset())
+				break
+			}
+			switch el := tok.(type) {
+			case xml.StartElement:
+				got = append(got, "start "+el.Name.Local)
+			case xml.EndElement:
+				got = append(got, "end "+el.Name.Local)
+				offsets = append(offsets, d.InputOffset())
+			}
+		}
+		if want := []string{"start a", "start b", "end b", "end a"}; strings.Join(got, ",") != strings.Join(want, ",") {
+			t.Errorf("tokens %v, want %v", got, want)
+		}
+		var se *xml.SyntaxError
+		if !errors.As(final, &se) {
+			t.Fatalf("final error %v, want a *xml.SyntaxError", final)
+		}
+		if len(offsets) != 3 || offsets[0] != 10 || offsets[1] != 10 || offsets[2] != 10 {
+			t.Errorf("offsets %v, want 10 after each of the two end elements and the error", offsets)
+		}
+	})
 }
 
 func TestNoInputEcho(t *testing.T) {
