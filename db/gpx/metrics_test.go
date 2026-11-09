@@ -119,3 +119,19 @@ func TestLegsDurationDifferential(t *testing.T) {
 		}
 	}
 }
+
+// TestDurationMinInt64 pins the one sum that cannot be negated: finish makes a
+// negative duration positive, which math.MinInt64 has no representation for.
+func TestDurationMinInt64(t *testing.T) {
+	b := newBuilder()
+	b.sawTrk = true
+	b.tracks = []measuredTrack{{segments: []measuredSegment{{
+		lat:    []float64{47},
+		lon:    []float64{11},
+		ele:    []float64{math.NaN()},
+		timeMs: []int64{noTime},
+	}}}}
+	b.trkDuration = math.MinInt64
+	res, err := b.finish("")
+	wantErr(t, res, err, ErrMalformed)
+}

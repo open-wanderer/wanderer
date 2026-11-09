@@ -83,6 +83,18 @@ func entityBomb() string {
 	return sb.String()
 }
 
+// The earliest and latest instants the time grammar accepts. A positionless
+// segment running from one to the other adds 17,280,000,000,000,000 ms to the
+// duration, so 533 of them fit in an int64 and 534 do not.
+const (
+	earliestTime   = `<time>-271821-04-20T00:00:00Z</time>`
+	latestTime     = `<time>+275760-09-13T00:00:00Z</time>`
+	extremeSegment = `<trkseg><trkpt>` + earliestTime + `</trkpt><trkpt>` + latestTime + `</trkpt></trkseg>`
+	// anchoredPair closes one extreme leg per pair, inside a single segment.
+	anchoredPair = `<trkpt>` + earliestTime + `<extensions><wanderer:anchor/></extensions></trkpt><trkpt>` + latestTime + `</trkpt>`
+	extremeRoute = `<rte><rtept lat="47" lon="11">` + earliestTime + `</rtept><rtept lat="47.001" lon="11">` + latestTime + `</rtept></rte>`
+)
+
 type hostileCase struct {
 	name string
 	// src builds the input; the counting reader is returned so the case can
@@ -242,6 +254,44 @@ func TestHostileInputs(t *testing.T) {
 					`</trkseg></trk></gpx>`)}
 			},
 			maxBytes: 25 << 20, want: []error{ErrNoTrack}, maxRead: 1 << 20,
+		},
+		{
+			name: "duration at the int64 edge parses",
+			src: func() *countingReader {
+				return hostileSource(`<gpx><trk><trkseg><trkpt lat="47" lon="11"/></trkseg>`, extremeSegment, 533, `</trk></gpx>`)
+			},
+			maxBytes: 25 << 20, want: nil, maxRead: 1 << 20,
+			check: func(t *testing.T, res *Result) {
+				if res.DurationMs != 9210240000000000000 || res.PointCount != 1 {
+					t.Errorf("DurationMs %d PointCount %d, want 9210240000000000000 and 1", res.DurationMs, res.PointCount)
+				}
+			},
+		},
+		{
+			name: "duration past int64 is malformed",
+			src: func() *countingReader {
+				return hostileSource(`<gpx><trk><trkseg><trkpt lat="47" lon="11"/></trkseg>`, extremeSegment, 534, `</trk></gpx>`)
+			},
+			maxBytes: 25 << 20, want: []error{ErrMalformed}, maxRead: 1 << 20,
+		},
+		{
+			name: "anchored legs past int64 in one segment are malformed",
+			src: func() *countingReader {
+				return hostileSource(`<gpx><trk><trkseg><trkpt lat="47" lon="11"/></trkseg><trkseg>`, anchoredPair, 600, `</trkseg></trk></gpx>`)
+			},
+			maxBytes: 25 << 20, want: []error{ErrMalformed}, maxRead: 1 << 20,
+		},
+		{
+			name: "an overflowing route store beside a track is not measured",
+			src: func() *countingReader {
+				return hostileSource(`<gpx>`, extremeRoute, 534, `<trk><trkseg><trkpt lat="47" lon="11"/></trkseg></trk></gpx>`)
+			},
+			maxBytes: 25 << 20, want: nil, maxRead: 1 << 20,
+			check: func(t *testing.T, res *Result) {
+				if res.DurationMs != 0 || res.PointCount != 1 {
+					t.Errorf("DurationMs %d PointCount %d, want 0 and 1 (routes beside a track are not measured)", res.DurationMs, res.PointCount)
+				}
+			},
 		},
 		{
 			name: "broken UTF-16 surrogate",
