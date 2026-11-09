@@ -188,6 +188,17 @@ func measure(tracks []measuredTrack) measurement {
 	}
 }
 
+// addDuration adds two millisecond durations and reports false when the sum
+// does not fit in an int64. Overflow shows when a and b share a sign and the
+// sum's sign differs from it.
+func addDuration(a, b int64) (int64, bool) {
+	sum := a + b
+	if (a >= 0) == (b >= 0) && (sum >= 0) != (a >= 0) {
+		return sum, false
+	}
+	return sum, true
+}
+
 // legsAccumulator is the incremental, exact form of legsDurationMs in
 // web/src/lib/models/gpx/track-segment.ts: the summed time of a segment's legs,
 // where a marked anchor opens a new leg and the hop into it belongs to neither.
@@ -199,6 +210,10 @@ func measure(tracks []measuredTrack) measurement {
 // times exist. Point i is only known to be interior once point i+1 arrives, so
 // the accumulator keeps the last two points' times and the last point's anchor
 // flag, plus the leg start, and total() closes the final leg without mutating.
+//
+// A single leg is the difference of two times the time grammar bounds to about
+// +-8.64e15 ms, so it cannot overflow. The sum of many legs can, and a failed
+// addition sets overflow for good instead of wrapping.
 type legsAccumulator struct {
 	n              int   // points added so far
 	sum            int64 // legs closed so far
@@ -207,6 +222,7 @@ type legsAccumulator struct {
 	lastTime       int64 // time of point n-1
 	beforeLastTime int64 // time of point n-2
 	lastAnchor     bool  // whether point n-1 is an anchor
+	overflow       bool  // a leg sum did not fit in an int64; the total is unusable
 }
 
 // leg is addLeg(end) for a point at index end with the given time.
@@ -225,7 +241,10 @@ func (l *legsAccumulator) add(timeMs int64, anchor bool) {
 	}
 	// Point n-1 is interior (index >= 1, with a successor) once n >= 2.
 	if l.n >= 2 && l.lastAnchor {
-		l.sum += l.leg(l.n-2, l.beforeLastTime)
+		var ok bool
+		if l.sum, ok = addDuration(l.sum, l.leg(l.n-2, l.beforeLastTime)); !ok {
+			l.overflow = true
+		}
 		l.legStart = l.n - 1
 		l.legStartTime = l.lastTime
 	}
@@ -235,10 +254,13 @@ func (l *legsAccumulator) add(timeMs int64, anchor bool) {
 	l.n++
 }
 
-// total is the summed leg duration of the points added so far.
-func (l *legsAccumulator) total() int64 {
+// total is the summed leg duration of the points added so far. ok is false
+// when a sum overflowed an int64, in which case the value must not be used. It
+// is a pure read.
+func (l *legsAccumulator) total() (int64, bool) {
 	if l.n == 0 {
-		return 0
+		return 0, true
 	}
-	return l.sum + l.leg(l.n-1, l.lastTime)
+	sum, ok := addDuration(l.sum, l.leg(l.n-1, l.lastTime))
+	return sum, ok && !l.overflow
 }

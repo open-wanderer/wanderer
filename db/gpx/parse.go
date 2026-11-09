@@ -292,6 +292,10 @@ type builder struct {
 	// Signed duration sums of each store: a segment counts even when all of
 	// its points are positionless.
 	trkDuration, rteDuration int64
+	// Set when a sum into the matching duration overflowed an int64. Only the
+	// measured store's flag is read (D-04), so an overflowing route store beside
+	// a track fails nothing.
+	trkOverflow, rteOverflow bool
 	// Times of the first <trkseg> of the first <trk>, and of the first <rte>.
 	trkFirst, rteFirst segmentTimes
 
@@ -613,7 +617,11 @@ func (b *builder) closeElement(name string) {
 		}
 		sb := b.tsb
 		b.tsb = nil
-		b.trkDuration += sb.legs.total()
+		legs, legsOK := sb.legs.total()
+		var sumOK bool
+		if b.trkDuration, sumOK = addDuration(b.trkDuration, legs); !legsOK || !sumOK {
+			b.trkOverflow = true
+		}
 		if len(b.tracks) == 1 && sb.seg.fileIndex == 0 {
 			b.trkFirst = sb.times()
 		}
@@ -632,7 +640,11 @@ func (b *builder) closeElement(name string) {
 		}
 		sb := b.rsb
 		b.rsb = nil
-		b.rteDuration += sb.legs.total()
+		legs, legsOK := sb.legs.total()
+		var sumOK bool
+		if b.rteDuration, sumOK = addDuration(b.rteDuration, legs); !legsOK || !sumOK {
+			b.rteOverflow = true
+		}
 		if len(b.routes) == 1 {
 			b.rteFirst = sb.times()
 		}
@@ -648,9 +660,9 @@ func (b *builder) closeElement(name string) {
 // tracks when the file has any <trk> element, otherwise its routes promoted to
 // one segment each (D-04). A <rte> beside a <trk> contributes nothing.
 func (b *builder) finish(fallbackName string) (*Result, error) {
-	source, duration, first := b.routes, b.rteDuration, b.rteFirst
+	source, duration, first, overflow := b.routes, b.rteDuration, b.rteFirst, b.rteOverflow
 	if b.sawTrk {
-		source, duration, first = b.tracks, b.trkDuration, b.trkFirst
+		source, duration, first, overflow = b.tracks, b.trkDuration, b.trkFirst, b.trkOverflow
 	}
 	if _, ok := firstPoint(source); !ok {
 		return nil, ErrNoTrack
@@ -658,6 +670,11 @@ func (b *builder) finish(fallbackName string) (*Result, error) {
 	m := measure(source)
 	if err := checkMeasurement(m); err != nil {
 		return nil, err
+	}
+	// An overflowed sum is a wrapped number, and math.MinInt64 cannot be
+	// negated: neither is a duration, so both are an unusable measurement.
+	if overflow || duration == math.MinInt64 {
+		return nil, fmt.Errorf("%w: measurement out of range", ErrMalformed)
 	}
 	if duration < 0 {
 		duration = -duration

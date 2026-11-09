@@ -113,8 +113,9 @@ func TestLegsDurationDifferential(t *testing.T) {
 			anchors[i] = rng.IntN(10) < 3
 			acc.add(times[i], anchors[i])
 			// total() is a pure read: it must agree with the oracle after every prefix.
-			if got, want := acc.total(), naiveLegsDuration(times[:i+1], anchors[:i+1]); got != want {
-				t.Fatalf("sequence %d prefix %d: incremental %d, naive %d (times %v anchors %v)", n, i+1, got, want, times[:i+1], anchors[:i+1])
+			got, ok := acc.total()
+			if want := naiveLegsDuration(times[:i+1], anchors[:i+1]); !ok || got != want {
+				t.Fatalf("sequence %d prefix %d: incremental %d (ok %v), naive %d (times %v anchors %v)", n, i+1, got, ok, want, times[:i+1], anchors[:i+1])
 			}
 		}
 	}
@@ -134,4 +135,64 @@ func TestDurationMinInt64(t *testing.T) {
 	b.trkDuration = math.MinInt64
 	res, err := b.finish("")
 	wantErr(t, res, err, ErrMalformed)
+}
+
+func TestAddDuration(t *testing.T) {
+	tests := []struct {
+		a, b   int64
+		want   int64
+		wantOK bool
+	}{
+		{5, -3, 2, true},
+		{0, 0, 0, true},
+		{math.MaxInt64, 0, math.MaxInt64, true},
+		{math.MinInt64, 0, math.MinInt64, true},
+		{math.MaxInt64, math.MinInt64, -1, true},
+		{math.MaxInt64, 1, 0, false},
+		{math.MinInt64, -1, 0, false},
+		{math.MinInt64, math.MinInt64, 0, false},
+		{math.MaxInt64, math.MaxInt64, 0, false},
+	}
+	for _, tc := range tests {
+		got, ok := addDuration(tc.a, tc.b)
+		if ok != tc.wantOK || (ok && got != tc.want) {
+			t.Errorf("addDuration(%d, %d) = (%d, %v), want (%d, %v)", tc.a, tc.b, got, ok, tc.want, tc.wantOK)
+		}
+	}
+}
+
+// TestLegsAccumulatorOverflow feeds extreme anchored legs, one 17,280,000,000,000,000 ms
+// leg per pair. 533 pairs sum to 9210240000000000000 and fit, a 534th does not.
+func TestLegsAccumulatorOverflow(t *testing.T) {
+	const (
+		earliest = int64(-8_640_000_000_000_000)
+		latest   = int64(8_640_000_000_000_000)
+		perLeg   = latest - earliest
+	)
+	var acc legsAccumulator
+	for pair := 1; pair <= 534; pair++ {
+		acc.add(earliest, pair > 1)
+		acc.add(latest, false)
+		got, ok := acc.total()
+		if pair <= 533 {
+			if !ok || got != int64(pair)*perLeg {
+				t.Fatalf("after %d pairs total = (%d, %v), want (%d, true)", pair, got, ok, int64(pair)*perLeg)
+			}
+			continue
+		}
+		if ok {
+			t.Fatalf("after %d pairs total = (%d, true), want overflow", pair, got)
+		}
+	}
+	// The 534th leg is still open, so total() reports it without latching
+	// anything. Closing it with an anchor sets the flag for good, and later
+	// points cannot clear it.
+	acc.add(earliest, true)
+	acc.add(earliest, false)
+	for i := 0; i < 3; i++ {
+		if _, ok := acc.total(); ok {
+			t.Fatalf("overflow flag was cleared after %d further points", i)
+		}
+		acc.add(earliest, false)
+	}
 }

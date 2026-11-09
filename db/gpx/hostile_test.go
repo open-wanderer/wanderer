@@ -262,8 +262,9 @@ func TestHostileInputs(t *testing.T) {
 			},
 			maxBytes: 25 << 20, want: nil, maxRead: 1 << 20,
 			check: func(t *testing.T, res *Result) {
-				if res.DurationMs != 9210240000000000000 || res.PointCount != 1 {
-					t.Errorf("DurationMs %d PointCount %d, want 9210240000000000000 and 1", res.DurationMs, res.PointCount)
+				const want = 9210240000000000000 // 533 extreme segments, the most an int64 holds
+				if res.DurationMs != want || res.PointCount != 1 {
+					t.Errorf("DurationMs %d PointCount %d, want %d and 1", res.DurationMs, res.PointCount, want)
 				}
 			},
 		},
