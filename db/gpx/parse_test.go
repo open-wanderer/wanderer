@@ -522,6 +522,19 @@ func TestParseNumber(t *testing.T) {
 	}
 }
 
+func TestParseBounded(t *testing.T) {
+	for _, in := range []string{"1000000", "-1000000", " 1e6 ", "0", "-0.5"} {
+		if _, ok := parseBounded(in, 1e6); !ok {
+			t.Errorf("parseBounded(%q, 1e6) rejected, want kept", in)
+		}
+	}
+	for _, in := range []string{"1000000.1", "-1000000.1", "1e7", "1e308", "-1e308", "N/A", "NaN", ""} {
+		if v, ok := parseBounded(in, 1e6); ok {
+			t.Errorf("parseBounded(%q, 1e6) = (%v, true), want rejected", in, v)
+		}
+	}
+}
+
 func TestDropsBadPositions(t *testing.T) {
 	good := func(i int) string {
 		return fmt.Sprintf(`<trkpt lat="%.3f" lon="%.3f"/>`, 47+float64(i)*0.001, 11+float64(i)*0.001)

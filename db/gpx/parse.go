@@ -109,6 +109,28 @@ func parseNumber(raw string) (float64, bool) {
 	return f, true
 }
 
+// parseBounded is parseNumber plus a magnitude bound: a value whose absolute
+// value exceeds limit is unusable, like text that is not a number (D-01). The
+// bound is inclusive, so exactly +-limit is kept.
+func parseBounded(raw string, limit float64) (float64, bool) {
+	v, ok := parseNumber(raw)
+	if !ok || math.Abs(v) > limit {
+		return 0, false
+	}
+	return v, true
+}
+
+// checkMeasurement refuses a measurement with a non-finite total. It is a
+// backstop: the value bounds keep every sum finite, so it only fires if a later
+// change loosens them. The reason is static and never echoes input.
+func checkMeasurement(m measurement) error {
+	if !isFinite(m.distance) || !isFinite(m.gain) || !isFinite(m.loss) ||
+		!isFinite(m.centroid.Lat) || !isFinite(m.centroid.Lon) {
+		return fmt.Errorf("%w: measurement out of range", ErrMalformed)
+	}
+	return nil
+}
+
 // classifyDecodeError maps a decoder or reader error onto a sentinel. The
 // messages are static plus a line number: they never carry decoder text or
 // input bytes.
@@ -430,8 +452,8 @@ func (b *builder) beginText(name string, owner *textSet, limit int) {
 	b.overflow = false
 }
 
-// newWaypoint reads the position of a <wpt>. A coordinate that is not a number
-// leaves the waypoint unusable, so it is dropped and never placed at 0,0.
+// newWaypoint reads the position of a <wpt>. A coordinate that is not a number,
+// or is beyond maxAbsCoordinate, leaves the waypoint unusable, so it is dropped and never placed at 0,0.
 func newWaypoint(t xml.StartElement) *rawWaypoint {
 	w := &rawWaypoint{}
 	for _, a := range t.Attr {
@@ -441,11 +463,11 @@ func newWaypoint(t xml.StartElement) *rawWaypoint {
 		switch a.Name.Local {
 		case "lat":
 			if !w.hasLat {
-				w.lat, w.hasLat = parseNumber(a.Value)
+				w.lat, w.hasLat = parseBounded(a.Value, maxAbsCoordinate)
 			}
 		case "lon":
 			if !w.hasLon {
-				w.lon, w.hasLon = parseNumber(a.Value)
+				w.lon, w.hasLon = parseBounded(a.Value, maxAbsCoordinate)
 			}
 		}
 	}
@@ -461,11 +483,11 @@ func newPoint(t xml.StartElement) *point {
 		switch a.Name.Local {
 		case "lat":
 			if !p.hasLat {
-				p.lat, p.hasLat = parseNumber(a.Value)
+				p.lat, p.hasLat = parseBounded(a.Value, maxAbsCoordinate)
 			}
 		case "lon":
 			if !p.hasLon {
-				p.lon, p.hasLon = parseNumber(a.Value)
+				p.lon, p.hasLon = parseBounded(a.Value, maxAbsCoordinate)
 			}
 		}
 	}
@@ -548,7 +570,7 @@ func (b *builder) closeElement(name string) {
 			return
 		}
 		if name == "ele" {
-			if v, ok := parseNumber(string(b.buf)); ok {
+			if v, ok := parseBounded(string(b.buf), maxAbsElevation); ok {
 				b.pt.ele, b.pt.hasEle = v, true
 			}
 		} else if ms, ok := parseTime(string(b.buf)); ok {
@@ -634,6 +656,9 @@ func (b *builder) finish(fallbackName string) (*Result, error) {
 		return nil, ErrNoTrack
 	}
 	m := measure(source)
+	if err := checkMeasurement(m); err != nil {
+		return nil, err
+	}
 	if duration < 0 {
 		duration = -duration
 	}

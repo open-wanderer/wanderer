@@ -33,3 +33,17 @@ const (
 	// bounds the per-element buffer. No real value is near 256 bytes.
 	maxNumberText = 256
 )
+
+// Value bounds. A number beyond one of these is unusable, not an error, exactly
+// like text that is not a number: a coordinate beyond the bound drops its point
+// and an elevation beyond it is no elevation. The bounds are far outside any
+// real value (coordinates sit within +-180, and corpus fixture 16 deliberately
+// keeps 95.5 and 190). They exist so that 500,000 stored points can overflow
+// neither a float64 sum nor the polyline's integer encoding: at most 5e11 for a
+// centroid sum, 1e12 for elevation gain or loss, and 1e11 for round(v*1e5).
+const (
+	// maxAbsCoordinate is the largest latitude or longitude magnitude kept, in degrees.
+	maxAbsCoordinate = 1e6
+	// maxAbsElevation is the largest elevation magnitude kept, in metres.
+	maxAbsElevation = 1e6
+)
