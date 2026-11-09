@@ -84,6 +84,8 @@ func (g *geoJSONWriter) stringProperty(key, value string) {
 // and segmentId (both the segment's position among its track's segments, so a
 // skipped empty segment does not renumber the later ones), coordinateProperties
 // with times (an ISO string with milliseconds and Z, or null), and anchors.
+// Years outside 0000-9999 use the six-digit signed form, exactly as toISOString
+// does.
 //
 // anchors is always present. It lists indices into that Feature's own
 // coordinates for the points marked as route anchors, at positions 1 through

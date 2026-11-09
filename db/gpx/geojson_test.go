@@ -619,7 +619,7 @@ func TestGeoJSONExtendedYearTimes(t *testing.T) {
 	}
 	for i, w := range want {
 		if times[i] == nil || *times[i] != w {
-			t.Errorf("times[%d] = %v, want %q", i, times[i], w)
+			t.Errorf("times[%d] = %v, want %q", i, times, w)
 		}
 	}
 }

@@ -15,7 +15,8 @@ import (
 // 8 zone, 9 offset sign, 10 offset hour, 11 offset minute.
 var timeGrammar = regexp.MustCompile(`^([+-]?\d{4,6})-?(\d\d)-?(\d\d)(?:[ T](\d\d)(?::?(\d\d)(?::?(\d\d)(?:[.,](\d+))?)?)?( ?[zZ]| ?([-+])(\d\d)(?::?(\d\d))?)?)?$`)
 
-// isoMillis is the layout of Date.prototype.toISOString for years 0000-9999.
+// isoMillis is the layout of Date.prototype.toISOString for years 0000-9999,
+// always with milliseconds and a literal Z. appendISOMillis handles the rest.
 const isoMillis = "2006-01-02T15:04:05.000Z"
 
 // maxDateMs is the range of a JavaScript Date, 275760-09-13T00:00:00Z.
@@ -96,9 +97,49 @@ func parseTime(raw string) (int64, bool) {
 	return ms, true
 }
 
-// appendISOMillis appends ms in Date.prototype.toISOString form.
+// appendISOMillis appends ms to dst in the exact form of
+// Date.prototype.toISOString, and is the inverse of parseTime: parseTime reads
+// every string it produces back to the same millisecond.
+//
+// ECMAScript writes years 0000-9999 as four digits and every other year as a
+// sign plus six digits (+012345, -000001), which is the "expanded year" form.
+// The in-range case uses isoMillis, and the expanded case writes the date and
+// time fields by hand because a layout string cannot start with a sign.
 func appendISOMillis(dst []byte, ms int64) []byte {
-	return time.UnixMilli(ms).UTC().AppendFormat(dst, isoMillis)
+	t := time.UnixMilli(ms).UTC()
+	year := t.Year()
+	if year >= 0 && year <= 9999 {
+		return t.AppendFormat(dst, isoMillis)
+	}
+	if year < 0 {
+		dst = append(dst, '-')
+		year = -year
+	} else {
+		dst = append(dst, '+')
+	}
+	dst = appendPadded(dst, year, 6)
+	dst = append(dst, '-')
+	dst = appendPadded(dst, int(t.Month()), 2)
+	dst = append(dst, '-')
+	dst = appendPadded(dst, t.Day(), 2)
+	dst = append(dst, 'T')
+	dst = appendPadded(dst, t.Hour(), 2)
+	dst = append(dst, ':')
+	dst = appendPadded(dst, t.Minute(), 2)
+	dst = append(dst, ':')
+	dst = appendPadded(dst, t.Second(), 2)
+	dst = append(dst, '.')
+	dst = appendPadded(dst, t.Nanosecond()/int(time.Millisecond), 3)
+	return append(dst, 'Z')
+}
+
+// appendPadded appends the non-negative n as decimal digits, zero-padded to width.
+func appendPadded(dst []byte, n, width int) []byte {
+	digits := strconv.Itoa(n)
+	for i := len(digits); i < width; i++ {
+		dst = append(dst, '0')
+	}
+	return append(dst, digits...)
 }
 
 // parseYear accepts an unsigned four-digit year or a signed six-digit year.
