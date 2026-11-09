@@ -279,6 +279,16 @@ func (sb *segBuilder) times() segmentTimes { return segmentTimes{start: sb.first
 //
 // Tracks and routes go to separate stores because a <rte> may precede a <trk>
 // in the file: which one is measured is decided in finish().
+//
+// Position rule: an element acts only at its place in the GPX schema. The root
+// is depth 1, and depth means len(stack) after the element is pushed. A <trk>,
+// <rte> or <wpt> is a direct child of the root (depth 2), a <trkseg> a direct
+// child of such a <trk> (3), a <trkpt> a direct child of that segment (4), a
+// <rtept> a direct child of such a <rte> (3), and <ele>, <time> and
+// <extensions> are read only as direct children of the open point. Everything
+// else is ignored, and a closer acts only on the element that opened its owner,
+// so malformed nesting never moves data between owners or ends one early. This
+// matches the TypeScript reader (xml2js, direct children only) and Dart.
 type builder struct {
 	stack []string // open element names, outermost first
 	skip  int      // depth inside an <extensions> subtree, 0 outside
@@ -290,9 +300,10 @@ type builder struct {
 	routes     []measuredTrack
 	segOrdinal int // <trkseg> elements seen so far in the current <trk>
 
-	tsb *segBuilder // open <trkseg>
-	rsb *segBuilder // open <rte>
-	pt  *point
+	tsb     *segBuilder // open <trkseg>
+	rsb     *segBuilder // open <rte>
+	pt      *point
+	ptDepth int // depth of the open point
 
 	// Signed duration sums of each store: a segment counts even when all of
 	// its points are positionless.
@@ -389,47 +400,52 @@ func (b *builder) start(t xml.StartElement) {
 	switch name {
 	case "extensions":
 		b.skip = 1
-		b.pointExt = b.pt != nil && (parent == "trkpt" || parent == "rtept")
+		b.pointExt = b.isPointChild(parent)
 	case "trk":
-		// Any <trk> element, even an empty one, blocks route promotion.
-		b.sawTrk = true
-		if !b.addTrackElement() {
-			return
+		if len(b.stack) == 2 {
+			// Any root-level <trk> element, even an empty one, blocks route
+			// promotion. One nested elsewhere is not a track, as in TS.
+			b.sawTrk = true
+			if !b.addTrackElement() {
+				return
+			}
+			b.tracks = append(b.tracks, measuredTrack{})
+			b.trkText = textSet{}
+			b.segOrdinal = 0
 		}
-		b.tracks = append(b.tracks, measuredTrack{})
-		b.trkText = textSet{}
-		b.segOrdinal = 0
 	case "trkseg":
-		if parent == "trk" {
+		if len(b.stack) == 3 && parent == "trk" {
 			b.tsb = newSegBuilder(b.segOrdinal)
 			b.segOrdinal++
 		}
 	case "rte":
-		if !b.addTrackElement() {
-			return
+		if len(b.stack) == 2 {
+			if !b.addTrackElement() {
+				return
+			}
+			b.routes = append(b.routes, measuredTrack{})
+			b.rteText = textSet{}
+			b.rsb = newSegBuilder(0)
 		}
-		b.routes = append(b.routes, measuredTrack{})
-		b.rteText = textSet{}
-		b.rsb = newSegBuilder(0)
 	case "wpt":
 		if len(b.stack) == 2 {
 			b.wpt = newWaypoint(t)
 		}
 	case "trkpt":
-		if parent == "trkseg" && b.tsb != nil {
-			b.pt = newPoint(t)
+		if len(b.stack) == 4 && parent == "trkseg" && b.tsb != nil {
+			b.pt, b.ptDepth = newPoint(t), len(b.stack)
 		}
 	case "rtept":
-		if parent == "rte" && b.rsb != nil {
-			b.pt = newPoint(t)
+		if len(b.stack) == 3 && parent == "rte" && b.rsb != nil {
+			b.pt, b.ptDepth = newPoint(t), len(b.stack)
 		}
 	case "ele":
-		if b.pt != nil && (parent == "trkpt" || parent == "rtept") && !b.pt.seenEle {
+		if b.isPointChild(parent) && !b.pt.seenEle {
 			b.pt.seenEle = true
 			b.beginText(name, nil, maxNumberText)
 		}
 	case "time":
-		if b.pt != nil && (parent == "trkpt" || parent == "rtept") && !b.pt.seenTime {
+		if b.isPointChild(parent) && !b.pt.seenTime {
 			b.pt.seenTime = true
 			b.beginText(name, nil, maxNumberText)
 		}
@@ -444,6 +460,12 @@ func (b *builder) start(t xml.StartElement) {
 			b.beginText(name, owner, limit)
 		}
 	}
+}
+
+// isPointChild reports whether the element just pushed is a direct child of the
+// open point, whose name is parent.
+func (b *builder) isPointChild(parent string) bool {
+	return b.pt != nil && len(b.stack) == b.ptDepth+1 && (parent == "trkpt" || parent == "rtept")
 }
 
 // owner is the textSet that receives a text child of parent, or nil when that
@@ -603,21 +625,27 @@ func (b *builder) closeElement(name string) {
 			b.pt.timeMs = ms
 		}
 	case "trkpt":
-		if b.pt != nil && b.tsb != nil {
+		if b.pt == nil || len(b.stack)+1 != b.ptDepth {
+			return
+		}
+		if b.tsb != nil {
 			if b.tsb.add(b.pt, true) {
 				b.addPoint()
 			}
 		}
 		b.pt = nil
 	case "rtept":
-		if b.pt != nil && b.rsb != nil {
+		if b.pt == nil || len(b.stack)+1 != b.ptDepth {
+			return
+		}
+		if b.rsb != nil {
 			if b.rsb.add(b.pt, false) {
 				b.addPoint()
 			}
 		}
 		b.pt = nil
 	case "trk":
-		if len(b.tracks) == 0 {
+		if len(b.stack) != 1 || len(b.tracks) == 0 {
 			return
 		}
 		b.tracks[len(b.tracks)-1].setText(&b.trkText)
@@ -625,6 +653,9 @@ func (b *builder) closeElement(name string) {
 			b.firstTrkName = b.trkText.name
 		}
 	case "wpt":
+		if len(b.stack) != 1 {
+			return
+		}
 		if w := b.wpt; w != nil && w.hasLat && w.hasLon {
 			if b.nWaypoints++; b.nWaypoints > maxWaypoints {
 				b.fail(ErrTooLarge, "too many waypoints")
@@ -634,7 +665,7 @@ func (b *builder) closeElement(name string) {
 		}
 		b.wpt = nil
 	case "trkseg":
-		if b.tsb == nil || len(b.tracks) == 0 {
+		if len(b.stack) != 2 || b.tsb == nil || len(b.tracks) == 0 {
 			return
 		}
 		sb := b.tsb
@@ -653,7 +684,7 @@ func (b *builder) closeElement(name string) {
 			b.addSegment()
 		}
 	case "rte":
-		if b.rsb == nil || len(b.routes) == 0 {
+		if len(b.stack) != 1 || b.rsb == nil || len(b.routes) == 0 {
 			return
 		}
 		b.routes[len(b.routes)-1].setText(&b.rteText)

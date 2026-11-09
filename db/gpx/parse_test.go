@@ -358,6 +358,17 @@ func TestLimits(t *testing.T) {
 		res, err := Parse(trackElements(maxTracks, `<rte/>`), 64<<20, "")
 		wantErr(t, res, err, ErrTooLarge)
 	})
+	t.Run("nested track elements are not counted", func(t *testing.T) {
+		doc := &repeatReader{head: `<gpx><trk>`, item: `<trk/><rte/>`, n: maxTracks,
+			tail: `<trkseg><trkpt lat="47" lon="11"/></trkseg></trk></gpx>`}
+		res, err := Parse(doc, 64<<20, "")
+		if err != nil {
+			t.Fatalf("got %v", err)
+		}
+		if res.PointCount != 1 || len(res.tracks) != 1 {
+			t.Errorf("PointCount %d, %d tracks, want 1 and 1", res.PointCount, len(res.tracks))
+		}
+	})
 	t.Run("tracks and routes share maxTracks", func(t *testing.T) {
 		res, err := Parse(trackElements(maxTracks/2, `<trk/><rte/>`), 64<<20, "")
 		wantErr(t, res, err, ErrTooLarge)
