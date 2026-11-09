@@ -316,6 +316,7 @@ type builder struct {
 	// Running totals against the structural limits, and the first limit error,
 	// which the token loop returns.
 	points, segments, nWaypoints, textUsed int
+	trackElements                          int // root-level <trk> and <rte> elements seen
 	err                                    error
 
 	collect      string   // element whose text is gathered: ele, time, or one of textKinds
@@ -339,6 +340,16 @@ func (b *builder) addSegment() {
 	if b.segments++; b.segments > maxSegments {
 		b.fail(ErrTooLarge, "too many segments")
 	}
+}
+
+// addTrackElement counts a root-level <trk> or <rte> and reports whether it may
+// be stored. Every one costs a measuredTrack, so empty ones count too.
+func (b *builder) addTrackElement() bool {
+	if b.trackElements++; b.trackElements > maxTracks {
+		b.fail(ErrTooLarge, "too many tracks")
+		return false
+	}
+	return true
 }
 
 // addPoint counts a stored point.
@@ -382,6 +393,9 @@ func (b *builder) start(t xml.StartElement) {
 	case "trk":
 		// Any <trk> element, even an empty one, blocks route promotion.
 		b.sawTrk = true
+		if !b.addTrackElement() {
+			return
+		}
 		b.tracks = append(b.tracks, measuredTrack{})
 		b.trkText = textSet{}
 		b.segOrdinal = 0
@@ -391,6 +405,9 @@ func (b *builder) start(t xml.StartElement) {
 			b.segOrdinal++
 		}
 	case "rte":
+		if !b.addTrackElement() {
+			return
+		}
 		b.routes = append(b.routes, measuredTrack{})
 		b.rteText = textSet{}
 		b.rsb = newSegBuilder(0)
