@@ -36,7 +36,11 @@ const (
 	// maxNumberText bounds the text collected for one <ele>, <time> or <number>
 	// element and the length parseNumber accepts. A longer value is unusable,
 	// which is not an error: numeric fields are never retained, so this only
-	// bounds the per-element buffer. No real value is near 256 bytes.
+	// bounds the per-element buffer. No real value is near 256 bytes. The cap
+	// counts the raw collected bytes, including leading and trailing whitespace,
+	// before parseNumber trims them, so an <ele>, <time> or <number> padded past
+	// 256 bytes is unusable (a missing optional value, not an error) where TS and
+	// Dart would read the trimmed value. No real exporter pads that far.
 	maxNumberText = 256
 )
 

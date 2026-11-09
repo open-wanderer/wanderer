@@ -214,6 +214,12 @@ func addDuration(a, b int64) (int64, bool) {
 // A single leg is the difference of two times the time grammar bounds to about
 // +-8.64e15 ms, so it cannot overflow. The sum of many legs can, and a failed
 // addition sets overflow for good instead of wrapping.
+//
+// The latch is order-dependent: the first running sum that leaves int64 rejects
+// the document, even when later opposite-sign legs would bring the exact signed
+// total back into range. 534 extreme positive segments followed by 534 extreme
+// negative ones give ErrMalformed although the total is 0. Reaching it takes
+// hundreds of near-maximal legs, so only hostile input hits it, and it fails safe.
 type legsAccumulator struct {
 	n              int   // points added so far
 	sum            int64 // legs closed so far

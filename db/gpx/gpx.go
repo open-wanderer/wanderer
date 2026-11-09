@@ -35,13 +35,15 @@ var (
 	// source (its tracks, or its routes when it has no track element).
 	ErrNoTrack = errors.New("gpx: no usable track or route point")
 	// ErrTooLarge reports input that runs past the byte limit before its root
-	// element closes, or over a structural cap
-	// (nesting depth, text length, and the counts of tracks and routes,
-	// segments, points and waypoints).
+	// element closes, or over a structural cap: text length, or the counts of
+	// tracks and routes, segments, points and waypoints. Nesting deeper than
+	// maxDepth and a single run of more than maxRun bytes without markup are
+	// ErrMalformed, not ErrTooLarge.
 	ErrTooLarge = errors.New("gpx: input exceeds size limit")
 	// ErrMalformed reports a document the decoder refuses for any other reason,
-	// including a measurement out of range: a non-finite distance, elevation
-	// total or centroid, or a summed duration that overflows.
+	// including nesting deeper than maxDepth, a single run of more than maxRun
+	// bytes without markup, and a measurement out of range: a non-finite
+	// distance, elevation total or centroid, or a summed duration that overflows.
 	ErrMalformed = errors.New("gpx: malformed document")
 	// ErrTooComplex reports a track whose simplification exceeds its work budget.
 	ErrTooComplex = errors.New("gpx: track too complex to simplify")

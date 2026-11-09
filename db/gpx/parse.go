@@ -336,7 +336,8 @@ type builder struct {
 	trkDuration, rteDuration int64
 	// Set when a sum into the matching duration overflowed an int64. Only the
 	// measured store's flag is read (D-04), so an overflowing route store beside
-	// a track fails nothing.
+	// a track fails nothing. The store-level sum latches in the same
+	// order-dependent way as legsAccumulator.
 	trkOverflow, rteOverflow bool
 	// Times of the first <trkseg> of the first <trk>, and of the first <rte>.
 	trkFirst, rteFirst segmentTimes
