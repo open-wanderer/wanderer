@@ -134,6 +134,11 @@ func checkMeasurement(m measurement) error {
 // classifyDecodeError maps a decoder or reader error onto a sentinel. The
 // messages are static plus a line number: they never carry decoder text or
 // input bytes.
+//
+// A truncated document is a SyntaxError whose message starts with "unexpected
+// EOF". encoding/xml appends " in CDATA section" when the cut falls inside
+// CDATA, so the prefix is the contract D-08 relies on, and TestTruncated pins
+// the stdlib wording.
 func classifyDecodeError(err error) error {
 	var se *xml.SyntaxError
 	switch {
@@ -141,7 +146,7 @@ func classifyDecodeError(err error) error {
 		return ErrTooLarge
 	case errors.Is(err, ErrMalformed):
 		return err // raised by the reader pipeline with a static reason
-	case errors.As(err, &se) && se.Msg == "unexpected EOF":
+	case errors.As(err, &se) && strings.HasPrefix(se.Msg, "unexpected EOF"):
 		return ErrTruncated
 	case errors.Is(err, io.EOF):
 		return fmt.Errorf("%w: empty document", ErrMalformed)
