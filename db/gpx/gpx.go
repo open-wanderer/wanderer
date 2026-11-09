@@ -32,9 +32,13 @@ var (
 	// ErrNoTrack reports a document without a usable point in its measured
 	// source (its tracks, or its routes when it has no track element).
 	ErrNoTrack = errors.New("gpx: no usable track or route point")
-	// ErrTooLarge reports input over the byte limit, or over a structural cap.
+	// ErrTooLarge reports input over the byte limit, or over a structural cap
+	// (nesting depth, text length, and the counts of tracks and routes,
+	// segments, points and waypoints).
 	ErrTooLarge = errors.New("gpx: input exceeds size limit")
-	// ErrMalformed reports a document the decoder refuses for any other reason.
+	// ErrMalformed reports a document the decoder refuses for any other reason,
+	// including a measurement out of range: a non-finite distance, elevation
+	// total or centroid, or a summed duration that overflows.
 	ErrMalformed = errors.New("gpx: malformed document")
 	// ErrTooComplex reports a track whose simplification exceeds its work budget.
 	ErrTooComplex = errors.New("gpx: track too complex to simplify")
@@ -55,12 +59,16 @@ type Waypoint struct {
 
 // Result is the measurement of one GPX document.
 type Result struct {
-	// Name and Description come from the document's metadata and first track.
+	// Name comes from the metadata name, then the first track's name,
+	// then the first route's name, then fallbackName, and is "" when all are empty.
+	// Description comes from the metadata description only.
 	Name, Description string
 	// Start is the first usable point of the measured source.
 	Start LatLon
 	// StartDate is the UTC date ("YYYY-MM-DD") of the first segment's first
-	// point, or "" when the first segment has no usable start and end time.
+	// point. It is "" when the first segment lacks a start or end time, or when
+	// its start falls outside the years 0000-9999 (unlike TS, whose substring of
+	// an expanded-year ISO string is not a date).
 	StartDate string
 	// Distance is the raw haversine sum in metres.
 	Distance float64

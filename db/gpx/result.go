@@ -73,8 +73,14 @@ func (b *builder) deriveTrail(r *Result, fallbackName string) {
 
 	// The date needs the first segment's first and last time. firstTimes was
 	// recorded for the first <trkseg> of the first <trk>, or for the first <rte>.
+	//
+	// StartDate is a four-digit-year date or nothing: the corpus and the stored
+	// date field take YYYY-MM-DD or null, and TS's toISOString().substring(0, 10)
+	// of an expanded-year string such as "+012345-01-01" is not a date (WR-01).
 	if r.firstTimes.start != noTime && r.firstTimes.end != noTime {
-		r.StartDate = time.UnixMilli(r.firstTimes.start).UTC().Format("2006-01-02")
+		if t := time.UnixMilli(r.firstTimes.start).UTC(); t.Year() >= 0 && t.Year() <= 9999 {
+			r.StartDate = t.Format("2006-01-02")
+		}
 	}
 
 	for _, w := range b.waypoints {
