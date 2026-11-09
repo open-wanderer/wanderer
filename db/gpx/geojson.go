@@ -6,16 +6,11 @@ import (
 	"encoding/json"
 	"io"
 	"strconv"
-	"time"
 )
 
 // flushThreshold is the size at which the encoder hands its buffer to gzip. The
 // buffer never holds more than this plus one position or one feature header.
 const flushThreshold = 32 << 10
-
-// isoMillis is the layout of Date.prototype.toISOString: always milliseconds
-// and a literal Z.
-const isoMillis = "2006-01-02T15:04:05.000Z"
 
 // geoJSONWriter streams JSON text into a gzip writer through one reused buffer.
 // The first write error is kept and every later write is skipped.
@@ -204,7 +199,7 @@ func (g *geoJSONWriter) writeFeature(t *measuredTrack, s *measuredSegment) {
 			g.str("null")
 		} else {
 			g.buf = append(g.buf, '"')
-			g.buf = time.UnixMilli(ms).UTC().AppendFormat(g.buf, isoMillis)
+			g.buf = appendISOMillis(g.buf, ms)
 			g.buf = append(g.buf, '"')
 		}
 		g.maybeFlush()

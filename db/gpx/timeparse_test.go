@@ -91,3 +91,43 @@ func TestParseTime(t *testing.T) {
 		})
 	}
 }
+
+// Expected strings come from node, run 2026-11-08: new Date(ms).toISOString(),
+// and Date.parse of each string returns the same ms.
+func TestAppendISOMillis(t *testing.T) {
+	tests := []struct {
+		name string
+		ms   int64
+		want string
+	}{
+		{"six-digit year", 327403382400000, "+012345-01-01T00:00:00.000Z"},
+		{"first instant of year -1", -62198755200000, "-000001-01-01T00:00:00.000Z"},
+		{"last instant before year 0", -62167219200001, "-000001-12-31T23:59:59.999Z"},
+		{"first instant of year 0", -62167219200000, "0000-01-01T00:00:00.000Z"},
+		{"last instant of year 9999", 253402300799999, "9999-12-31T23:59:59.999Z"},
+		{"first instant of year 10000", 253402300800000, "+010000-01-01T00:00:00.000Z"},
+		{"minimum JavaScript date", -8640000000000000, "-271821-04-20T00:00:00.000Z"},
+		{"maximum JavaScript date", 8640000000000000, "+275760-09-13T00:00:00.000Z"},
+		{"ordinary instant", 1714557600123, "2024-05-01T10:00:00.123Z"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := string(appendISOMillis(nil, tc.ms)); got != tc.want {
+				t.Errorf("appendISOMillis(%d) = %q, want %q", tc.ms, got, tc.want)
+			}
+			if got, ok := parseTime(tc.want); !ok || got != tc.ms {
+				t.Errorf("parseTime(%q) = %d, %v, want %d, true", tc.want, got, ok, tc.ms)
+			}
+		})
+	}
+}
+
+func TestAppendISOMillisAppends(t *testing.T) {
+	for _, ms := range []int64{1714557600123, 327403382400000, -62198755200000} {
+		got := string(appendISOMillis([]byte("prefix:"), ms))
+		want := "prefix:" + string(appendISOMillis(nil, ms))
+		if got != want {
+			t.Errorf("appendISOMillis with a prefix = %q, want %q", got, want)
+		}
+	}
+}

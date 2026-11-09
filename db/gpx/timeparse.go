@@ -15,6 +15,9 @@ import (
 // 8 zone, 9 offset sign, 10 offset hour, 11 offset minute.
 var timeGrammar = regexp.MustCompile(`^([+-]?\d{4,6})-?(\d\d)-?(\d\d)(?:[ T](\d\d)(?::?(\d\d)(?::?(\d\d)(?:[.,](\d+))?)?)?( ?[zZ]| ?([-+])(\d\d)(?::?(\d\d))?)?)?$`)
 
+// isoMillis is the layout of Date.prototype.toISOString for years 0000-9999.
+const isoMillis = "2006-01-02T15:04:05.000Z"
+
 // maxDateMs is the range of a JavaScript Date, 275760-09-13T00:00:00Z.
 const maxDateMs = 8_640_000_000_000_000
 
@@ -91,6 +94,11 @@ func parseTime(raw string) (int64, bool) {
 		return 0, false
 	}
 	return ms, true
+}
+
+// appendISOMillis appends ms in Date.prototype.toISOString form.
+func appendISOMillis(dst []byte, ms int64) []byte {
+	return time.UnixMilli(ms).UTC().AppendFormat(dst, isoMillis)
 }
 
 // parseYear accepts an unsigned four-digit year or a signed six-digit year.

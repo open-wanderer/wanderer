@@ -602,3 +602,24 @@ func TestGeoJSONGzipAndWriterOwnership(t *testing.T) {
 		t.Errorf("the encoder kept writing after the failure (%d more writes)", fw.afterFailure)
 	}
 }
+
+// WR-01: years outside 0000-9999 are written in the six-digit signed form of
+// Date.prototype.toISOString, so JavaScript's Date reads every time back.
+func TestGeoJSONExtendedYearTimes(t *testing.T) {
+	res := parseDoc(t, trkptsDoc(
+		`<trkpt lat="1" lon="1"><time>+012345-01-01T00:00:00Z</time></trkpt>`,
+		`<trkpt lat="1.1" lon="1.1"><time>-000001-06-01T12:00:00Z</time></trkpt>`,
+		`<trkpt lat="1.2" lon="1.2"><time>2024-05-01T10:00:00Z</time></trkpt>`,
+	))
+	doc, _ := decodeGeoJSON(t, res)
+	times := doc.Features[0].times(t)
+	want := []string{"+012345-01-01T00:00:00.000Z", "-000001-06-01T12:00:00.000Z", "2024-05-01T10:00:00.000Z"}
+	if len(times) != len(want) {
+		t.Fatalf("times = %v, want %v", times, want)
+	}
+	for i, w := range want {
+		if times[i] == nil || *times[i] != w {
+			t.Errorf("times[%d] = %v, want %q", i, times[i], w)
+		}
+	}
+}
