@@ -191,6 +191,7 @@ func registerMigrations(app *pocketbase.PocketBase) {
 
 func setupEventHandlers(app *pocketbase.PocketBase, client meilisearch.ServiceManager) {
 	registerSearchBackupHooks(app)
+	federationUpdates := hooks.NewFederationUpdates(app)
 	trustedOIDC := oidcTrustedProviders()
 	app.OnFileDownloadRequest("assets").BindFunc(hooks.AuthorizeAssetFileDownload())
 	app.OnRecordEnrich("assets").BindFunc(hooks.HideAssetSourceMetadata())
@@ -246,8 +247,8 @@ func setupEventHandlers(app *pocketbase.PocketBase, client meilisearch.ServiceMa
 	app.OnRecordUpdateRequest("trails").BindFunc(hooks.ValidateTrailSubcategoryHandler())
 	app.OnRecordCreate("trails").BindFunc(hooks.SetTrailCompletedAtHandler())
 	app.OnRecordUpdate("trails").BindFunc(hooks.SetTrailCompletedAtHandler())
-	app.OnRecordAfterCreateSuccess("trails").BindFunc(hooks.CreateTrailHandler(client))
-	app.OnRecordAfterUpdateSuccess("trails").BindFunc(hooks.UpdateTrailHandler(client))
+	app.OnRecordAfterCreateSuccess("trails").BindFunc(hooks.CreateTrailHandler(client, federationUpdates))
+	app.OnRecordAfterUpdateSuccess("trails").BindFunc(hooks.UpdateTrailHandler(client, federationUpdates))
 	app.OnRecordDelete("trails").BindFunc(hooks.CollectTrailDeleteRecipientsHandler())
 	app.OnRecordAfterDeleteSuccess("trails").BindFunc(hooks.DeleteTrailHandler(client))
 
@@ -255,9 +256,13 @@ func setupEventHandlers(app *pocketbase.PocketBase, client meilisearch.ServiceMa
 	app.OnRecordUpdateRequest("comments", "summit_logs", "waypoints").BindFunc(hooks.PreserveLocalObjectSyncState("iri"))
 	app.OnRecordCreateRequest("summit_logs").BindFunc(hooks.PreserveSummitLogFederationSuppression())
 	app.OnRecordUpdateRequest("summit_logs").BindFunc(hooks.PreserveSummitLogFederationSuppression())
-	app.OnRecordCreateRequest("summit_logs").BindFunc(hooks.CreateSummitLogHandler(client))
-	app.OnRecordUpdateRequest("summit_logs").BindFunc(hooks.UpdateSummitLogHandler())
+	app.OnRecordCreateRequest("summit_logs").BindFunc(hooks.CreateSummitLogHandler(client, federationUpdates))
+	app.OnRecordUpdateRequest("summit_logs").BindFunc(hooks.UpdateSummitLogHandler(federationUpdates))
 	app.OnRecordAfterDeleteSuccess("summit_logs").BindFunc(hooks.DeleteSummitLogHandler(client))
+	assetLinkFederationHandler := hooks.FederateOnAssetLinkChange(federationUpdates)
+	app.OnRecordAfterCreateSuccess("trail_assets", "waypoint_assets", "summit_log_assets").BindFunc(assetLinkFederationHandler)
+	app.OnRecordAfterUpdateSuccess("trail_assets", "waypoint_assets", "summit_log_assets").BindFunc(assetLinkFederationHandler)
+	app.OnRecordAfterDeleteSuccess("trail_assets", "waypoint_assets", "summit_log_assets").BindFunc(assetLinkFederationHandler)
 
 	for _, collection := range []string{"trails", "summit_logs"} {
 		app.OnRecordCreate(collection).BindFunc(hooks.RoutePlaceholderHandler())
@@ -327,7 +332,7 @@ func setupEventHandlers(app *pocketbase.PocketBase, client meilisearch.ServiceMa
 
 	app.OnRecordValidate().BindFunc(util.SanitizeHTML())
 
-	app.OnServe().BindFunc(onBeforeServeHandler(client))
+	app.OnServe().BindFunc(onBeforeServeHandler(client, federationUpdates))
 	app.OnServe().BindFunc(func(event *core.ServeEvent) error {
 		ctx, cancel := context.WithCancel(context.Background())
 		app.OnTerminate().BindFunc(func(event *core.TerminateEvent) error {
@@ -350,10 +355,10 @@ func setupCommands(app *pocketbase.PocketBase) {
 	app.RootCmd.AddCommand(commands.SeedRegions())
 }
 
-func onBeforeServeHandler(client meilisearch.ServiceManager) func(se *core.ServeEvent) error {
+func onBeforeServeHandler(client meilisearch.ServiceManager, federationUpdates *hooks.FederationUpdates) func(se *core.ServeEvent) error {
 	return func(se *core.ServeEvent) error {
-		registerRoutes(se, client)
-		registerCronJobs(se.App, client)
+		registerRoutes(se, client, federationUpdates)
+		registerCronJobs(se.App, client, federationUpdates)
 		if err := initData(se.App, client); err != nil {
 			se.App.Logger().Error(fmt.Sprintf("initData failed: %v", err))
 		}
@@ -371,7 +376,7 @@ func onBeforeServeHandler(client meilisearch.ServiceManager) func(se *core.Serve
 
 }
 
-func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
+func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager, federationUpdates *hooks.FederationUpdates) {
 	se.Router.BindFunc(routes.ProjectAssetFileDownloadRecord)
 	se.Router.BindFunc(routes.LegacyPhotoFileRedirect)
 	se.Router.GET("/assets/trail-previews", routes.AssetTrailPreviews)
@@ -390,7 +395,8 @@ func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 	se.Router.POST("/subcategory-preferences/reorder", routes.SubcategoryPreferencesReorder)
 
 	se.Router.POST("/trail-merge/suggest", routes.TrailMergeSuggest)
-	se.Router.POST("/trail-merge", routes.TrailMerge(client))
+	se.Router.POST("/trail-merge", routes.TrailMerge(client, federationUpdates.EnqueueCreate))
+	se.Router.POST("/federation/{kind}/{id}/save/{action}", routes.FederationSaveBatch(federationUpdates.BeginSave, federationUpdates.CompleteSave))
 
 	se.Router.GET("/search/token", routes.SearchToken(client))
 
@@ -488,14 +494,14 @@ func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 	se.Router.GET("/regions/{id}/geometry", routes.RegionGeometryGet).Bind(apis.RequireSuperuserAuth())
 }
 
-func registerCronJobs(app core.App, client meilisearch.ServiceManager) {
+func registerCronJobs(app core.App, client meilisearch.ServiceManager, federationUpdates *hooks.FederationUpdates) {
 	schedule := os.Getenv("POCKETBASE_CRON_SYNC_SCHEDULE")
 	if len(schedule) == 0 {
 		schedule = "0 2 * * *"
 	}
 
 	app.Cron().MustAdd("plugin-sync", schedule, func() {
-		if err := routes.PluginSystemSyncConfigured(context.Background(), app, client); err != nil {
+		if err := routes.PluginSystemSyncConfigured(context.Background(), app, client, federationUpdates.EnqueueCreate); err != nil {
 			warning := fmt.Sprintf("Error syncing with WASM plugins: %v", err)
 			fmt.Println(warning)
 			app.Logger().Error(warning)

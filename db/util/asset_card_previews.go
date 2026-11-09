@@ -172,3 +172,26 @@ func AssetLinkCollectionForTarget(targetField string) (string, error) {
 // TrailIDForLinkTarget resolves the trail a given asset-link target belongs to.
 // Trail links point at the trail directly; waypoint and summit_log links resolve
 // through their parent record.
+func TrailIDForLinkTarget(app core.App, targetField string, targetID string) (string, error) {
+	if targetID == "" {
+		return "", nil
+	}
+	switch targetField {
+	case "trail":
+		return targetID, nil
+	case "waypoint":
+		waypoint, err := app.FindRecordById("waypoints", targetID)
+		if err != nil {
+			return "", err
+		}
+		return waypoint.GetString("trail"), nil
+	case "summit_log":
+		summitLog, err := app.FindRecordById("summit_logs", targetID)
+		if err != nil {
+			return "", err
+		}
+		return summitLog.GetString("trail"), nil
+	default:
+		return "", fmt.Errorf("unsupported asset relation %q", targetField)
+	}
+}

@@ -134,7 +134,7 @@ func TestRemoteCleanupFullReindexFlushesOnEveryCommittedExit(t *testing.T) {
 				afterSuccess.Add(1)
 				return e.Next()
 			})
-			f.app.OnRecordAfterUpdateSuccess("trails").BindFunc(hooks.UpdateTrailHandler(client))
+			f.app.OnRecordAfterUpdateSuccess("trails").BindFunc(hooks.UpdateTrailHandler(client, hooks.NewFederationUpdates(f.app)))
 			abort := errors.New("original sync error")
 			if scenario == "final-save-error" || scenario == "final-save-and-index-error" {
 				f.app.OnRecordAfterUpdateSuccess("trails").BindFunc(func(e *core.RecordEvent) error {

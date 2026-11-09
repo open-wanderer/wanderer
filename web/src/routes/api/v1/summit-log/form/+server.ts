@@ -10,6 +10,15 @@ import type { RequestEvent } from '@sveltejs/kit';
  *     description: Creates a new summit log with file upload (photos/GPX) and date normalization
  *     tags:
  *       - Summit Logs
+ *     parameters:
+ *       - in: query
+ *         name: federationBatch
+ *         description: Optional token holding the new entry announcement until photos are attached; renew and complete through the federation save API.
+ *         schema:
+ *           type: string
+ *           minLength: 16
+ *           maxLength: 128
+ *           pattern: '^[a-zA-Z0-9_-]+$'
  *     requestBody:
  *       required: true
  *       content:
@@ -30,7 +39,11 @@ import type { RequestEvent } from '@sveltejs/kit';
  */
 export async function PUT(event: RequestEvent) {
     try {
-        const r = await uploadCreate<SummitLog>(event, Collection.summit_logs)
+        const batchId = event.url.searchParams.get("federationBatch");
+        if (batchId !== null && !/^[a-zA-Z0-9_-]{16,128}$/.test(batchId)) {
+            return Response.json({ message: "invalid federation save batch" }, { status: 400 });
+        }
+        const r = await uploadCreate<SummitLog>(event, Collection.summit_logs, batchId ? { federationBatch: batchId } : undefined)
         r.date = r.date?.substring(0, 10) ?? "";
 
         return Response.json(r);

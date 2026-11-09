@@ -19,6 +19,9 @@ func newRealSchemaApp(t *testing.T) *core.BaseApp {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() {
+		if err := app.OnTerminate().Trigger(&core.TerminateEvent{App: app}); err != nil {
+			t.Error(err)
+		}
 		if err := app.ResetBootstrapState(); err != nil {
 			t.Error(err)
 		}
