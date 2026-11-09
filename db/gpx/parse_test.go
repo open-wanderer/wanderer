@@ -124,6 +124,44 @@ func TestTruncated(t *testing.T) {
 		})
 	}
 
+	// A document cut inside CDATA, a comment or a processing instruction is
+	// truncated too (D-08). encoding/xml words the CDATA case differently.
+	tolerant, err := os.ReadFile(filepath.Join("testdata", "exporters", "tolerant-fields.gpx"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	const cdataOpen = "<![CDATA["
+	cdataAt := strings.Index(string(tolerant), cdataOpen)
+	if cdataAt < 0 {
+		t.Fatalf("tolerant-fields.gpx has no CDATA section")
+	}
+	inside := map[string]string{
+		"cut inside CDATA, inline":          `<gpx><metadata><desc><![CDATA[abc`,
+		"cut inside CDATA, exporter sample": string(tolerant[:cdataAt+len(cdataOpen)+3]),
+		"cut inside a comment":              `<gpx><!-- abc`,
+		"cut inside a processing instruct":  `<gpx><?pi abc`,
+	}
+	for name, doc := range inside {
+		t.Run(name, func(t *testing.T) {
+			res, err := parseString(doc)
+			wantErr(t, res, err, ErrTruncated)
+		})
+	}
+
+	t.Run("stdlib reports a cut inside CDATA as an unexpected EOF", func(t *testing.T) {
+		d := xml.NewDecoder(strings.NewReader(`<gpx><desc><![CDATA[abc`))
+		d.Strict = false
+		var err error
+		for err == nil {
+			_, err = d.Token()
+		}
+		var se *xml.SyntaxError
+		if !errors.As(err, &se) || !strings.HasPrefix(se.Msg, "unexpected EOF") {
+			t.Fatalf("decoder error = %#v, want *xml.SyntaxError whose Msg starts with %q", err, "unexpected EOF")
+		}
+		t.Logf("stdlib message for a cut inside CDATA: %q", se.Msg)
+	})
+
 	// The classification rests on the stdlib reporting a truncated document as
 	// a SyntaxError with exactly this message. If a Go release changes it,
 	// this test fails instead of truncated files turning into ErrMalformed.
