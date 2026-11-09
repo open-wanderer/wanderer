@@ -28,11 +28,14 @@ import (
 
 var (
 	// ErrTruncated reports a document that ends before its root element closes.
+	// Content after the root closes is not parsed, so an incomplete tail after a
+	// complete root is not truncation.
 	ErrTruncated = errors.New("gpx: truncated document")
 	// ErrNoTrack reports a document without a usable point in its measured
 	// source (its tracks, or its routes when it has no track element).
 	ErrNoTrack = errors.New("gpx: no usable track or route point")
-	// ErrTooLarge reports input over the byte limit, or over a structural cap
+	// ErrTooLarge reports input that runs past the byte limit before its root
+	// element closes, or over a structural cap
 	// (nesting depth, text length, and the counts of tracks and routes,
 	// segments, points and waypoints).
 	ErrTooLarge = errors.New("gpx: input exceeds size limit")
@@ -96,6 +99,10 @@ type Result struct {
 
 // Parse reads one GPX document. maxBytes is required and has no default.
 // fallbackName names the result when the document names nothing.
+//
+// Parse reads the first top-level element and stops when it closes. What follows
+// is not parsed, as the node (xml2js) path of the TypeScript reader does. A stray
+// end tag that closes the root early is ErrMalformed.
 func Parse(r io.Reader, maxBytes int64, fallbackName string) (*Result, error) {
 	res, err := decode(newPipeline(r, maxBytes), fallbackName)
 	if err != nil {

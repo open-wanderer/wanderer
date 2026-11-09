@@ -163,6 +163,10 @@ func classifyDecodeError(err error) error {
 // "&nbsp;" and friends decode. Its HTML auto-close list stays unset: that list
 // marks <link> as void, which would split GPX <link><text> (Pitfall 4). The
 // charset reader is the identity because the pipeline has already decoded.
+//
+// Only the first top-level element is read: the result is built as soon as it
+// closes, and whatever follows is not parsed, as the node (xml2js) path of the
+// TypeScript reader does.
 func decode(in io.Reader, fallbackName string) (*Result, error) {
 	d := xml.NewDecoder(in)
 	d.Strict = false
@@ -170,19 +174,14 @@ func decode(in io.Reader, fallbackName string) (*Result, error) {
 	d.CharsetReader = func(_ string, r io.Reader) (io.Reader, error) { return r, nil }
 
 	b := newBuilder()
-	seenRoot := false
 	depth := 0
 	for {
 		tok, err := d.Token()
 		if err != nil {
-			if err == io.EOF && seenRoot {
-				break
-			}
 			return nil, classifyDecodeError(err)
 		}
 		switch t := tok.(type) {
 		case xml.StartElement:
-			seenRoot = true
 			// The decoder allocates per open element, even inside an
 			// <extensions> subtree the builder skips, so the depth is
 			// bounded here on every element.
@@ -199,8 +198,31 @@ func decode(in io.Reader, fallbackName string) (*Result, error) {
 		if b.err != nil {
 			return nil, b.err
 		}
+		if _, isEnd := tok.(xml.EndElement); isEnd && depth == 0 {
+			if err := checkRootClose(d); err != nil {
+				return nil, err
+			}
+			return b.finish(fallbackName)
+		}
 	}
-	return b.finish(fallbackName)
+}
+
+// checkRootClose runs right after the first top-level element closed. In
+// tolerant mode encoding/xml answers an end tag whose name is not open by
+// synthesizing an end element for every open element and only then returning a
+// SyntaxError, none of which consumes input. A root closed that way is a
+// malformed document, not a complete one, so one more token is read: a
+// SyntaxError at an unchanged input offset marks the synthesized close.
+// Anything else (end of input, markup, text, or an error from real trailing
+// bytes) is content after the root, which is not parsed, and passes.
+func checkRootClose(d *xml.Decoder) error {
+	at := d.InputOffset()
+	_, err := d.Token()
+	var se *xml.SyntaxError
+	if errors.As(err, &se) && d.InputOffset() == at {
+		return classifyDecodeError(err)
+	}
+	return nil
 }
 
 // wandererNamespace is the namespace of the wanderer:anchor leg marker, as
@@ -289,6 +311,10 @@ func (sb *segBuilder) times() segmentTimes { return segmentTimes{start: sb.first
 // else is ignored, and a closer acts only on the element that opened its owner,
 // so malformed nesting never moves data between owners or ends one early. This
 // matches the TypeScript reader (xml2js, direct children only) and Dart.
+//
+// decode reads only the first top-level element, as xml2js does. Dart's reader
+// looks for the first <gpx> element instead, so a non-GPX element ahead of <gpx>
+// gives no track here and in TS but is skipped in Dart.
 type builder struct {
 	stack []string // open element names, outermost first
 	skip  int      // depth inside an <extensions> subtree, 0 outside
