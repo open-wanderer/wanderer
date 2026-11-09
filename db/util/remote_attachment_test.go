@@ -75,41 +75,22 @@ func attachmentReadAll(t *testing.T, f *filesystem.File) []byte {
 	return b
 }
 
-func TestRemotePhotoLimit(t *testing.T) {
+func TestFederatedPhotoFileLimit(t *testing.T) {
 	app, err := pbtests.NewTestApp(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(app.Cleanup)
-
-	add := func(name string, fields ...core.Field) {
-		c := core.NewBaseCollection(name)
-		c.Fields.Add(fields...)
-		if err := app.Save(c); err != nil {
-			t.Fatalf("save collection %s: %v", name, err)
-		}
+	if got := FederatedPhotoFileLimit(app); got != RemotePhotoMaxBytes {
+		t.Fatalf("fallback=%d", got)
 	}
-	add("limit_seven", &core.FileField{Name: "photos", MaxSelect: 7, MaxSize: RemotePhotoMaxBytes})
-	add("limit_ninety_nine", &core.FileField{Name: "photos", MaxSelect: 99, MaxSize: RemotePhotoMaxBytes})
-	add("limit_single", &core.FileField{Name: "photos", MaxSelect: 1, MaxSize: RemotePhotoMaxBytes})
-	add("limit_no_photos", &core.TextField{Name: "name"})
-	add("limit_text_photos", &core.TextField{Name: "photos"})
-
-	cases := []struct {
-		collection string
-		want       int
-	}{
-		{"limit_seven", 7},
-		{"limit_ninety_nine", 99},
-		{"limit_single", 1},
-		{"limit_no_photos", RemoteMaxPhotosPerObject},
-		{"limit_text_photos", RemoteMaxPhotosPerObject},
-		{"no_such_collection", RemoteMaxPhotosPerObject},
+	assets := core.NewBaseCollection("assets")
+	assets.Fields.Add(&core.FileField{Name: "file", MaxSelect: 1, MaxSize: 1024})
+	if err := app.Save(assets); err != nil {
+		t.Fatal(err)
 	}
-	for _, tc := range cases {
-		if got := RemotePhotoLimit(app, tc.collection); got != tc.want {
-			t.Errorf("RemotePhotoLimit(%q) = %d, want %d", tc.collection, got, tc.want)
-		}
+	if got := FederatedPhotoFileLimit(app); got != 1024 {
+		t.Fatalf("configured limit=%d", got)
 	}
 }
 

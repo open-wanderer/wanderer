@@ -2,25 +2,20 @@ package routes
 
 import (
 	"context"
-	"crypto/sha256"
 	"database/sql"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 	"os"
-	"path"
 	"pocketbase/federation"
-	"pocketbase/services/routeimage"
 	"pocketbase/util"
-	"regexp"
-	"slices"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
@@ -50,6 +45,12 @@ var remoteTrailSyncCoreExpandPaths = []string{
 	"waypoints_via_trail",
 	"summit_logs_via_trail",
 	"summit_logs_via_trail.author",
+}
+
+var remoteTrailSyncAssetExpandPaths = []string{
+	"trail_assets_via_trail.asset",
+	"waypoints_via_trail.waypoint_assets_via_waypoint.asset",
+	"summit_logs_via_trail.summit_log_assets_via_summit_log.asset",
 }
 
 var errRemoteUnavailable = errors.New("remote instance unavailable")
@@ -200,8 +201,16 @@ func RemoteTrailGet(e *core.RequestEvent) error {
 
 	canAccess, err := e.App.CanAccessRecord(record, reqInfo, record.Collection().ViewRule)
 
-	if err != nil || !canAccess {
-		return e.ForbiddenError("forbidden", err)
+	if err != nil {
+		return e.InternalServerError("Failed to check trail access", err)
+	}
+	if !canAccess {
+		if util.ValidFederatedShareToken(e.Request.URL.Query().Get("share")) {
+			return e.ForbiddenError("forbidden", validation.Errors{
+				"share": validation.NewError("federated_share_denied", "Share access denied."),
+			})
+		}
+		return e.ForbiddenError("forbidden", nil)
 	}
 
 	if err := enrichRemoteRecords(e, record); err != nil {
@@ -294,10 +303,8 @@ func performFullSyncDocument(app core.App, ctx context.Context, reqURL *url.URL,
 		return localTrail, nil
 	}
 
-	client := newRemoteSyncHTTPClient()
-	remoteUrl, _ := url.Parse(iri)
-	remoteUrl.RawQuery = remoteTrailSyncQuery(reqURL).Encode()
-	origin := fmt.Sprintf("%s://%s", remoteUrl.Scheme, remoteUrl.Host)
+	remoteURL, _ := url.Parse(iri)
+	origin := remoteURL.Scheme + "://" + remoteURL.Host
 
 	// A save after this snapshot may contain changes the fetched document lacks.
 	storedUpdated, storedBeforeFetch := "", false
@@ -317,7 +324,8 @@ func performFullSyncDocument(app core.App, ctx context.Context, reqURL *url.URL,
 	if err != nil {
 		return localTrail, err
 	}
-	document, err := fetchRemoteSyncDocument(ctx, client, remoteUrl, "trail")
+	ctx, document, assetsRequested, err := fetchRemoteTrailWithShares(app, ctx, reqURL, localTrail)
+	ctx = context.WithValue(ctx, remoteAssetExpandsRequestedKey{}, assetsRequested)
 	if err != nil {
 		return localTrail, err
 	}
@@ -376,7 +384,10 @@ func performFullSyncDocument(app core.App, ctx context.Context, reqURL *url.URL,
 			localTrail.Set("author", author)
 			localTrail.Set("needs_full_sync", true)
 			util.SanitizeHTMLFieldsWithLimits(localTrail)
-			return txApp.Save(localTrail)
+			if err := txApp.Save(localTrail); err != nil {
+				return err
+			}
+			return syncRecordPhotos(txApp, ctx, "trail", localTrail.Id, remoteID, author, origin, remoteMap, assetsRequested)
 		})
 		if err != nil {
 			return localTrail, err
@@ -424,9 +435,15 @@ func performFullSyncDocument(app core.App, ctx context.Context, reqURL *url.URL,
 	})
 }
 
-func remoteTrailSyncQuery(reqURL *url.URL) url.Values {
+func remoteTrailSyncQuery(reqURL *url.URL) url.Values { return remoteTrailSyncAssetQuery(reqURL, true) }
+
+func remoteTrailSyncAssetQuery(reqURL *url.URL, assets bool) url.Values {
 	query := remoteSyncQueryParameters(reqURL)
-	setMergedExpandQuery(query, remoteTrailSyncCoreExpandPaths)
+	required := append([]string{}, remoteTrailSyncCoreExpandPaths...)
+	if assets {
+		required = append(required, remoteTrailSyncAssetExpandPaths...)
+	}
+	setMergedExpandQuery(query, required)
 	return query
 }
 
@@ -596,7 +613,14 @@ func syncWaypoints(txApp core.App, ctx context.Context, trail *core.Record, orig
 		wp.Set("iri", iri)
 
 		util.SanitizeHTMLFieldsWithLimits(wp)
-		if _, err := saveRemoteSyncChild(txApp, wp); err != nil {
+		saved, err := saveRemoteSyncChild(txApp, wp)
+		if err != nil {
+			return err
+		}
+		if !saved {
+			continue
+		}
+		if err := syncRecordPhotos(txApp, ctx, "waypoint", wp.Id, wpID, trail.GetString("author"), origin, raw, remoteAssetsRequested(ctx)); err != nil {
 			return err
 		}
 	}
@@ -630,12 +654,15 @@ func syncSummitLogsWithCleanup(txApp core.App, ctx context.Context, trail *core.
 		if util.IsLocalIRI(iri) {
 			continue
 		}
-		childOrigin := origin
+		childOrigin, childAssetsRequested := origin, remoteAssetsRequested(ctx)
 		var author string
 		var canonicalEntry *canonicalRemoteSummitLog
 		if !remoteSyncIRIMatchesOrigin(iri, origin) {
 			confirmed, ok := canonical[iri]
 			if !ok {
+				continue
+			}
+			if confirmed.omitted {
 				continue
 			}
 			if confirmed.removed {
@@ -650,7 +677,7 @@ func syncSummitLogsWithCleanup(txApp core.App, ctx context.Context, trail *core.
 			}
 			canonicalEntry = &confirmed
 			raw, slID, author = confirmed.data, confirmed.remoteID, confirmed.author
-			childOrigin = confirmed.origin
+			childOrigin, childAssetsRequested = confirmed.origin, confirmed.assetsRequested
 		} else {
 			resolved, allowed, err := resolveRemoteSyncAuthor(txApp, ctx, trail.GetString("author"), iri, raw)
 			if err != nil {
@@ -669,6 +696,7 @@ func syncSummitLogsWithCleanup(txApp core.App, ctx context.Context, trail *core.
 			continue
 		}
 
+		previousAuthor := sl.GetString("author")
 		syncRecordFiles(ctx, sl, "summit_logs", slID, childOrigin, raw)
 
 		loadRemoteRecordFields(sl, raw)
@@ -683,6 +711,14 @@ func syncSummitLogsWithCleanup(txApp core.App, ctx context.Context, trail *core.
 		}
 		if !saved {
 			continue
+		}
+		if previousAuthor != "" && previousAuthor != author {
+			if err := util.HandOverRepairedSummitLogPhotos(txApp, sl.Id, previousAuthor, author); err != nil {
+				return err
+			}
+		}
+		if err := syncRecordPhotos(txApp, ctx, "summit_log", sl.Id, slID, author, childOrigin, raw, childAssetsRequested); err != nil {
+			return err
 		}
 		if canonicalEntry != nil {
 			canonicalRemoteLogCache.successAfterCommit(txApp, canonicalEntry.cacheKey, canonicalEntry.updatedHint, sl.GetString("updated"))
@@ -790,29 +826,6 @@ func syncRecordFiles(ctx context.Context, record *core.Record, collection, remot
 		}
 	}
 
-	// Keep saved files and append only remote names that have not been copied.
-	// The origin's placeholder stays behind: this instance renders its own.
-	if photos, ok := data["photos"].([]any); ok {
-		saved := record.GetStringSlice("photos")
-		limit := 1
-		if field, ok := record.Collection().Fields.GetByName("photos").(*core.FileField); ok {
-			limit = max(1, field.MaxSelect)
-		}
-		for _, p := range photos {
-			name, ok := p.(string)
-			if !ok || name == "" || strings.ContainsAny(name, "/\\") || routeimage.IsPlaceholder(name) || remotePhotoAlreadyStored(saved, name) {
-				continue
-			}
-			if len(saved) >= limit {
-				break
-			}
-			if f, err := downloadFile(ctx, origin, collection, remoteID, name, remoteRecordFieldLimit(record, "photos", util.RemotePhotoMaxBytes)); err == nil {
-				record.Set("photos+", f)
-				saved = append(saved, f.Name)
-			}
-		}
-	}
-
 }
 
 func downloadFile(ctx context.Context, origin, col, id, name string, limits ...int64) (*filesystem.File, error) {
@@ -821,65 +834,11 @@ func downloadFile(ctx context.Context, origin, col, id, name string, limits ...i
 		maxBytes = limits[0]
 	}
 	rawURL := fmt.Sprintf("%s/api/v1/files/%s/%s/%s", origin, col, id, name)
-	return util.PreparedRemoteSyncFile(ctx, rawURL, origin, maxBytes)
+	return util.PreparedRemoteSyncFile(ctx, util.FederatedShareURL(ctx, rawURL), origin, maxBytes)
 }
 
 // Stable file names let a later sync recognize completed downloads.
-func remoteSyncFileName(name string) string {
-	sum := sha256.Sum256([]byte(name))
-	ext := path.Ext(name)
-	if len(ext) > 20 || strings.IndexFunc(ext, func(r rune) bool {
-		return !(r == '.' || r == '_' || r == '-' || r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9')
-	}) >= 0 {
-		ext = ""
-	}
-	return "remote_" + hex.EncodeToString(sum[:]) + ext
-}
-
-var remoteCopyNameSuffix = regexp.MustCompile(`^[a-z0-9]{10}$`)
-var remoteCopyExtInvalid = regexp.MustCompile(`[^A-Za-z0-9._-]+`)
-var remoteCopyDetectedExt = regexp.MustCompile(`^\.[a-z0-9]{1,5}$`)
-
-func remotePhotoAlreadyStored(saved []string, source string) bool {
-	stable := remoteSyncFileName(source)
-	// PocketBase keeps the last two extension components when adding its suffix.
-	ext := ""
-	if dot := strings.LastIndex(source, "."); dot >= 0 {
-		if previous := strings.LastIndex(source[:dot], "."); previous >= 0 {
-			dot = previous
-		}
-		ext = source[dot:]
-	}
-	base := strings.TrimSuffix(source, ext)
-	if len(base) > 100 {
-		base = base[:100]
-	}
-	exts := []string{ext}
-	// attachmentFileName normalizes punctuation before PocketBase trims dots.
-	normalized := remoteCopyExtInvalid.ReplaceAllString(ext, "_")
-	for _, candidate := range []string{normalized, "." + strings.Trim(ext, "."), "." + strings.Trim(normalized, ".")} {
-		if candidate != "." && !slices.Contains(exts, candidate) {
-			exts = append(exts, candidate)
-		}
-	}
-	for _, name := range saved {
-		if name == stable || name == source {
-			return true
-		}
-		// Earlier copies used PocketBase's extra ten-character suffix.
-		for _, ext := range exts {
-			if strings.HasPrefix(name, base+"_") && strings.HasSuffix(name, ext) && len(name) == len(base)+11+len(ext) && remoteCopyNameSuffix.MatchString(name[len(base)+1:len(base)+11]) {
-				return true
-			}
-		}
-		// An extension of only dots is trimmed before PocketBase detects one
-		// from the contents. Its base and generated suffix still identify it.
-		if ext != "" && strings.Trim(ext, ".") == "" && strings.HasPrefix(name, base+"_") && len(name) > len(base)+11 && remoteCopyNameSuffix.MatchString(name[len(base)+1:len(base)+11]) && remoteCopyDetectedExt.MatchString(name[len(base)+11:]) {
-			return true
-		}
-	}
-	return false
-}
+func remoteSyncFileName(name string) string { return util.FederatedSourceFileName(name) }
 
 func remoteRecordFieldLimit(record *core.Record, name string, fallback int64) int64 {
 	if field, ok := record.Collection().Fields.GetByName(name).(*core.FileField); ok && field.MaxSize > 0 {

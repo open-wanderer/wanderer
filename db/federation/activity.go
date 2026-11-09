@@ -223,9 +223,17 @@ func PostActivity(app core.App, actor *core.Record, activity *pub.Activity, reci
 
 				if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
 					respBody, _ := io.ReadAll(io.LimitReader(resp.Body, deliveryErrorBodyLimit))
-					app.Logger().Error(fmt.Sprintf("Inbox %s responded with %d: %s", inbox, resp.StatusCode, respBody))
+					if activity.Type == pub.AnnounceType {
+						app.Logger().Error("Announce delivery failed", "inbox", inbox, "status", resp.StatusCode)
+					} else {
+						app.Logger().Error(fmt.Sprintf("Inbox %s responded with %d: %s", inbox, resp.StatusCode, respBody))
+					}
 				} else {
-					app.Logger().Info(fmt.Sprintf("Sent %s to %s", activity.Type, inbox), "activity", activity)
+					if activity.Type == pub.AnnounceType {
+						app.Logger().Info(fmt.Sprintf("Sent %s to %s", activity.Type, inbox), "id", activity.ID)
+					} else {
+						app.Logger().Info(fmt.Sprintf("Sent %s to %s", activity.Type, inbox), "activity", activity)
+					}
 				}
 			}(v)
 		}

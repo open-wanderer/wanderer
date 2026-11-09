@@ -19,6 +19,7 @@ type canonicalRemoteSummitLog struct {
 	data                     map[string]any
 	remoteID, origin, author string
 	authorIRI                string
+	assetsRequested          bool
 	removed                  bool
 	omitted                  bool
 	cacheKey, updatedHint    string
@@ -224,7 +225,11 @@ func fetchCanonicalRemoteSummitLogsWithin(app core.App, ctx context.Context, tra
 func fetchCanonicalRemoteSummitLog(app core.App, ctx context.Context, client *http.Client, trail *core.Record, job canonicalLogRequest) (canonicalRemoteSummitLog, bool) {
 	ctx, cancel := context.WithTimeout(ctx, canonicalRemoteFetchTimeout)
 	defer cancel()
+	assetsRequested := !job.omitted
 	job.url.RawQuery = url.Values{"expand": {"author,trail"}}.Encode()
+	if assetsRequested {
+		job.url.RawQuery = url.Values{"expand": {"author,trail,summit_log_assets_via_summit_log.asset"}}.Encode()
+	}
 	var probe canonicalLogAbsenceProbe
 	if job.omitted && job.parentPublic && job.storedAuthor != "" {
 		// Reserve only when a selected job actually attempts HTTP, not while
@@ -232,6 +237,17 @@ func fetchCanonicalRemoteSummitLog(app core.App, ctx context.Context, client *ht
 		probe = canonicalRemoteLogAbsenceCache.begin(job.cacheKey, job.storedSnapshot, time.Now())
 	}
 	data, err := fetchRemoteDocument(ctx, client, job.url, "summit log", canonicalRemoteBodyLimit)
+	// Asset metadata may exceed the per-response cap while the core still fits.
+	// Reuse the same deadline and remaining shared budget; never retry its exhaustion.
+	retryWithoutAssets := shouldRetryRemoteFetchWithoutAssetExpands(err) ||
+		errors.Is(err, util.ErrFederationBodyTooLarge) && !errors.Is(err, errCanonicalRemoteByteBudget)
+	if assetsRequested && retryWithoutAssets && ctx.Err() == nil && !canonicalRemoteBodyBudgetExhausted(ctx) {
+		job.url.RawQuery = url.Values{"expand": {"author,trail"}}.Encode()
+		data, err = fetchRemoteDocument(ctx, client, job.url, "summit log", canonicalRemoteBodyLimit)
+		if err == nil {
+			assetsRequested = false
+		}
+	}
 	var status *remoteFetchStatusError
 	notFound := errors.As(err, &status) && status.StatusCode == http.StatusNotFound
 	if !notFound || !job.omitted || !job.parentPublic {
@@ -285,7 +301,7 @@ func fetchCanonicalRemoteSummitLog(app core.App, ctx context.Context, client *ht
 		return canonicalRemoteSummitLog{omitted: true, author: job.storedAuthor, cacheKey: job.cacheKey, updatedHint: job.updated}, true
 	}
 
-	return canonicalRemoteSummitLog{data: canonicalSummitLogData(data), remoteID: remoteID, origin: job.url.Scheme + "://" + job.url.Host, authorIRI: authorIRI, cacheKey: job.cacheKey, updatedHint: job.updated}, true
+	return canonicalRemoteSummitLog{data: canonicalSummitLogData(data), assetsRequested: assetsRequested, remoteID: remoteID, origin: job.url.Scheme + "://" + job.url.Host, authorIRI: authorIRI, cacheKey: job.cacheKey, updatedHint: job.updated}, true
 }
 
 func canonicalSummitLogURL(iri string) (*url.URL, error) {

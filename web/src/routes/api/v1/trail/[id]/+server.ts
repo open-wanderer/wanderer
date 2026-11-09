@@ -33,6 +33,8 @@ import { acceptsActivityPub, activityPubObject } from "#lib/server/activitypub_o
  *     responses:
  *       200:
  *         description: Trail
+ *       403:
+ *         description: Trail access denied. A denied well-formed share includes data.share.code federated_share_denied.
  *       404:
  *         description: Not Found
  *       500:

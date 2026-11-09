@@ -19,7 +19,7 @@ func TestRemoteTrailRefreshNetworkSaveWins(t *testing.T) {
 		t.Run(change, func(t *testing.T) {
 			t.Setenv("ORIGIN", "https://local.example")
 			f := childRefreshFixture(t)
-			f.trails.Fields.Add(&core.TextField{Name: "federated_category_name"}, &core.FileField{Name: "photos", MaxSelect: 10, MaxSize: 1024})
+			f.trails.Fields.Add(&core.TextField{Name: "federated_category_name"})
 			if err := f.app.Save(f.trails); err != nil {
 				t.Fatal(err)
 			}
@@ -103,7 +103,7 @@ func TestRemoteTrailRefreshNetworkSaveWins(t *testing.T) {
 				t.Fatal(err)
 			}
 			for _, record := range []*core.Record{got, stored} {
-				if record.GetString("name") != "Incoming update" || !record.GetBool("public") || !record.GetBool("needs_full_sync") || record.GetString("federated_category_name") != "Incoming category" || record.GetBool("full_sync_completed") || len(record.GetStringSlice("photos")) != 0 {
+				if record.GetString("name") != "Incoming update" || !record.GetBool("public") || !record.GetBool("needs_full_sync") || record.GetString("federated_category_name") != "Incoming category" || record.GetBool("full_sync_completed") || len(testPhotoFiles(t, f.app, record)) != 0 {
 					t.Fatalf("network-phase save was overwritten: %v", record)
 				}
 			}

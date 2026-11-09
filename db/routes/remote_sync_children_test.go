@@ -25,12 +25,20 @@ func childRefreshFixture(t *testing.T) *remoteSyncFixture {
 	f.trails.ViewRule = types.Pointer("public=true")
 	f.lists.ViewRule = types.Pointer("public=true")
 	f.waypoints.Fields.GetByName("name").(*core.TextField).Max = 5000
-	f.waypoints.Fields.Add(&core.FileField{Name: "photos", MaxSelect: 99, MaxSize: 20 << 20, MimeTypes: []string{"image/jpeg", "image/png"}})
-	f.logs.Fields.Add(&core.NumberField{Name: "distance", Min: types.Pointer(float64(0))}, &core.FileField{Name: "photos", MaxSelect: 99, MaxSize: 20 << 20, MimeTypes: []string{"image/jpeg", "image/png"}})
+
+	f.logs.Fields.Add(&core.NumberField{Name: "distance", Min: types.Pointer(float64(0))})
 	for _, col := range []*core.Collection{f.trails, f.lists, f.waypoints, f.logs} {
 		if err := f.app.Save(col); err != nil {
 			t.Fatal(err)
 		}
+	}
+	assets, err := f.app.FindCollectionByNameOrId("assets")
+	if err != nil {
+		t.Fatal(err)
+	}
+	assets.Fields.GetByName("file").(*core.FileField).MimeTypes = []string{"image/jpeg", "image/png"}
+	if err := f.app.Save(assets); err != nil {
+		t.Fatal(err)
 	}
 	return f
 }
@@ -128,17 +136,35 @@ func TestRemoteSyncSkipsInvalidChildrenAndRetriesLater(t *testing.T) {
 				if err != nil || got.GetBool("needs_full_sync") || !got.GetBool("full_sync_completed") || got.GetString("name") != "Refreshed" {
 					t.Fatalf("invalid child prevented completion: record%v error%v", got, err)
 				}
-				if n, err := f.app.CountRecords(col.Name); err != nil || n != map[bool]int64{false: 1, true: 2}[existing] {
+				wantChildren := map[bool]int64{false: 1, true: 2}[existing]
+				if variant == "photo-content" {
+					wantChildren = 2
+				}
+				if n, err := f.app.CountRecords(col.Name); err != nil || n != wantChildren {
 					t.Fatalf("valid sibling lost: count%d error%v", n, err)
 				}
 				if existing {
-					fields := []string{"author", "trail", "iri", "photos"}
-					if col == f.waypoints {
-						fields = append(fields, "name")
-					} else {
-						fields = append(fields, "text")
+					fields := []string{"author", "trail", "iri"}
+					if variant != "photo-content" {
+						if col == f.waypoints {
+							fields = append(fields, "name")
+						} else {
+							fields = append(fields, "text")
+						}
 					}
 					f.assertUnchanged(previous, fields...)
+				}
+				if variant == "photo-content" {
+					current, err := f.app.FindFirstRecordByData(col.Name, "iri", iri)
+					if err != nil || current.GetString("name") != "Updated child" || current.GetString("author") != author.Id || current.GetString("trail") != parent.Id {
+						t.Fatalf("photo failure discarded child metadata: %v %v", current, err)
+					}
+					if assets := testPhotoAssets(t, f.app, current); len(assets) != 0 {
+						t.Fatalf("invalid photo was linked: %v", assets)
+					}
+					if count, err := f.app.CountRecords("assets"); err != nil || count != 0 {
+						t.Fatalf("invalid asset survived: count=%d err=%v", count, err)
+					}
 				}
 				before := calls.Load()
 				checkCompletedChildView(t, f, "trail", got)

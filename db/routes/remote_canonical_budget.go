@@ -79,6 +79,31 @@ func canonicalSummitLogData(raw map[string]any) map[string]any {
 		}
 		result["photos"] = values
 	}
+	expanded, _ := raw["expand"].(map[string]any)
+	const relation = "summit_log_assets_via_summit_log"
+	if value, present := expanded[relation]; present {
+		var links any
+		if originals, ok := value.([]any); ok {
+			values := make([]any, 0, len(originals))
+			for _, original := range originals {
+				link, _ := original.(map[string]any)
+				copied := canonicalScalarFields(link, "id", "asset", "is_thumbnail", "created", "updated")
+				nested, _ := link["expand"].(map[string]any)
+				if asset, ok := nested["asset"].(map[string]any); ok {
+					copiedAsset := canonicalScalarFields(asset, "id", "collectionId", "collectionName", "type", "file", "author", "lat", "lon", "storage_mode", "external_provider", "external_id")
+					metadata, _ := asset["metadata"].(map[string]any)
+					generated, _ := metadata["generated"].(map[string]any)
+					if generated["kind"] == "route-preview" {
+						copiedAsset["metadata"] = map[string]any{"generated": map[string]any{"kind": "route-preview"}}
+					}
+					copied["expand"] = map[string]any{"asset": copiedAsset}
+				}
+				values = append(values, copied)
+			}
+			links = values
+		}
+		result["expand"] = map[string]any{relation: links}
+	}
 	return result
 }
 

@@ -135,6 +135,7 @@ func newRemoteSyncFixture(t *testing.T) *remoteSyncFixture {
 		&core.RelationField{Name: "author", CollectionId: f.actors.Id, MaxSelect: 1}, &core.RelationField{Name: "trail", CollectionId: f.trails.Id, MaxSelect: 1},
 	)
 	f.lists = collection("lists", &core.TextField{Name: "iri"}, &core.TextField{Name: "name"}, &core.BoolField{Name: "public"}, &core.BoolField{Name: "needs_full_sync"}, &core.BoolField{Name: "full_sync_completed"}, &core.RelationField{Name: "author", CollectionId: f.actors.Id, MaxSelect: 1}, &core.RelationField{Name: "trails", CollectionId: f.trails.Id, MaxSelect: 100})
+	ensureTestPhotoCollections(t, app)
 	return f
 }
 

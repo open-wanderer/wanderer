@@ -25,31 +25,31 @@ type remoteSyncDocument struct {
 func fetchRemoteSyncDocument(ctx context.Context, client *http.Client, remoteURL *url.URL, kind string) (*remoteSyncDocument, error) {
 	releaseFetch, err := acquireRemoteSyncFetch(ctx, remoteURL.String())
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", errRemoteUnavailable, err)
+		return nil, fmt.Errorf("%w: %w", errRemoteUnavailable, util.RedactFederatedShareError(err))
 	}
 	defer releaseFetch()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, remoteURL.String(), nil)
 	if err != nil {
-		return nil, err
+		return nil, util.RedactFederatedShareError(err)
 	}
 	response, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", errRemoteUnavailable, err)
+		return nil, fmt.Errorf("%w: %w", errRemoteUnavailable, util.RedactFederatedShareError(err))
 	}
 	defer response.Body.Close()
 	if response.StatusCode != http.StatusOK {
-		err := &remoteFetchStatusError{Kind: kind, URL: remoteURL.String(), StatusCode: response.StatusCode}
+		err := &remoteFetchStatusError{Kind: kind, URL: util.WithoutFederatedShareToken(remoteURL.String()), StatusCode: response.StatusCode, ShareDenied: readRemoteTrailShareDenial(response)}
 		if response.StatusCode >= http.StatusInternalServerError {
-			return nil, fmt.Errorf("%w: %w", errRemoteUnavailable, err)
+			return nil, fmt.Errorf("%w: %w", errRemoteUnavailable, util.RedactFederatedShareError(err))
 		}
 		if isGoneStatus(response.StatusCode) {
-			return nil, fmt.Errorf("%w: %w", errRemoteGone, err)
+			return nil, fmt.Errorf("%w: %w", errRemoteGone, util.RedactFederatedShareError(err))
 		}
-		return nil, err
+		return nil, util.RedactFederatedShareError(err)
 	}
 	file, err := os.CreateTemp("", "wanderer-sync-document-*")
 	if err != nil {
-		return nil, err
+		return nil, util.RedactFederatedShareError(err)
 	}
 	document := &remoteSyncDocument{file: file}
 	count, err := io.Copy(file, io.LimitReader(response.Body, util.FederationSyncBodyLimit+1))
@@ -58,7 +58,7 @@ func fetchRemoteSyncDocument(ctx context.Context, client *http.Client, remoteURL
 	}
 	if err != nil {
 		document.close()
-		return nil, err
+		return nil, util.RedactFederatedShareError(err)
 	}
 	return document, nil
 }
@@ -77,7 +77,7 @@ func (document *remoteSyncDocument) process(ctx context.Context, run func(map[st
 		tokens, err := remoteSyncJSONTokens(ctx, document.file)
 		if err != nil {
 			if isRemoteDocumentLimitError(err) {
-				err = fmt.Errorf("%w: %w", errRemoteUnavailable, err)
+				err = fmt.Errorf("%w: %w", errRemoteUnavailable, util.RedactFederatedShareError(err))
 			}
 			return nil, err
 		}
@@ -85,7 +85,7 @@ func (document *remoteSyncDocument) process(ctx context.Context, run func(map[st
 	}
 	release, err := acquireRemoteSyncProcessing(ctx, document.tokens)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", errRemoteUnavailable, err)
+		return nil, fmt.Errorf("%w: %w", errRemoteUnavailable, util.RedactFederatedShareError(err))
 	}
 	defer release()
 	if _, err := document.file.Seek(0, io.SeekStart); err != nil {
@@ -94,7 +94,7 @@ func (document *remoteSyncDocument) process(ctx context.Context, run func(map[st
 	var data map[string]any
 	if err := decodeRemoteSyncJSON(ctx, document.file, util.FederationSyncBodyLimit, &data); err != nil {
 		if errors.Is(err, util.ErrFederationBodyTooLarge) || errors.Is(err, errRemoteSyncJSONComplexity) {
-			err = fmt.Errorf("%w: %w", errRemoteUnavailable, err)
+			err = fmt.Errorf("%w: %w", errRemoteUnavailable, util.RedactFederatedShareError(err))
 		}
 		return nil, err
 	}
@@ -136,7 +136,7 @@ func (document *remoteSyncDocument) networkPlan(app core.App, ctx context.Contex
 		} else {
 			plan.completeSummitLogs = remoteTrailChildIDs(app, data, origin, "summit_logs_via_trail", "summit_logs") != nil
 			capRemoteSyncChildren(app, data, origin, "waypoints_via_trail", "summit_logs_via_trail")
-			plan.media = collectRemoteTrailMedia(app, record, origin, id, data)
+			plan.media = collectRemoteTrailMedia(app, record, origin, id, data, remoteAssetsRequested(ctx))
 		}
 		plan.data = remoteSyncNetworkRecord(data)
 		if public, ok := data["public"].(bool); ok && kind == "trail" {

@@ -75,6 +75,7 @@ func setupAddressingTestApp(t *testing.T) *addressingFixture {
 	add("activitypub_activities", append(text("iri", "type", "actor", "published"),
 		&core.JSONField{Name: "to"}, &core.JSONField{Name: "cc"}, &core.JSONField{Name: "object"})...)
 
+	ensureTestPhotoCollections(t, app)
 	return &addressingFixture{app: app, in: newInboxes(t)}
 }
 

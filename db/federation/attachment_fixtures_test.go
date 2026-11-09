@@ -123,6 +123,7 @@ func newInboxTestApp(t *testing.T) core.App {
 		app.ResetBootstrapState()
 	})
 
+	ensureTestPhotoCollections(t, app)
 	return app
 }
 

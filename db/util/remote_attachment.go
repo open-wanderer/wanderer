@@ -25,10 +25,6 @@ const (
 
 	// RemoteAttachmentTimeout bounds a single attachment download.
 	RemoteAttachmentTimeout = 30 * time.Second
-
-	// RemoteMaxPhotosPerObject is the photo cap used when the collection's photos
-	// field cannot be read (maxSelect is 99 on trails and summit_logs).
-	RemoteMaxPhotosPerObject = 99
 )
 
 // RemoteFileLimit uses the configured file field, including administrator
@@ -66,23 +62,6 @@ func installedRemoteAttachmentClient() HTTPDoer {
 	remoteAttachmentClientMu.RLock()
 	defer remoteAttachmentClientMu.RUnlock()
 	return remoteAttachmentClient
-}
-
-// RemotePhotoLimit returns the maxSelect of the collection's photos field, or
-// RemoteMaxPhotosPerObject if it cannot be read.
-func RemotePhotoLimit(app core.App, collection string) int {
-	col, err := app.FindCachedCollectionByNameOrId(collection)
-	if err != nil || col == nil {
-		return RemoteMaxPhotosPerObject
-	}
-	field, ok := col.Fields.GetByName("photos").(*core.FileField)
-	if !ok || field == nil {
-		return RemoteMaxPhotosPerObject
-	}
-	if field.MaxSelect > 1 {
-		return field.MaxSelect
-	}
-	return 1
 }
 
 var attachmentNameInvalidChars = regexp.MustCompile(`[^A-Za-z0-9._-]+`)

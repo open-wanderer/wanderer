@@ -2,6 +2,9 @@ package routes
 
 import (
 	"encoding/json"
+	"fmt"
+	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -14,7 +17,8 @@ import (
 	"github.com/pocketbase/pocketbase/tools/types"
 )
 
-const remoteTrailSyncTestExpand = "author,category,subcategory,tags,waypoints_via_trail,summit_logs_via_trail,summit_logs_via_trail.author"
+const remoteTrailSyncCoreTestExpand = "author,category,subcategory,tags,waypoints_via_trail,summit_logs_via_trail,summit_logs_via_trail.author"
+const remoteTrailSyncTestExpand = remoteTrailSyncCoreTestExpand + ",trail_assets_via_trail.asset,waypoints_via_trail.waypoint_assets_via_waypoint.asset,summit_logs_via_trail.summit_log_assets_via_summit_log.asset"
 const remoteListSyncTestExpand = "author,trails,trails.author,trails.category,trails.subcategory,trails.tags"
 const remoteSyncTestShare = "abcdefghijklmnopqrstuvwxyz012345"
 
@@ -59,7 +63,7 @@ func TestRemoteSyncQueriesCannotBeInflatedByCallerParameters(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, query := range []url.Values{remoteTrailSyncQuery(request), remoteListSyncQuery(request)} {
+	for _, query := range []url.Values{remoteTrailSyncQuery(request), remoteTrailSyncAssetQuery(request, false), remoteListSyncQuery(request)} {
 		if len(query.Encode()) > 1024 || query.Get("padding") != "" || query.Get("share") != "" || strings.Contains(query.Get("expand"), "caller") {
 			t.Fatalf("caller input reached the sync origin: %d encoded bytes", len(query.Encode()))
 		}
@@ -68,13 +72,15 @@ func TestRemoteSyncQueriesCannotBeInflatedByCallerParameters(t *testing.T) {
 
 func TestRemoteTrailSyncQueryOmitsUnusedWaypointAuthors(t *testing.T) {
 	for _, caller := range []*url.URL{nil, {RawQuery: "expand=waypoints_via_trail.author"}} {
-		paths := strings.Split(remoteTrailSyncQuery(caller).Get("expand"), ",")
-		if slices.Contains(paths, "waypoints_via_trail.author") {
-			t.Fatal("unused waypoint author expansion requested, even though sync inherits the trail author")
-		}
-		for _, required := range []string{"waypoints_via_trail", "summit_logs_via_trail.author"} {
-			if !slices.Contains(paths, required) {
-				t.Fatalf("consumed expansion %s omitted", required)
+		for _, assets := range []bool{false, true} {
+			paths := strings.Split(remoteTrailSyncAssetQuery(caller, assets).Get("expand"), ",")
+			if slices.Contains(paths, "waypoints_via_trail.author") {
+				t.Fatal("unused waypoint author expansion requested, even though sync inherits the trail author")
+			}
+			for _, required := range []string{"waypoints_via_trail", "summit_logs_via_trail.author"} {
+				if !slices.Contains(paths, required) {
+					t.Fatalf("consumed expansion %s omitted", required)
+				}
 			}
 		}
 	}
@@ -263,4 +269,32 @@ func remoteSyncProjectedGet(t *testing.T, f *remoteSyncFixture, kind, name strin
 		t.Fatalf("caller author expansion missing or changed: %s", response.Body.String())
 	}
 	return id
+}
+
+func TestRemoteTrailSyncAssetFallbackKeepsTrimmedCoreShape(t *testing.T) {
+	for _, caller := range []*url.URL{nil, {RawQuery: "fields=id&expand=waypoints_via_trail.author&share=" + remoteSyncTestShare}} {
+		share := ""
+		if caller != nil {
+			share = remoteSyncTestShare
+		}
+		assertRemoteSyncDocumentQuery(t, remoteTrailSyncAssetQuery(caller, false), remoteTrailSyncCoreTestExpand, share)
+		assertRemoteSyncDocumentQuery(t, remoteTrailSyncQuery(caller), remoteTrailSyncTestExpand, share)
+	}
+}
+
+func TestRemoteSyncAssetExpandRetryStatuses(t *testing.T) {
+	for _, status := range []int{400, 414, 431, 422, 401, 403, 404, 429, 500} {
+		t.Run(fmt.Sprint(status), func(t *testing.T) {
+			err := fmt.Errorf("sync document: %w", &remoteFetchStatusError{Kind: "trail", URL: "https://a.example/api/v1/trail/route", StatusCode: status})
+			want := status == 400 || status == 414 || status == 431 || status == 422
+			if got := shouldRetryRemoteFetchWithoutAssetExpands(err); got != want {
+				t.Fatalf("asset expand retry for %d = %t, want %t", status, got, want)
+			}
+		})
+	}
+	for _, err := range []error{nil, io.EOF, &net.OpError{Op: "read", Net: "tcp", Err: io.ErrUnexpectedEOF}} {
+		if shouldRetryRemoteFetchWithoutAssetExpands(err) {
+			t.Fatalf("network or absent error retried without asset expands: %v", err)
+		}
+	}
 }

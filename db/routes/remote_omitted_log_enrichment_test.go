@@ -14,10 +14,10 @@ import (
 
 func TestRemoteLogConfirmationEnrichesOnlyListedLogs(t *testing.T) {
 	t.Setenv("ORIGIN", "https://b.example")
-	for _, scenario := range []string{"listed", "omitted", "omitted-legacy-author"} {
+	for _, scenario := range []string{"listed", "omitted", "omitted-legacy-author", "omitted-existing-photo"} {
 		t.Run(scenario, func(t *testing.T) {
 			f := newRemoteCleanupFixture(t, "summit_log")
-			f.children.Fields.Add(&core.FileField{Name: "gpx", MaxSelect: 1, MaxSize: 1024}, &core.FileField{Name: "photos", MaxSelect: 2, MaxSize: 1024})
+			f.children.Fields.Add(&core.FileField{Name: "gpx", MaxSelect: 1, MaxSize: 1024})
 			if err := f.app.Save(f.children); err != nil {
 				t.Fatal(err)
 			}
@@ -28,6 +28,14 @@ func TestRemoteLogConfirmationEnrichesOnlyListedLogs(t *testing.T) {
 			}
 			iri := "https://a.example:8443/api/v1/summit-log/original"
 			log := f.child(iri, storedAuthor, f.trail.Id)
+			var retainedPhoto *core.Record
+			if scenario == "omitted-existing-photo" {
+				file, err := filesystem.NewFileFromBytes([]byte("Existing canonical photo"), "existing.jpg")
+				if err != nil {
+					t.Fatal(err)
+				}
+				retainedPhoto = testAddPhoto(t, f.app, log, file, "https://a.example:8443/api/v1/assets/existing")
+			}
 			listed := scenario == "listed"
 			entries := []any{}
 			if listed {
@@ -45,6 +53,13 @@ func TestRemoteLogConfirmationEnrichesOnlyListedLogs(t *testing.T) {
 						return richTextSyncTransport{map[string]any{"id": "trail", "public": true, "expand": map[string]any{"summit_logs_via_trail": entries}}}.RoundTrip(request)
 					}
 					confirmations.Add(1)
+					wantExpand := "author,trail"
+					if listed {
+						wantExpand += ",summit_log_assets_via_summit_log.asset"
+					}
+					if request.URL.Query().Get("expand") != wantExpand {
+						t.Errorf("confirmation expand=%q, want %q", request.URL.Query().Get("expand"), wantExpand)
+					}
 					return richTextSyncTransport{map[string]any{"id": "original", "iri": iri, "text": "Confirmed", "gpx": "track.gpx", "photos": []any{"photo.jpg"},
 						"expand": map[string]any{"trail": map[string]any{"iri": f.trail.GetString("iri")}, "author": map[string]any{"iri": author.GetString("iri")}}}}.RoundTrip(request)
 				}}}
@@ -77,15 +92,23 @@ func TestRemoteLogConfirmationEnrichesOnlyListedLogs(t *testing.T) {
 				if actors.Load() != 1 || media["track.gpx"] != 1 || media["photo.jpg"] != 1 || len(media) != 2 {
 					t.Errorf("listed enrichment changed: actors=%d media=%v", actors.Load(), media)
 				}
-				if stored.GetString("text") != "Confirmed" || stored.GetString("gpx") == "" || len(stored.GetStringSlice("photos")) != 1 {
+				if stored.GetString("text") != "Confirmed" || stored.GetString("gpx") == "" || len(testPhotoFiles(t, f.app, stored)) != 1 {
 					t.Fatalf("listed canonical data/media not saved: %v", stored)
 				}
 			} else {
 				if actors.Load() != 0 || len(media) != 0 {
 					t.Errorf("existence-only confirmation enriched unused data: actors=%d media=%v", actors.Load(), media)
 				}
-				if stored.GetString("text") != "Original" || stored.GetString("author") != storedAuthor || stored.GetString("gpx") != "" || len(stored.GetStringSlice("photos")) != 0 {
+				wantPhotos := 0
+				if retainedPhoto != nil {
+					wantPhotos = 1
+				}
+				photos := testPhotoAssets(t, f.app, stored)
+				if stored.GetString("text") != "Original" || stored.GetString("author") != storedAuthor || stored.GetString("gpx") != "" || len(photos) != wantPhotos {
 					t.Fatalf("omitted stored data changed: %v", stored)
+				}
+				if retainedPhoto != nil && photos[0].Id != retainedPhoto.Id {
+					t.Fatal("existence-only confirmation replaced the existing photo")
 				}
 			}
 		})
@@ -134,7 +157,14 @@ func TestCanonicalOmittedLogConfirmsOnlyValidatedExistence(t *testing.T) {
 			}
 			previousClient, previousActor := newRemoteSyncHTTPClient, remoteSyncGetActorByIRI
 			t.Cleanup(func() { newRemoteSyncHTTPClient, remoteSyncGetActorByIRI = previousClient, previousActor })
-			newRemoteSyncHTTPClient = func() *http.Client { return &http.Client{Transport: richTextSyncTransport{payload}} }
+			newRemoteSyncHTTPClient = func() *http.Client {
+				return &http.Client{Transport: remoteSyncTransport{roundTrip: func(request *http.Request) (*http.Response, error) {
+					if request.URL.Query().Get("expand") != "author,trail" {
+						t.Error("existence-only probe requested photo enrichment")
+					}
+					return richTextSyncTransport{payload}.RoundTrip(request)
+				}}}
+			}
 			var actors atomic.Int32
 			remoteSyncGetActorByIRI = func(core.App, context.Context, string, bool) (*core.Record, error) {
 				actors.Add(1)
@@ -145,10 +175,40 @@ func TestCanonicalOmittedLogConfirmsOnlyValidatedExistence(t *testing.T) {
 			if found != (scenario == "valid") || actors.Load() != 0 {
 				t.Fatalf("existence validation: accepted=%t actors=%d", found, actors.Load())
 			}
-			if found && (!confirmed.omitted || confirmed.removed || confirmed.author != author.Id || confirmed.data != nil || confirmed.authorIRI != "") {
+			if found && (!confirmed.omitted || confirmed.removed || confirmed.author != author.Id || confirmed.data != nil || confirmed.authorIRI != "" || confirmed.assetsRequested) {
 				t.Fatalf("existence probe retained mutable enrichment: %#v", confirmed)
 			}
 		})
+	}
+}
+
+func TestRemoteListedLogCannotReuseOmittedConfirmationForPhotos(t *testing.T) {
+	t.Setenv("ORIGIN", "https://b.example")
+	f := newRemoteCleanupFixture(t, "summit_log")
+	iri := "https://third.example/api/v1/summit-log/original"
+	log := f.child(iri, f.remoteActor.Id, f.trail.Id)
+	file, err := filesystem.NewFileFromBytes([]byte("Existing photo"), "existing.jpg")
+	if err != nil {
+		t.Fatal(err)
+	}
+	photo := testAddPhoto(t, f.app, log, file, "https://third.example/api/v1/assets/existing")
+	canonical := map[string]canonicalRemoteSummitLog{iri: {
+		omitted: true, author: f.remoteActor.Id, remoteID: "original", origin: "https://third.example",
+		assetsRequested: true, data: map[string]any{
+			"text": "Unused confirmation", "expand": map[string]any{"summit_log_assets_via_summit_log": []any{}},
+		},
+	}}
+	if err := syncSummitLogs(f.app, t.Context(), f.trail, "https://a.example",
+		[]any{map[string]any{"id": "reference", "iri": iri}}, canonical); err != nil {
+		t.Fatal(err)
+	}
+	stored, err := f.app.FindRecordById(f.children, log.Id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	photos := testPhotoAssets(t, f.app, stored)
+	if stored.GetString("text") != "Original" || stored.GetString("author") != log.GetString("author") || len(photos) != 1 || photos[0].Id != photo.Id {
+		t.Fatal("omitted confirmation mutated a listed log or reconciled its photos")
 	}
 }
 

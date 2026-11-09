@@ -85,6 +85,7 @@ func setupFederatedTagImport(t *testing.T) (*pbtests.TestApp, *core.Collection, 
 			}
 		}
 	})
+	ensureTestPhotoCollections(t, app)
 	return app, trails, actor
 }
 

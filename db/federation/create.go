@@ -10,12 +10,10 @@ import (
 	"strings"
 	"time"
 
-	"pocketbase/services/routeimage"
 	"pocketbase/util"
 
 	pub "github.com/go-ap/activitypub"
 	"github.com/pocketbase/pocketbase/core"
-	"github.com/pocketbase/pocketbase/tools/filesystem"
 	"github.com/pocketbase/pocketbase/tools/security"
 	"golang.org/x/net/html"
 )
@@ -287,7 +285,11 @@ func CreateSummitLogActivity(app core.App, ctx context.Context, summitLog *core.
 		cc.Append(pub.IRI(inbox))
 	}
 
-	photos := routeimage.WithoutPlaceholder(summitLog.GetStringSlice("photos"))
+	photos, err := util.PhotoAssetsForTarget(app, "summit_log", summitLog.Id, -1)
+	if err != nil {
+		return err
+	}
+	photos = util.FederatedPhotosForActivity(photos, util.MaxFederatedSummitLogPhotos)
 
 	gpx := ""
 	if summitLog.GetString("gpx") != "" {
@@ -295,14 +297,10 @@ func CreateSummitLogActivity(app core.App, ctx context.Context, summitLog *core.
 	}
 
 	attachments := make(pub.ItemCollection, 0, len(photos)+1)
-	for i := range len(photos) {
-		iri := fmt.Sprintf("%s/api/v1/files/summit_logs/%s/%s", origin, summitLog.Id, photos[i])
-		attachments.Append(pub.Document{
-			Type:      pub.ImageType,
-			MediaType: "image/jpeg",
-			URL:       pub.IRI(iri),
-		})
+	for _, photo := range photos {
+		attachments.Append(util.FederatedPhotoImage(photo, origin))
 	}
+
 	if gpx != "" {
 		attachments.Append(pub.Document{
 			Type:      pub.DocumentType,
@@ -753,6 +751,7 @@ func processCreateOrUpdateSummitLogActivity(activity pub.Activity, app core.App,
 		}
 	}
 
+	previousAuthor := record.GetString("author")
 	record.Set("date", logObject.StartTime)
 	record.Set("text", logObject.Content.First().Value)
 	record.Set("distance", distance)
@@ -763,15 +762,13 @@ func processCreateOrUpdateSummitLogActivity(activity pub.Activity, app core.App,
 	record.Set("trail", trail.Id)
 	record.Set("iri", logObject.ID.String())
 
+	photos := []util.FederatedPhoto{}
 	if logObject.Attachment != nil {
 		attachments, err := util.ActivityPubAttachmentItems(logObject.Attachment)
 		if err != nil {
 			return err
 		}
 
-		photoURLs := []string{}
-		photoLimit := util.RemotePhotoLimit(app, "summit_logs")
-		ignoredPhotos := 0
 		gpxURL := ""
 		for _, a := range attachments.Collection() {
 			attachment, err := pub.ToObject(a)
@@ -782,33 +779,9 @@ func processCreateOrUpdateSummitLogActivity(activity pub.Activity, app core.App,
 			if attachment.Type == pub.DocumentType && attachment.MediaType == "application/xml+gpx" {
 				gpxURL = attachment.URL.GetLink().String()
 			} else if attachment.Type == pub.ImageType {
-				if len(photoURLs) >= photoLimit {
-					ignoredPhotos++
-					continue
+				if photo, ok := util.FederatedPhotoFromAttachment(attachment); ok && len(photos) < util.MaxFederatedSummitLogPhotos {
+					photos = append(photos, photo)
 				}
-				photoURLs = append(photoURLs, attachment.URL.GetLink().String())
-			}
-		}
-		if ignoredPhotos > 0 {
-			app.Logger().Info("ignoring remote summit log photos past the collection limit",
-				"iri", logObject.ID.String(), "limit", photoLimit, "ignored", ignoredPhotos)
-		}
-
-		if len(photoURLs) == 0 {
-			record.Set("photos", []*filesystem.File{})
-		} else {
-			photos := []*filesystem.File{}
-			for _, purl := range photoURLs {
-				photo, cleanup, err := util.DownloadRemoteFile(context.Background(), purl, util.RemoteFileLimit(record, "photos", util.RemotePhotoMaxBytes))
-				defer cleanup()
-				if err != nil {
-					continue
-				}
-				photos = append(photos, photo)
-			}
-
-			if len(photos) > 0 {
-				record.Set("photos", photos)
 			}
 		}
 
@@ -824,8 +797,20 @@ func processCreateOrUpdateSummitLogActivity(activity pub.Activity, app core.App,
 	}
 
 	util.SanitizeHTMLFieldsWithLimits(record)
-	err = app.Save(record)
+	err = app.RunInTransaction(func(tx core.App) error {
+		if err := tx.Save(record); err != nil {
+			return err
+		}
+		if previousAuthor != "" && previousAuthor != actor.Id {
+			return util.HandOverRepairedSummitLogPhotos(tx, record.Id, previousAuthor, actor.Id)
+		}
+		return nil
+	})
 	if err != nil {
+		return err
+	}
+
+	if err := util.ReconcileFederatedPhotoAssets(app, context.Background(), "summit_log", record.Id, actor.Id, photos, len(photos) >= util.MaxFederatedSummitLogPhotos); err != nil {
 		return err
 	}
 

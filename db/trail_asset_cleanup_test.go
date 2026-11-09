@@ -2,7 +2,9 @@ package main
 
 import (
 	"errors"
+	pub "github.com/go-ap/activitypub"
 	"github.com/pocketbase/pocketbase/core"
+	"pocketbase/federation"
 	"testing"
 )
 
@@ -89,5 +91,50 @@ func TestTrailDeleteRemovesOrphanedAssets(t *testing.T) {
 				t.Error("photo still linked to another trail's summit log was deleted")
 			}
 		})
+	}
+}
+
+// A remote trail deleted at its origin takes its photos along, those of its
+// waypoints and summit logs included. They belong to the remote author, so
+// nobody here could find or remove them afterwards.
+func TestInboundTrailDeleteRemovesFederatedAssets(t *testing.T) {
+	f := newRecordHooksFixture(t)
+	bob := f.save("activitypub_actors", map[string]any{"preferred_username": "bob",
+		"iri": "https://b.example/api/v1/activitypub/user/bob", "is_local": false})
+	trail := f.save("trails", map[string]any{"name": "Ridge", "author": bob.Id, "public": true,
+		"iri": "https://b.example/api/v1/trail/ridge"})
+	other := f.save("trails", map[string]any{"name": "Valley", "author": bob.Id, "public": true,
+		"iri": "https://b.example/api/v1/trail/valley"})
+	waypoint := f.save("waypoints", map[string]any{"name": "Hut", "trail": trail.Id, "author": bob.Id,
+		"iri": "https://b.example/api/v1/waypoint/hut"})
+	log := f.save("summit_logs", map[string]any{"trail": trail.Id, "author": bob.Id, "date": "2026-01-01 00:00:00.000Z",
+		"iri": "https://b.example/api/v1/summit-log/ridge"})
+	trailPhoto := f.federatedPhoto(bob, "trail")
+	waypointPhoto := f.federatedPhoto(bob, "waypoint")
+	logPhoto := f.federatedPhoto(bob, "log")
+	shared := f.federatedPhoto(bob, "shared")
+	f.save("trail_assets", map[string]any{"asset": trailPhoto.Id, "trail": trail.Id})
+	f.save("waypoint_assets", map[string]any{"asset": waypointPhoto.Id, "waypoint": waypoint.Id})
+	f.save("summit_log_assets", map[string]any{"asset": logPhoto.Id, "summit_log": log.Id})
+	f.save("trail_assets", map[string]any{"asset": shared.Id, "trail": trail.Id})
+	f.save("trail_assets", map[string]any{"asset": shared.Id, "trail": other.Id})
+	f.bindHooks()
+
+	activity := pub.DeleteNew(pub.IRI("https://b.example/api/v1/activitypub/activity/delete"), pub.IRI(trail.GetString("iri")))
+	activity.Actor = pub.IRI(bob.GetString("iri"))
+	if err := federation.ProcessDeleteActivity(f.app, bob, *activity); err != nil {
+		t.Fatal(err)
+	}
+
+	if f.exists(trail) {
+		t.Fatal("trail was not deleted")
+	}
+	for name, photo := range map[string]*core.Record{"trail": trailPhoto, "waypoint": waypointPhoto, "summit log": logPhoto} {
+		if f.exists(photo) {
+			t.Errorf("photo of the %s survived the trail's deletion", name)
+		}
+	}
+	if !f.exists(shared) {
+		t.Error("photo still linked to another trail was deleted")
 	}
 }

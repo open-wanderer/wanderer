@@ -72,13 +72,16 @@ func TestRemoteChildMetadataSurvivesFileFailures(t *testing.T) {
 						if state != "new" {
 							fields := map[string]any{"iri": iri, "name": "Child", textField: "Saved text", "author": actor.Id, "trail": parent.Id}
 							if state == "existing-files" {
-								fields["photos"] = []*filesystem.File{newFile(photoBytes, "saved.png")}
+
 								if kind == "summit-log" {
 									fields["gpx"] = newFile(gpxBytes, "saved.gpx")
 								}
 							}
 							previous = saveRemoteChildRecord(t, app, collection, fields)
-							savedPhotos, savedGPX = previous.GetStringSlice("photos"), previous.GetString("gpx")
+							if state == "existing-files" {
+								testAddPhoto(t, app, previous, newFile(photoBytes, "saved.png"), "")
+							}
+							savedPhotos, savedGPX = testPhotoFiles(t, app, previous), previous.GetString("gpx")
 						}
 						text := "Updated text"
 						raw := map[string]any{"id": remoteID, "iri": iri, "name": "Child", textField: text, "photos": []any{"next.png"}}
@@ -100,8 +103,12 @@ func TestRemoteChildMetadataSurvivesFileFailures(t *testing.T) {
 									t.Fatal("existing GPX requested again")
 								}
 							}
-							col, err := app.FindCollectionByNameOrId(collection)
-							if err != nil || limit != col.Fields.GetByName(field).(*core.FileField).MaxSize {
+							limitCollection, limitField := collection, field
+							if field == "photos" {
+								limitCollection, limitField = "assets", "file"
+							}
+							col, err := app.FindCollectionByNameOrId(limitCollection)
+							if err != nil || limit != col.Fields.GetByName(limitField).(*core.FileField).MaxSize {
 								t.Fatalf("local field limit was not used: %d, %v", limit, err)
 							}
 							if !repaired {
@@ -148,12 +155,12 @@ func TestRemoteChildMetadataSurvivesFileFailures(t *testing.T) {
 							if previous != nil && child.Id != previous.Id {
 								t.Fatal("existing child was replaced")
 							}
-							if attempt < 2 && (!slices.Equal(child.GetStringSlice("photos"), savedPhotos) || child.GetString("gpx") != savedGPX) {
+							if attempt < 2 && (!slices.Equal(testPhotoFiles(t, app, child), savedPhotos) || child.GetString("gpx") != savedGPX) {
 								t.Fatal("failed download changed existing files")
 							}
 						}
-						photos := child.GetStringSlice("photos")
-						if len(photos) != len(savedPhotos)+1 || !remotePhotoAlreadyStored(photos, "next.png") || (kind == "summit-log" && child.GetString("gpx") == "") {
+						photos := testPhotoFiles(t, app, child)
+						if len(photos) != len(savedPhotos)+1 || !hasTestPhotoCanonicalID(t, app, child, origin+"/api/v1/files/"+collection+"/"+remoteID+"/next.png") || (kind == "summit-log" && child.GetString("gpx") == "") {
 							t.Fatal("later sync did not fill missing child files")
 						}
 						storage, err := app.NewFilesystem()
@@ -161,8 +168,8 @@ func TestRemoteChildMetadataSurvivesFileFailures(t *testing.T) {
 							t.Fatal(err)
 						}
 						defer storage.Close()
-						for _, filename := range photos {
-							reader, err := storage.GetReader(child.BaseFilesPath() + "/" + filename)
+						for _, photo := range testPhotoAssets(t, app, child) {
+							reader, err := storage.GetReader(photo.BaseFilesPath() + "/" + photo.GetString("file"))
 							if err != nil {
 								t.Fatal(err)
 							}

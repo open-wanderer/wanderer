@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"pocketbase/services/routeimage"
+	"path"
 	"pocketbase/util"
 	"sort"
 	"strings"
@@ -52,7 +52,7 @@ func remoteFieldLimit(app core.App, collection, name string, fallback int64) int
 	return fallback
 }
 
-func (c *remoteMediaCollector) record(app core.App, target, remoteID, origin, iri string, data map[string]any) {
+func (c *remoteMediaCollector) record(app core.App, target, remoteID, origin, iri string, data map[string]any, requested ...bool) {
 	collection := map[string]string{"trail": "trails", "waypoint": "waypoints", "summit_log": "summit_logs", "list": "lists"}[target]
 	if !remoteSyncIDFitsCollection(app, collection, remoteID) {
 		return
@@ -71,31 +71,59 @@ func (c *remoteMediaCollector) record(app core.App, target, remoteID, origin, ir
 	if target == "list" {
 		return
 	}
-	photos, _ := data["photos"].([]any)
-	added := 0
-	var saved []string
+	known := map[string]bool{}
+	var existingAssets []*core.Record
+	assetAuthor := ""
 	if stored != nil {
-		saved = stored.GetStringSlice("photos")
+		assets, err := util.PhotoAssetsForTarget(app, target, stored.Id, -1)
+		if err != nil {
+			return
+		}
+		existingAssets = assets
+		assetAuthor = stored.GetString("author")
+		for _, asset := range assets {
+			if asset.GetString("external_provider") == util.FederationAssetProvider && asset.GetString("file") != "" {
+				known[asset.GetString("external_id")] = true
+			}
+		}
 	}
-	for _, value := range photos {
-		name, ok := value.(string)
-		if !ok || name == "" || strings.ContainsAny(name, "/\\") || routeimage.IsPlaceholder(name) {
+	assetsRequested := len(requested) == 0 || requested[0]
+	photos, complete := syncRecordPhotoList(target, remoteID, origin, data, assetsRequested)
+	if !complete {
+		return
+	}
+	legacyAssets := util.NewFederatedPhotoAssetIndex(existingAssets, assetAuthor)
+	for _, photo := range photos {
+		// Unlike reconciliation this only sets a boolean; an already known
+		// identity needs neither an adoption lookup nor an identity query.
+		if known[photo.CanonicalID] {
 			continue
 		}
-		if added >= util.RemotePhotoLimit(app, collection) {
-			break
+		if assetAuthor != "" {
+			holder, err := util.FindFederatedPhotoIdentityAsset(app, assetAuthor, photo.CanonicalID)
+			if err != nil {
+				return
+			}
+			if holder != nil && holder.GetString("file") != "" {
+				known[photo.CanonicalID] = true
+			}
 		}
-		added++
-		if remotePhotoAlreadyStored(saved, name) {
+		if known[photo.CanonicalID] {
 			continue
 		}
-		c.add(remoteMediaRequest{url: fmt.Sprintf("%s/api/v1/files/%s/%s/%s", origin, collection, remoteID, name), origin: origin, name: name, maxBytes: remoteFieldLimit(app, collection, "photos", util.RemotePhotoMaxBytes)})
+		if _, asset := legacyAssets.FirstMatch(photo); asset != nil {
+			known[photo.CanonicalID] = true
+		}
+		if !known[photo.CanonicalID] {
+			c.add(remoteMediaRequest{url: photo.FileURL, origin: origin, name: path.Base(photo.FileURL), maxBytes: util.FederatedPhotoFileLimit(app)})
+		}
 	}
+
 }
 
-func collectRemoteTrailMedia(app core.App, trail *core.Record, origin, remoteID string, data map[string]any) remoteMediaCollector {
+func collectRemoteTrailMedia(app core.App, trail *core.Record, origin, remoteID string, data map[string]any, requested ...bool) remoteMediaCollector {
 	c := remoteMediaCollector{seen: map[string]bool{}}
-	c.record(app, "trail", remoteID, origin, trail.GetString("iri"), data)
+	c.record(app, "trail", remoteID, origin, trail.GetString("iri"), data, requested...)
 	expand, _ := data["expand"].(map[string]any)
 	for _, target := range []string{"waypoint", "summit_log"} {
 		relation := map[string]string{"waypoint": "waypoints_via_trail", "summit_log": "summit_logs_via_trail"}[target]
@@ -114,7 +142,7 @@ func collectRemoteTrailMedia(app core.App, trail *core.Record, origin, remoteID 
 			if util.IsLocalIRI(iri) || !remoteSyncIRIMatchesOrigin(iri, origin) {
 				continue
 			}
-			c.record(app, target, id, origin, iri, raw)
+			c.record(app, target, id, origin, iri, raw, requested...)
 		}
 	}
 	return c
@@ -137,7 +165,10 @@ func prepareCollectedRemoteTrailMedia(app core.App, ctx context.Context, c remot
 		if entry.removed || entry.omitted || entry.data == nil {
 			continue
 		}
-		c.record(app, "summit_log", entry.remoteID, entry.origin, iri, entry.data)
+		c.record(app, "summit_log", entry.remoteID, entry.origin, iri, entry.data, entry.assetsRequested)
+	}
+	for i := range c.requests {
+		c.requests[i].url = util.FederatedShareURL(ctx, c.requests[i].url)
 	}
 	return prepareRemoteMedia(ctx, c.requests)
 }

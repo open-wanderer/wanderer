@@ -1,7 +1,6 @@
 package routes
 
 import (
-	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tools/filesystem"
 	"net/http"
 	"testing"
@@ -14,20 +13,13 @@ func TestCanonicalLogFetchCannotTakeOverAnotherOriginAuthorsStoredCopy(t *testin
 	owner := f.save(f.actors, map[string]any{"iri": "https://fourth.example/users/owner", "last_fetched": time.Now()})
 	canonical := f.save(f.actors, map[string]any{"iri": "https://third.example/users/carol", "last_fetched": time.Now()})
 	iri := "https://third.example/api/v1/summit-log/copy"
-	f.children.Fields.Add(&core.FileField{Name: "photos", MaxSelect: 99, MaxSize: 1024})
-	if err := f.app.Save(f.children); err != nil {
-		t.Fatal(err)
-	}
 	stored := f.child(iri, owner.Id, f.trail.Id)
 	photo, err := filesystem.NewFileFromBytes([]byte("Original photo"), "preserved.jpg")
 	if err != nil {
 		t.Fatal(err)
 	}
-	stored.Set("photos", []*filesystem.File{photo})
-	if err := f.app.Save(stored); err != nil {
-		t.Fatal(err)
-	}
-	filenames := stored.GetStringSlice("photos")
+	asset := testAddPhoto(t, f.app, stored, photo, "")
+	filenames := []string{asset.GetString("file")}
 	original := newRemoteSyncHTTPClient
 	t.Cleanup(func() { newRemoteSyncHTTPClient = original })
 	canonicalFetches := 0
@@ -55,7 +47,7 @@ func TestCanonicalLogFetchCannotTakeOverAnotherOriginAuthorsStoredCopy(t *testin
 	if len(filenames) != 1 {
 		t.Fatalf("photo fixture: %v", filenames)
 	}
-	exists, err := storage.Exists(stored.BaseFilesPath() + "/" + filenames[0])
+	exists, err := storage.Exists(asset.BaseFilesPath() + "/" + filenames[0])
 	if err != nil || !exists {
 		t.Fatalf("stored photo changed: exists=%t error=%v", exists, err)
 	}

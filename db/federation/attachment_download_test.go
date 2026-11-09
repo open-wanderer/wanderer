@@ -37,13 +37,11 @@ func attachmentAddCollections(t *testing.T, app core.App) {
 		text("iri"), text("author"), text("name"),
 		&core.BoolField{Name: "public"},
 		&core.FileField{Name: "gpx", MaxSelect: 1, MaxSize: util.RemoteGPXMaxBytes},
-		&core.FileField{Name: "photos", MaxSelect: 99, MaxSize: 20 << 20},
 	)
 	summitLogs := core.NewBaseCollection("summit_logs")
 	summitLogs.Fields.Add(
 		text("iri"), text("author"), text("trail"), text("text"),
 		&core.FileField{Name: "gpx", MaxSelect: 1, MaxSize: util.RemoteGPXMaxBytes},
-		&core.FileField{Name: "photos", MaxSelect: 99, MaxSize: 20 << 20},
 	)
 	lists := core.NewBaseCollection("lists")
 	lists.Fields.Add(
@@ -205,7 +203,7 @@ func TestTrailCreateSkipsLoopbackPhoto(t *testing.T) {
 		t.Errorf("loopback server received %d requests, want 0", n)
 	}
 	stored := attachmentStored(t, f.app, "trails", feedDedupTrailIRI)
-	if photos := stored.GetStringSlice("photos"); len(photos) != 0 {
+	if photos := testPhotoFiles(t, f.app, stored); len(photos) != 0 {
 		t.Errorf("stored photos = %v, want none", photos)
 	}
 }
@@ -295,12 +293,12 @@ func TestTrailCreateDownloadsAtMostMaxPhotos(t *testing.T) {
 		t.Fatalf("trail with 105 photos: %v", err)
 	}
 
-	if n := hits.total(); n != 99 {
-		t.Errorf("photo requests = %d, want 99", n)
+	if n := hits.total(); n != util.MaxFederatedTrailPhotos {
+		t.Errorf("photo requests = %d, want util.MaxFederatedTrailPhotos", n)
 	}
 	stored := attachmentStored(t, f.app, "trails", feedDedupTrailIRI)
-	if n := len(stored.GetStringSlice("photos")); n != 99 {
-		t.Errorf("stored photos = %d, want 99", n)
+	if n := len(testPhotoFiles(t, f.app, stored)); n != util.MaxFederatedTrailPhotos {
+		t.Errorf("stored photos = %d, want util.MaxFederatedTrailPhotos", n)
 	}
 }
 
@@ -314,12 +312,12 @@ func TestSummitLogCreateDownloadsAtMostMaxPhotos(t *testing.T) {
 		t.Fatalf("summit log with 105 photos: %v", err)
 	}
 
-	if n := hits.total(); n != 99 {
-		t.Errorf("photo requests = %d, want 99", n)
+	if n := hits.total(); n != util.MaxFederatedSummitLogPhotos {
+		t.Errorf("photo requests = %d, want util.MaxFederatedSummitLogPhotos", n)
 	}
 	stored := attachmentStored(t, f.app, "summit_logs", ownerRemoteLogIRI)
-	if n := len(stored.GetStringSlice("photos")); n != 99 {
-		t.Errorf("stored photos = %d, want 99", n)
+	if n := len(testPhotoFiles(t, f.app, stored)); n != util.MaxFederatedSummitLogPhotos {
+		t.Errorf("stored photos = %d, want util.MaxFederatedSummitLogPhotos", n)
 	}
 }
 
@@ -335,8 +333,8 @@ func TestTrailCreateLeavesNoAttachmentTempFiles(t *testing.T) {
 			t.Fatalf("Create: %v", err)
 		}
 		stored := attachmentStored(t, f.app, "trails", feedDedupTrailIRI)
-		if stored.GetString("gpx") == "" || len(stored.GetStringSlice("photos")) != 1 {
-			t.Fatalf("attachments were not stored: gpx=%q photos=%v", stored.GetString("gpx"), stored.GetStringSlice("photos"))
+		if stored.GetString("gpx") == "" || len(testPhotoFiles(t, f.app, stored)) != 1 {
+			t.Fatalf("attachments were not stored: gpx=%q photos=%v", stored.GetString("gpx"), testPhotoFiles(t, f.app, stored))
 		}
 		attachmentRequireNoTempFiles(t, tmp)
 	})
