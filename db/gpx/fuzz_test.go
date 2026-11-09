@@ -76,6 +76,8 @@ func fuzzSeeds(f *testing.F) [][]byte {
 		// Inf and left a nil error beside a garbage polyline.
 		[]byte(`<gpx><trk><trkseg><trkpt lat="47" lon="11"><ele>1e308</ele></trkpt><trkpt lat="47.001" lon="11"><ele>-1e308</ele></trkpt></trkseg></trk></gpx>`),
 		[]byte(`<gpx><trk><trkseg><trkpt lat="1e308" lon="11"/><trkpt lat="1e308" lon="11"/><trkpt lat="47" lon="11"/></trkseg></trk></gpx>`),
+		// CR-02: a flood of empty track and route elements, then one real track.
+		[]byte("<gpx>"+strings.Repeat("<trk/><rte/>", 40)+track+"</gpx>"),
 	)
 	return seeds
 }

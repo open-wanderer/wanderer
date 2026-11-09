@@ -333,6 +333,43 @@ func TestLimits(t *testing.T) {
 		}
 	})
 
+	// Every root-level <trk> and <rte> counts against maxTracks, empty or not.
+	const realTrack = `<trk><trkseg><trkpt lat="47" lon="11"/></trkseg></trk>`
+	trackElements := func(n int, item string) io.Reader {
+		return &repeatReader{head: `<gpx>`, item: item, n: n, tail: realTrack + `</gpx>`}
+	}
+	t.Run("exactly maxTracks parses", func(t *testing.T) {
+		res, err := Parse(trackElements(maxTracks-1, `<trk/>`), 64<<20, "")
+		if err != nil {
+			t.Fatalf("got %v", err)
+		}
+		if res.PointCount != 1 || res.Name != "" {
+			t.Errorf("PointCount %d Name %q, want 1 and empty", res.PointCount, res.Name)
+		}
+	})
+	t.Run("tracks past maxTracks are too large", func(t *testing.T) {
+		res, err := Parse(trackElements(maxTracks, `<trk/>`), 64<<20, "")
+		wantErr(t, res, err, ErrTooLarge)
+		if err != nil && !strings.Contains(err.Error(), "too many tracks") {
+			t.Errorf("err = %q, want it to say \"too many tracks\"", err)
+		}
+	})
+	t.Run("routes count towards maxTracks", func(t *testing.T) {
+		res, err := Parse(trackElements(maxTracks, `<rte/>`), 64<<20, "")
+		wantErr(t, res, err, ErrTooLarge)
+	})
+	t.Run("tracks and routes share maxTracks", func(t *testing.T) {
+		res, err := Parse(trackElements(maxTracks/2, `<trk/><rte/>`), 64<<20, "")
+		wantErr(t, res, err, ErrTooLarge)
+		doc := &repeatReader{head: `<gpx>`, item: `<trk/><rte/>`, n: maxTracks/2 - 1, tail: `<rte/>` + realTrack + `</gpx>`}
+		if res, err = Parse(doc, 64<<20, ""); err != nil {
+			t.Fatalf("exactly maxTracks elements: got %v", err)
+		}
+		if res.PointCount != 1 {
+			t.Errorf("PointCount = %d, want 1", res.PointCount)
+		}
+	})
+
 	// 8 MiB of retained text is exactly 8192 chunks of 1 KiB. CDATA chunks are
 	// separate tokens, so the budget has to be charged as they arrive.
 	const chunkText = 1024

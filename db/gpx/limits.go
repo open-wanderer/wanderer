@@ -25,6 +25,12 @@ const (
 	maxSegments = 10_000
 	// maxWaypoints is the stored waypoints, each of which keeps its text.
 	maxWaypoints = 50_000
+	// maxTracks is the root-level <trk> and <rte> elements together. Every one
+	// costs a stored measuredTrack whether or not it ever holds a point, and an
+	// empty one cannot be told apart from a populated one when it starts, so
+	// each one counts. A file past maxSegments non-empty tracks already fails
+	// that limit, so this only rejects documents made of empty elements.
+	maxTracks = 10_000
 	// maxTextBytes is the total retained name, desc, sym and type text.
 	maxTextBytes = 8 << 20
 	// maxNumberText bounds the text collected for one <ele>, <time> or <number>

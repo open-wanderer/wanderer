@@ -114,10 +114,11 @@ type hostileCase struct {
 
 func TestHostileInputs(t *testing.T) {
 	const (
-		pointItem     = `<trkpt lat="47" lon="11"/>`
-		waypointItem  = `<wpt lat="47" lon="11"/>`
-		readAhead     = 64 << 10
-		oneMiBPlusEnd = maxRun + readAhead
+		pointItem        = `<trkpt lat="47" lon="11"/>`
+		trackSegmentItem = `<trk><trkseg/></trk>`
+		waypointItem     = `<wpt lat="47" lon="11"/>`
+		readAhead        = 64 << 10
+		oneMiBPlusEnd    = maxRun + readAhead
 	)
 	cases := []hostileCase{
 		{
@@ -165,6 +166,28 @@ func TestHostileInputs(t *testing.T) {
 			name:     "positionless waypoint flood under a 4 MiB cap",
 			src:      func() *countingReader { return hostileSource(`<gpx>`, `<wpt/>`, forever, "") },
 			maxBytes: 4 << 20, want: []error{ErrTooLarge, ErrNoTrack}, maxRead: 4<<20 + 1,
+		},
+		{
+			name:     "track element flood",
+			src:      func() *countingReader { return hostileSource(`<gpx>`, `<trk/>`, forever, "") },
+			maxBytes: 1 << 30, want: []error{ErrTooLarge}, maxRead: int64(maxTracks+1)*6 + 4<<10, maxPeak: 8 << 20,
+		},
+		{
+			name:     "route element flood",
+			src:      func() *countingReader { return hostileSource(`<gpx>`, `<rte/>`, forever, "") },
+			maxBytes: 1 << 30, want: []error{ErrTooLarge}, maxRead: int64(maxTracks+1)*6 + 4<<10, maxPeak: 8 << 20,
+		},
+		{
+			name:     "track with empty segment flood",
+			src:      func() *countingReader { return hostileSource(`<gpx>`, trackSegmentItem, forever, "") },
+			maxBytes: 1 << 30, want: []error{ErrTooLarge}, maxRead: int64(maxTracks+1)*int64(len(trackSegmentItem)) + 4<<10, maxPeak: 8 << 20,
+		},
+		{
+			name: "two million empty tracks under a 25 MiB cap",
+			src: func() *countingReader {
+				return hostileSource(`<gpx>`, `<trk/>`, 2_000_000, `<trk><trkseg><trkpt lat="47" lon="11"/></trkseg></trk></gpx>`)
+			},
+			maxBytes: 25 << 20, want: []error{ErrTooLarge}, maxRead: 128 << 10, maxPeak: 8 << 20,
 		},
 		{
 			name:     "point flood under a 1 GiB cap",
