@@ -5,7 +5,7 @@ description: Link repeated or duplicate trail recordings into a single target tr
 
 <span class="-tracking-[0.075em]">wanderer</span> can link multiple trails into a single target trail. This is useful when the same route was recorded multiple times, imported from multiple services, or uploaded separately even though it belongs to the same underlying trail.
 
-When a trail is merged, the source trail is converted into a summit log entry on the selected target trail. Depending on the chosen options, additional data such as photos, comments, tags and likes can also be merged.
+When a trail is merged, the source trail is converted into a summit log entry on the selected target trail. When photos are selected, the source trail’s real photos belong to that new entry. Generated route previews are skipped, and the target trail’s gallery and cover stay unchanged. Depending on the chosen options, existing summit logs, comments, tags and likes can also be merged.
 
 ## When to Use Trail Merging
 

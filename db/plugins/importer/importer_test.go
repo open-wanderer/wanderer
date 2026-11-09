@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -708,5 +709,69 @@ func TestTrackDistanceIndexCountsGapsBetweenSegments(t *testing.T) {
 		if distance.fromStart < test.want-0.01 || distance.fromStart > test.want+0.01 {
 			t.Errorf("%s: got %v, want %v", name, distance.fromStart, test.want)
 		}
+	}
+}
+
+func TestPhotoAssetInputPreservesZeroCoordinates(t *testing.T) {
+	zero := 0.0
+	input := photoAssetInput(Options{
+		UserID: "user1",
+		Manifest: pluginsystem.Manifest{
+			ID: "immich",
+		},
+	}, PhotoAssetTarget{}, pluginsystem.Photo{
+		ExternalID: "asset1",
+		Lat:        &zero,
+		Lon:        &zero,
+	})
+
+	if !input.HasLat || !input.HasLon {
+		t.Fatalf("expected explicit zero coordinates to be marked present: %#v", input)
+	}
+	if input.Lat != 0 || input.Lon != 0 {
+		t.Fatalf("unexpected coordinates: %v, %v", input.Lat, input.Lon)
+	}
+}
+
+func TestPhotoAssetInputPreservesTakenAt(t *testing.T) {
+	takenAt := time.Date(2024, 7, 25, 10, 27, 38, 339000000, time.UTC)
+	input := photoAssetInput(Options{
+		UserID: "user1",
+		Manifest: pluginsystem.Manifest{
+			ID: "immich",
+		},
+	}, PhotoAssetTarget{}, pluginsystem.Photo{
+		ExternalID: "asset1",
+		TakenAt:    &takenAt,
+	})
+
+	if input.TakenAt == nil || !input.TakenAt.Equal(takenAt) {
+		t.Fatalf("expected taken_at to be preserved, got %#v", input.TakenAt)
+	}
+}
+
+func TestPhotoOmissionsDescribeDownloadOutcome(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		failure   error
+		reason    string
+		retryable bool
+	}{
+		{"missing", util.HTTPStatusError{StatusCode: 404}, "not_found", false},
+		{"forbidden", util.HTTPStatusError{StatusCode: 403}, "access_denied", false},
+		{"size status", util.HTTPStatusError{StatusCode: 413}, "photo_too_large", false},
+		{"size body", util.ErrPluginMediaTooLarge, "photo_too_large", false},
+		{"media", errPhotoUnsupported, "unsupported_media", false},
+		{"media status", util.HTTPStatusError{StatusCode: 415}, "unsupported_media", false},
+		{"rate limit", util.HTTPStatusError{StatusCode: 429}, "download_failed", true},
+		{"other", fmt.Errorf("remote response detail"), "download_failed", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			photo := pluginsystem.Photo{ExternalID: "photo-id", Filename: "camera/photo.jpg"}
+			got := photoDownloadOmission(photo, tc.failure)
+			if got.AssetID != photo.ExternalID || got.Filename != "photo.jpg" || got.Reason != tc.reason || got.Retryable != tc.retryable {
+				t.Fatalf("omission=%+v, want %s retryable=%t", got, tc.reason, tc.retryable)
+			}
+		})
 	}
 }

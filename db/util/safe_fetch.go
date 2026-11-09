@@ -32,13 +32,20 @@ type SafeFetchResult struct {
 	FinalURL    string
 }
 
-type PluginMediaHTTPStatusError struct {
+type HTTPStatusError struct {
 	StatusCode int
+	Message    string
 }
 
-func (e PluginMediaHTTPStatusError) Error() string {
-	return fmt.Sprintf("plugin media request returned HTTP status %d", e.StatusCode)
+func (e HTTPStatusError) Error() string {
+	if e.Message != "" {
+		return e.Message
+	}
+	return fmt.Sprintf("unexpected HTTP status: %d", e.StatusCode)
 }
+
+// PluginMediaHTTPStatusError retains the existing plugin status error type name.
+type PluginMediaHTTPStatusError = HTTPStatusError
 
 type ConnectorHTTPPolicy struct {
 	BaseURL      string
@@ -133,7 +140,7 @@ func fetchBoundedTo(ctx context.Context, client HTTPDoer, rawURL string, maxByte
 		return "", "", err
 	}
 	if n > maxBytes {
-		return "", "", fmt.Errorf("response exceeds maximum size")
+		return "", "", ErrPluginMediaTooLarge
 	}
 	finalURL = rawURL
 	if resp.Request != nil && resp.Request.URL != nil {
@@ -144,7 +151,7 @@ func fetchBoundedTo(ctx context.Context, client HTTPDoer, rawURL string, maxByte
 
 func ValidatePluginMediaStatus(statusCode int) error {
 	if statusCode < http.StatusOK || statusCode >= http.StatusMultipleChoices {
-		return PluginMediaHTTPStatusError{StatusCode: statusCode}
+		return HTTPStatusError{StatusCode: statusCode, Message: fmt.Sprintf("plugin media request returned HTTP status %d", statusCode)}
 	}
 	return nil
 }
@@ -382,13 +389,15 @@ func mustPrefixes(values ...string) []netip.Prefix {
 	return prefixes
 }
 
+var ErrPluginMediaTooLarge = errors.New("response exceeds maximum size")
+
 func ReadBoundedForPlugin(reader io.Reader, maxBytes int64) ([]byte, error) {
 	body, err := io.ReadAll(io.LimitReader(reader, maxBytes+1))
 	if err != nil {
 		return nil, err
 	}
 	if int64(len(body)) > maxBytes {
-		return nil, fmt.Errorf("response exceeds maximum size")
+		return nil, ErrPluginMediaTooLarge
 	}
 	return body, nil
 }

@@ -5,17 +5,12 @@ import (
 	"testing"
 
 	"github.com/pocketbase/pocketbase/core"
-	"github.com/pocketbase/pocketbase/tests"
 
 	"pocketbase/pluginsystem"
 )
 
 func TestImportSkipsUnnamedWaypointWithoutAnyPhoto(t *testing.T) {
-	app, err := tests.NewTestApp(t.TempDir())
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(app.Cleanup)
+	app := newPhotoAssetImportTestApp(t)
 	collection := func(name string, fields ...core.Field) *core.Collection {
 		t.Helper()
 		c := core.NewBaseCollection(name)
@@ -42,7 +37,6 @@ func TestImportSkipsUnnamedWaypointWithoutAnyPhoto(t *testing.T) {
 		&core.RelationField{Name: "author", CollectionId: actors.Id, MaxSelect: 1},
 		&core.NumberField{Name: "distance_from_start"},
 		&core.RelationField{Name: "trail", CollectionId: trails.Id, MaxSelect: 1},
-		&core.FileField{Name: "photos", MaxSelect: 20, MaxSize: 1 << 20},
 	)
 	collection("trail_external_reference",
 		&core.RelationField{Name: "trail", CollectionId: trails.Id, MaxSelect: 1},
@@ -69,5 +63,8 @@ func TestImportSkipsUnnamedWaypointWithoutAnyPhoto(t *testing.T) {
 	waypoints, err := app.FindRecordsByFilter("waypoints", "", "", 0, 0)
 	if err != nil || len(waypoints) != 1 || waypoints[0].GetString("name") != "Hut" {
 		t.Fatalf("got %d waypoints, want only the named one: %v", len(waypoints), err)
+	}
+	if count, err := app.CountRecords("assets"); err != nil || count != 0 {
+		t.Fatalf("failed photo imports left assets: count=%d error=%v", count, err)
 	}
 }

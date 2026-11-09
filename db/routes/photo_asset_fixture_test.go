@@ -13,13 +13,34 @@ func ensureTestPhotoCollections(t *testing.T, app core.App) {
 		return
 	}
 	assets := core.NewBaseCollection("assets")
-	assets.Fields.Add(&core.TextField{Name: "type"}, &core.TextField{Name: "author"}, &core.TextField{Name: "storage_mode"}, &core.TextField{Name: "remote_status"}, &core.TextField{Name: "external_provider"}, &core.TextField{Name: "external_id"}, &core.TextField{Name: "content_hash"}, &core.FileField{Name: "file", MaxSelect: 1, MaxSize: util.RemotePhotoMaxBytes}, &core.JSONField{Name: "metadata"}, &core.NumberField{Name: "lat"}, &core.NumberField{Name: "lon"}, &core.AutodateField{Name: "created", OnCreate: true}, &core.AutodateField{Name: "updated", OnCreate: true, OnUpdate: true})
+	assets.Fields.Add(
+		&core.TextField{Name: "type"},
+		&core.TextField{Name: "author"},
+		&core.TextField{Name: "storage_mode"},
+		&core.TextField{Name: "remote_status"},
+		&core.TextField{Name: "external_provider"},
+		&core.TextField{Name: "external_id"},
+		&core.TextField{Name: "content_hash"},
+		&core.FileField{Name: "file", MaxSelect: 1, MaxSize: util.RemotePhotoMaxBytes},
+		&core.DateField{Name: "taken_at"},
+		&core.JSONField{Name: "metadata"},
+		&core.NumberField{Name: "lat"},
+		&core.NumberField{Name: "lon"},
+		&core.AutodateField{Name: "created", OnCreate: true},
+		&core.AutodateField{Name: "updated", OnCreate: true, OnUpdate: true},
+	)
 	if err := app.Save(assets); err != nil {
 		t.Fatal(err)
 	}
 	for _, target := range []string{"trail", "waypoint", "summit_log"} {
 		links := core.NewBaseCollection(target + "_assets")
-		links.Fields.Add(&core.TextField{Name: target}, &core.RelationField{Name: "asset", CollectionId: assets.Id, MaxSelect: 1}, &core.AutodateField{Name: "created", OnCreate: true}, &core.BoolField{Name: "is_thumbnail"})
+		links.Fields.Add(
+			&core.TextField{Name: target},
+			&core.RelationField{Name: "asset", CollectionId: assets.Id, MaxSelect: 1},
+			&core.AutodateField{Name: "created", OnCreate: true},
+			&core.AutodateField{Name: "updated", OnCreate: true, OnUpdate: true},
+			&core.BoolField{Name: "is_thumbnail"},
+		)
 		if err := app.Save(links); err != nil {
 			t.Fatal(err)
 		}

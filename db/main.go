@@ -226,6 +226,12 @@ func setupEventHandlers(app *pocketbase.PocketBase, client meilisearch.ServiceMa
 	app.OnRecordAfterDeleteSuccess("activitypub_actors").BindFunc(hooks.DeleteActorHandler(client))
 
 	app.OnRecordAfterUpdateSuccess("tags").BindFunc(hooks.UpdateTagIndexHandler(client))
+	app.OnRecordAfterUpdateSuccess("assets").BindFunc(hooks.ReindexTrailOnAssetChange(client))
+	app.OnRecordAfterDeleteSuccess("assets").BindFunc(hooks.ReindexTrailOnAssetChange(client))
+	assetLinkReindexHandler := hooks.ReindexTrailOnAssetLinkChange(client)
+	app.OnRecordAfterCreateSuccess("trail_assets", "waypoint_assets", "summit_log_assets").BindFunc(assetLinkReindexHandler)
+	app.OnRecordAfterUpdateSuccess("trail_assets", "waypoint_assets", "summit_log_assets").BindFunc(assetLinkReindexHandler)
+	app.OnRecordAfterDeleteSuccess("trail_assets", "waypoint_assets", "summit_log_assets").BindFunc(assetLinkReindexHandler)
 
 	app.OnRecordCreateRequest("categories").BindFunc(hooks.ValidateCategoryHandler())
 	app.OnRecordUpdateRequest("categories").BindFunc(hooks.ValidateCategoryHandler())

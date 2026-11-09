@@ -62,7 +62,7 @@ flowchart TD
     Session[Open WASM session]
     Dedupe[Skip known trails]
     Import[Import trail]
-    Records[(trails waypoints photos)]
+    Records[(trails waypoints assets)]
     Merge{Auto-merge?}
     AutoMerge[Try auto-merge]
     Done[Update sync status]
@@ -229,7 +229,7 @@ keys still use the raw provider category values emitted as
 
 Trail import plugins should keep provider-specific category values in `metadata.providerCategory`. They may also provide provider summary metrics in `metadata.distance`, `metadata.elevationGain`, `metadata.elevationLoss`, and `metadata.duration`; the host uses those positive values instead of GPX-derived summary metrics and falls back to GPX when a value is missing. Plugins may provide an intended start coordinate in `metadata.providerStart` as `{ "lat": 47.123, "lon": 8.456 }`; the host uses it only when it is close enough to the imported GPX track to be plausible.
 
-Photo descriptors may be returned either on the imported trail or on individual waypoints. The host downloads those media files and stores them on the corresponding PocketBase records.
+Photo descriptors may be returned either on the imported trail or on individual waypoints. The host downloads those media files into PocketBase `assets` records, linked to their targets through `trail_assets` or `waypoint_assets`.
 
 Sync list calls receive `limits.maxItems` (currently 50). Return at most that many
 items and continue with `state`/`hasMore`; an oversized batch is rejected before

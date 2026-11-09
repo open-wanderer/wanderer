@@ -86,13 +86,14 @@ type SuggestGroupsResponse struct {
 }
 
 type mergeContext struct {
-	App      core.App
-	Client   meilisearch.ServiceManager
-	Actor    *core.Record
-	ActorID  string
-	Target   *core.Record
-	Source   *core.Record
-	Settings MergeSettings
+	App         core.App
+	Client      meilisearch.ServiceManager
+	Actor       *core.Record
+	ActorID     string
+	Target      *core.Record
+	Source      *core.Record
+	Settings    MergeSettings
+	AssetCopies map[string]string
 }
 
 type mergeSideEffects struct {
@@ -205,13 +206,14 @@ func Merge(app core.App, client meilisearch.ServiceManager, ctx context.Context,
 		}
 
 		mergeCtx := mergeContext{
-			App:      txApp,
-			Client:   client,
-			Actor:    actor,
-			ActorID:  actor.Id,
-			Target:   target,
-			Source:   source,
-			Settings: settings,
+			App:         txApp,
+			Client:      client,
+			Actor:       actor,
+			ActorID:     actor.Id,
+			Target:      target,
+			Source:      source,
+			Settings:    settings,
+			AssetCopies: make(map[string]string),
 		}
 
 		sideEffects, err := mergeTrailIntoTarget(mergeCtx)
@@ -370,7 +372,11 @@ func buildTargetSelectionStats(
 
 	geometryCentralityScore := trailGeometryCentralityScore(trail, groupTrails, referenceTrails, coordsByTrailID)
 	hasDescription := strings.TrimSpace(trail.GetString("description")) != ""
-	photoCount := len(trail.GetStringSlice("photos"))
+	assets, err := util.PhotoAssetsForTarget(app, "trail", trail.Id, -1)
+	if err != nil {
+		return targetSelectionStats{}, err
+	}
+	photoCount := len(assets)
 	tagCount := len(trail.GetStringSlice("tags"))
 	priorityClass := targetPriorityClass(summitLogCount, externalReferenceCount, commentCount, photoCount, hasDescription)
 
@@ -1257,22 +1263,31 @@ func createTrailSummitLog(ctx mergeContext) (string, error) {
 		record.Set("gpx", gpxFile)
 	}
 
-	if ctx.Settings.Photos {
-		photos, err := cloneRecordFiles(ctx.App, ctx.Source, "photos")
-		if err != nil {
-			return "", err
-		}
-		if len(photos) > 0 {
-			record.Set("photos", photos)
-		}
-	}
-
 	// Trail descriptions can be longer than the generated summit-log field.
 	util.SanitizeHTMLFieldsWithLimits(record)
 	if err := ctx.App.Save(record); err != nil {
 		return "", err
 	}
 
+	if ctx.Settings.Photos {
+		photos, err := util.PhotoAssetsForTarget(ctx.App, "trail", ctx.Source.Id, -1)
+		if err != nil {
+			return "", err
+		}
+		if err := util.WithDeferredTargetSync(ctx.App, func() error {
+			for _, photo := range photos {
+				if util.IsGeneratedRoutePreviewAsset(photo) {
+					continue
+				}
+				if err := linkMergeAsset(ctx, "summit_log_assets", "summit_log", record.Id, photo.Id); err != nil {
+					return err
+				}
+			}
+			return nil
+		}); err != nil {
+			return "", err
+		}
+	}
 	return record.Id, nil
 }
 
@@ -1319,17 +1334,14 @@ func mergeExistingSummitLogs(ctx mergeContext) ([]string, error) {
 			record.Set("gpx", gpxFile)
 		}
 
-		photos, err := cloneRecordFiles(ctx.App, sourceLog, "photos")
-		if err != nil {
-			return nil, err
-		}
-		if len(photos) > 0 {
-			record.Set("photos", photos)
-		}
-
 		if err := ctx.App.Save(record); err != nil {
 			return nil, err
 		}
+
+		if err := reassignSummitLogAssets(ctx, sourceLog.Id, record); err != nil {
+			return nil, err
+		}
+
 		createdIDs = append(createdIDs, record.Id)
 	}
 
@@ -1564,22 +1576,6 @@ func buildMergedCommentText(app core.App, comment *core.Record) string {
 	return fmt.Sprintf("%s (%s)\n\n%s", authorHandle, createdDate, comment.GetString("text"))
 }
 
-func cloneRecordFiles(app core.App, record *core.Record, field string) ([]*filesystem.File, error) {
-	fileNames := record.GetStringSlice(field)
-	files := make([]*filesystem.File, 0, len(fileNames))
-	for _, name := range fileNames {
-		file, err := cloneRecordFileByName(app, record, name)
-		if err != nil {
-			return nil, err
-		}
-		if file != nil {
-			files = append(files, file)
-		}
-	}
-
-	return files, nil
-}
-
 func cloneRecordFile(app core.App, record *core.Record, field string) (*filesystem.File, error) {
 	name := record.GetString(field)
 	if name == "" {
@@ -1643,4 +1639,90 @@ func appendUniqueStrings(values []string, additions ...string) []string {
 	}
 
 	return result
+}
+
+func reassignSummitLogAssets(ctx mergeContext, sourceSummitLogID string, targetSummitLog *core.Record) error {
+	links, err := ctx.App.FindRecordsByFilter(
+		"summit_log_assets",
+		"summit_log={:sl}",
+		"",
+		-1,
+		0,
+		dbx.Params{"sl": sourceSummitLogID},
+	)
+	if err != nil {
+		return err
+	}
+	return util.WithDeferredTargetSync(ctx.App, func() error {
+		for _, link := range links {
+			assetID := link.GetString("asset")
+			if targetSummitLog.GetString("gpx") != "" {
+				asset, err := ctx.App.FindRecordById("assets", assetID)
+				if err != nil {
+					return err
+				}
+				// The saved GPX has already rendered this entry's own preview.
+				if util.IsGeneratedRoutePreviewAsset(asset) {
+					continue
+				}
+			}
+			if err := linkMergeAsset(ctx, "summit_log_assets", "summit_log", targetSummitLog.Id, assetID); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+func linkMergeAsset(ctx mergeContext, collection, field, targetID, assetID string) error {
+	asset, err := ctx.App.FindRecordById("assets", assetID)
+	if err != nil {
+		return err
+	}
+	if asset.GetString("author") != ctx.ActorID {
+		if asset.GetString("storage_mode") != "copy" {
+			return nil
+		}
+		copyAuthor := asset.GetString("author")
+		if copyAuthor == "" {
+			return ErrMissingActor
+		}
+
+		// A photo shared between the source trail and a contributor's log
+		// needs independently owned copies for their different new targets.
+		copyKey := assetID + ":" + copyAuthor
+		if copiedID := ctx.AssetCopies[copyKey]; copiedID != "" {
+			assetID = copiedID
+		} else {
+			file, err := cloneRecordFile(ctx.App, asset, "file")
+			if err != nil {
+				return err
+			}
+			if file == nil {
+				return nil
+			}
+			var metadata map[string]any
+			if err := asset.UnmarshalJSONField("metadata", &metadata); err != nil {
+				return err
+			}
+			delete(metadata, "remote")
+			delete(metadata, "source_record")
+			delete(metadata, "source_collection")
+			copy := core.NewRecord(asset.Collection())
+			copy.Load(map[string]any{
+				"type": "photo", "storage_mode": "copy", "author": copyAuthor,
+				"file": file, "lat": asset.GetRaw("lat"), "lon": asset.GetRaw("lon"),
+				"taken_at": asset.GetDateTime("taken_at"), "metadata": metadata,
+			})
+			if err := ctx.App.Save(copy); err != nil {
+				return err
+			}
+			assetID = copy.Id
+			if ctx.AssetCopies != nil {
+				ctx.AssetCopies[copyKey] = copy.Id
+			}
+		}
+	}
+	_, err = util.EnsureAssetLink(ctx.App, collection, field, targetID, assetID)
+	return err
 }

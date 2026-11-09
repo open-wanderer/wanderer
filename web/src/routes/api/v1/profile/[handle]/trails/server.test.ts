@@ -10,6 +10,13 @@ vi.mock("#lib/util/activitypub_server_util.ts", () => ({
     })),
 }));
 
+vi.mock("#lib/util/secure_fetch_util.ts", () => ({
+    DownloadError: class extends Error {},
+    fetchExternalJson: vi.fn(),
+}));
+
+import { getActorResponseForHandle } from "#lib/util/activitypub_server_util.ts";
+import { fetchExternalJson } from "#lib/util/secure_fetch_util.ts";
 import { POST } from "./+server";
 
 function profileTrailsEvent(
@@ -88,4 +95,38 @@ describe("profile trails endpoint", () => {
             filter: ["author = actor0000000001"],
         });
     });
+});
+
+it("keeps asset thumbnail URLs and legacy filenames usable for federated profiles", async () => {
+    vi.mocked(getActorResponseForHandle).mockResolvedValueOnce({ actor: {
+        id: "actor0000000001", is_local: false, iri: "https://b.example/api/v1/activitypub/user/hiker",
+        preferred_username: "hiker", domain: "b.example",
+    } } as any);
+    vi.mocked(fetchExternalJson).mockResolvedValueOnce({ ok: true, status: 200, json: { hits: [
+        { id: "empty", thumbnail: "", iri: "" },
+        { id: "absent", iri: "" },
+        { id: "absolute", thumbnail: "https://b.example/photo.jpg", iri: "" },
+        { id: "other-origin", thumbnail: "https://a.example/photo.jpg", iri: "" },
+        { id: "other-protocol", thumbnail: "http://b.example/photo.jpg", iri: "" },
+        { id: "other-port", thumbnail: "https://b.example:8443/photo.jpg", iri: "" },
+        { id: "asset", thumbnail: "/api/v1/files/assets/photo/image.jpg", iri: "" },
+        { id: "legacy", thumbnail: "image.jpg", iri: "" },
+    ] } } as any);
+    const response = await POST(profileTrailsEvent({ q: "", options: {} }, vi.fn()));
+    expect(response.status).toBe(200);
+    const result = await response.json();
+    expect(result.hits.map((hit: { thumbnail: string }) => hit.thumbnail)).toEqual([
+        "", "", "https://b.example/photo.jpg", "", "", "", "https://b.example/api/v1/files/assets/photo/image.jpg",
+        "https://b.example/api/v1/files/trails/legacy/image.jpg",
+    ]);
+});
+
+it("returns a bare linked filename for an older peer's profile thumbnail mapping", async () => {
+    const search = vi.fn(async () => ({ hits: [{ id: "trail0000000001", thumbnail: "/api/v1/files/assets/asset0000000001/image.png" }] }));
+    const response = await POST(profileTrailsEvent({ q: "", options: {} }, search));
+    const { hits: [trail] } = await response.json();
+    expect(trail.thumbnail).toBe("image.png");
+    expect(`https://a.example/api/v1/files/trails/${trail.id}/${trail.thumbnail}`).toBe(
+        "https://a.example/api/v1/files/trails/trail0000000001/image.png",
+    );
 });

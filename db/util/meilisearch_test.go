@@ -21,7 +21,7 @@ func TestDocumentFromTrailRecordMissingAuthor(t *testing.T) {
 
 	for _, includeShares := range []bool{false, true} {
 		t.Run(includeSharesLabel(includeShares), func(t *testing.T) {
-			document, err := documentFromTrailRecord(trail, nil, includeShares)
+			document, err := documentFromTrailRecord(trail, nil, includeShares, "")
 			if err == nil {
 				t.Fatal("expected an error")
 			}
@@ -61,7 +61,7 @@ func TestDocumentFromTrailRecordAuthors(t *testing.T) {
 				"trail_like_via_trail":  []*core.Record{newActorRefRecord("trail_like", "likeactor000001")},
 			})
 
-			document, err := documentFromTrailRecord(trail, author, scenario.includeShares)
+			document, err := documentFromTrailRecord(trail, author, scenario.includeShares, "")
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -289,7 +289,24 @@ func setupTrailIndexApp(t *testing.T) (*core.BaseApp, *core.Record) {
 		&core.RelationField{Name: "trail", CollectionId: trails.Id, MaxSelect: 1},
 		&core.RelationField{Name: "actor", CollectionId: actors.Id, MaxSelect: 1},
 	)
-	for _, collection := range []*core.Collection{tags, actors, categories, trails, shares, likes} {
+	assets := core.NewBaseCollection("assets")
+	assets.Fields.Add(
+		&core.TextField{Name: "type"},
+		&core.TextField{Name: "file"},
+		&core.TextField{Name: "storage_mode"},
+		&core.TextField{Name: "external_provider"},
+		&core.DateField{Name: "taken_at"},
+		&core.JSONField{Name: "metadata"},
+	)
+	trailAssets := core.NewBaseCollection("trail_assets")
+	trailAssets.Fields.Add(
+		&core.RelationField{Name: "asset", CollectionId: assets.Id, MaxSelect: 1},
+		&core.RelationField{Name: "trail", CollectionId: trails.Id, MaxSelect: 1},
+		&core.BoolField{Name: "is_thumbnail"},
+		&core.AutodateField{Name: "created", OnCreate: true},
+		&core.AutodateField{Name: "updated", OnCreate: true, OnUpdate: true},
+	)
+	for _, collection := range []*core.Collection{tags, actors, categories, trails, shares, likes, assets, trailAssets} {
 		if err := app.Save(collection); err != nil {
 			t.Fatal(err)
 		}
@@ -601,11 +618,77 @@ func TestDocumentFromTrailRecordIncludesMovingDuration(t *testing.T) {
 	trail.Set("duration", 3432)
 	trail.Set("moving_duration", 1800)
 
-	document, err := documentFromTrailRecord(trail, author, false)
+	document, err := documentFromTrailRecord(trail, author, false, "")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if document["moving_duration"] != 1800.0 || document["duration"] != 3432.0 {
 		t.Fatalf("document durations = %v / %v; want 3432 and a moving_duration of 1800", document["duration"], document["moving_duration"])
+	}
+}
+
+func TestTrailDocumentsTakeThumbnailFromAssets(t *testing.T) {
+	app, author := setupTrailIndexApp(t)
+	trails, err := app.FindCollectionByNameOrId("trails")
+	if err != nil {
+		t.Fatal(err)
+	}
+	assets, err := app.FindCollectionByNameOrId("assets")
+	if err != nil {
+		t.Fatal(err)
+	}
+	trailAssets, err := app.FindCollectionByNameOrId("trail_assets")
+	if err != nil {
+		t.Fatal(err)
+	}
+	trail := saveRecord(t, app, trails, map[string]any{"name": "Pictured", "author": author.Id, "public": true})
+	preview := saveRecord(t, app, assets, map[string]any{
+		"type":         "photo",
+		"storage_mode": "copy",
+		"file":         "wanderer-route-preview.webp",
+		"metadata":     map[string]any{"generated": map[string]any{"kind": "route-preview"}},
+	})
+	photo := saveRecord(t, app, assets, map[string]any{"type": "photo", "storage_mode": "copy", "file": "summit.jpg"})
+	saveRecord(t, app, trailAssets, map[string]any{"trail": trail.Id, "asset": preview.Id})
+	saveRecord(t, app, trailAssets, map[string]any{"trail": trail.Id, "asset": photo.Id})
+	want := "/api/v1/files/" + assets.Id + "/" + photo.Id + "/summit.jpg"
+
+	documents, errs := TrailSearchDocuments(app, []*core.Record{trail})
+	if errs[0] != nil {
+		t.Fatal(errs[0])
+	}
+	if documents[0]["thumbnail"] != want {
+		t.Fatalf("page thumbnail = %v; want %s", documents[0]["thumbnail"], want)
+	}
+	document, err := TrailSearchDocument(app, trail)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if document["thumbnail"] != want {
+		t.Fatalf("thumbnail = %v; want %s", document["thumbnail"], want)
+	}
+
+	capture := &meiliCapture{}
+	server := httptest.NewServer(http.HandlerFunc(capture.serveHTTP))
+	t.Cleanup(server.Close)
+	client := meilisearch.New(server.URL)
+	if err := IndexTrails(app, []*core.Record{trail}, client); err != nil {
+		t.Fatal(err)
+	}
+	if err := UpdateTrail(app, trail, author, client); err != nil {
+		t.Fatal(err)
+	}
+	requests := capture.snapshot()
+	if len(requests) != 2 {
+		t.Fatalf("requests = %+v; want one index and one update", requests)
+	}
+	for _, request := range requests {
+		var written []map[string]any
+		if err := json.Unmarshal(request.body, &written); err != nil {
+			t.Fatal(err)
+		}
+		if len(written) != 1 || written[0]["thumbnail"] != want {
+			t.Fatalf("%s documents = %v; want thumbnail %s", request.method, written, want)
+		}
 	}
 }

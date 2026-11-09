@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"mime"
@@ -13,6 +14,7 @@ import (
 	"os"
 	urlpath "path"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -32,11 +34,14 @@ type Options struct {
 	ActorID                     string
 	DefaultPublic               bool
 	CreateSummitLogForCompleted bool
+	maxImportedPhotosPerTarget  int
 	CategoryMapping             map[string]CategoryMappingValue
 	Manifest                    pluginsystem.Manifest
 	Policy                      pluginsystem.RequestPolicyContext
 	Auth                        map[string]any
 }
+
+var fetchPublicPluginMedia = util.FetchPublicURL
 
 // Result tells the sync loop whether a plugin item created a new trail or was
 // skipped because the same provider/external id had already been imported.
@@ -44,6 +49,203 @@ type Result struct {
 	TrailID string
 	Created bool
 	Skipped bool
+}
+
+type PhotoAssetTarget struct {
+	Trail       string
+	Waypoint    string
+	SummitLog   string
+	PublicTrail bool
+}
+
+type PhotoAssetOmission struct {
+	AssetID    string `json:"assetId"`
+	Reason     string `json:"reason"`
+	Filename   string `json:"filename,omitempty"`
+	Retryable  bool   `json:"retryable,omitempty"`
+	Cause      string `json:"-"`
+	Status     int    `json:"-"`
+	SourceType string `json:"-"`
+}
+
+var errPhotoUnsupported = errors.New("unsupported photo media")
+var errPhotoSourceExpired = errors.New("photo source expired")
+var errPhotoSourceInvalid = errors.New("invalid photo source")
+var photoCauseURL = regexp.MustCompile(`(?i)\b[a-z][a-z0-9+.-]*://[^\s<>"']+`)
+
+func photoOmissionCause(err error) string {
+	if err == nil {
+		return "unknown download failure"
+	}
+	var transport *url.Error
+	for errors.As(err, &transport) {
+		if transport.Err == nil {
+			return "network request failed"
+		}
+		err = transport.Err
+	}
+	return photoCauseURL.ReplaceAllString(err.Error(), "[url]")
+}
+
+func photoDownloadOmission(photo pluginsystem.Photo, err error) PhotoAssetOmission {
+	item := PhotoAssetOmission{AssetID: photo.ExternalID, Filename: filepath.Base(photo.Filename), Reason: "download_failed", Retryable: true, Cause: photoOmissionCause(err), SourceType: photo.Source.Type}
+	if photo.Filename == "" {
+		item.Filename = ""
+	}
+	var status util.HTTPStatusError
+	switch {
+	case errors.As(err, &status):
+		item.Status = status.StatusCode
+		item.Cause = fmt.Sprintf("HTTP status %d", status.StatusCode)
+		switch status.StatusCode {
+		case http.StatusNotFound, http.StatusGone:
+			item.Reason, item.Retryable = "not_found", false
+		case http.StatusUnauthorized, http.StatusForbidden:
+			item.Reason, item.Retryable = "access_denied", false
+		case http.StatusRequestEntityTooLarge:
+			item.Reason, item.Retryable = "photo_too_large", false
+		case http.StatusUnsupportedMediaType:
+			item.Reason, item.Retryable = "unsupported_media", false
+		}
+	case errors.Is(err, errPhotoSourceExpired):
+		item.Reason, item.Retryable = "source_expired", false
+	case errors.Is(err, errPhotoSourceInvalid):
+		item.Reason, item.Retryable = "invalid_source", false
+	case errors.Is(err, errPhotoUnsupported):
+		item.Reason, item.Retryable = "unsupported_media", false
+	case errors.Is(err, util.ErrPluginMediaTooLarge):
+		item.Reason, item.Retryable = "photo_too_large", false
+	}
+	return item
+}
+
+type photoImportContext struct {
+	Provider        string
+	TrailExternalID string
+	TrailName       string
+	WaypointName    string
+}
+
+func logPhotoOmission(app core.App, context photoImportContext, omission PhotoAssetOmission) {
+	fields := []any{
+		"provider", context.Provider, "trail_external_id", context.TrailExternalID,
+		"trail_name", context.TrailName, "waypoint_name", context.WaypointName,
+		"external_id", omission.AssetID, "reason", omission.Reason, "retryable", omission.Retryable,
+		"filename", omission.Filename, "source_type", omission.SourceType, "cause", omission.Cause,
+	}
+	if omission.Status != 0 {
+		fields = append(fields, "status", omission.Status)
+	}
+	app.Logger().Warn("plugin photo omitted", fields...)
+}
+
+func preparePhotoAssets(ctx context.Context, app core.App, photos []pluginsystem.Photo, opts Options, mediaBudget *pluginMediaBudget, logContext photoImportContext) ([]util.PhotoAssetInput, []PhotoAssetOmission, error) {
+	omitted := []PhotoAssetOmission{}
+	omit := func(photo pluginsystem.Photo, omission PhotoAssetOmission) {
+		omission.SourceType = photo.Source.Type
+		if photo.Filename != "" {
+			omission.Filename = filepath.Base(photo.Filename)
+		}
+		omitted = append(omitted, omission)
+		logPhotoOmission(app, logContext, omission)
+	}
+	if len(photos) == 0 {
+		return []util.PhotoAssetInput{}, omitted, nil
+	}
+	limit := opts.maxImportedPhotosPerTarget
+	allowedMimeTypes, err := photoAssetMimeTypes(app)
+	if err != nil {
+		return nil, omitted, err
+	}
+	inputs := make([]util.PhotoAssetInput, 0, len(photos))
+	for index, photo := range photos {
+		if err := ctx.Err(); err != nil {
+			return inputs, omitted, err
+		}
+		if limit > 0 && len(inputs) >= limit {
+			for _, remaining := range photos[index:] {
+				omit(remaining, PhotoAssetOmission{AssetID: remaining.ExternalID, Reason: "photo_limit_reached"})
+			}
+			break
+		}
+		input := photoAssetInput(opts, PhotoAssetTarget{}, photo)
+		if input.StorageMode == "copy" {
+			maxBytes := mediaBudget.remainingBytes()
+			if maxBytes <= 0 {
+				omit(photo, PhotoAssetOmission{AssetID: photo.ExternalID, Reason: "media_budget_exhausted"})
+				continue
+			}
+			file, bytesRead, err := fetchPhotoFileForAsset(ctx, photo, opts, maxBytes, allowedMimeTypes)
+			if err != nil {
+				if cancelled := ctx.Err(); cancelled != nil {
+					return inputs, omitted, cancelled
+				}
+				// Log a classified omission without provider URLs or credentials.
+				omit(photo, photoDownloadOmission(photo, err))
+				continue
+			}
+			input.File = file
+			if input.File == nil {
+				omit(photo, PhotoAssetOmission{AssetID: photo.ExternalID, Reason: "no_file"})
+				continue
+			}
+			mediaBudget.add(bytesRead)
+		}
+		inputs = append(inputs, input)
+	}
+	return inputs, omitted, nil
+}
+
+// Persist the already downloaded files in the same transaction as their targets.
+func persistPhotoAssets(ctx context.Context, app core.App, inputs []util.PhotoAssetInput, target PhotoAssetTarget) error {
+	for _, input := range inputs {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		input.Trail, input.Waypoint, input.SummitLog = target.Trail, target.Waypoint, target.SummitLog
+		if _, err := util.CreatePhotoAsset(app, input); err != nil {
+			return err
+		}
+	}
+	return ctx.Err()
+}
+
+func photoAssetInput(opts Options, target PhotoAssetTarget, photo pluginsystem.Photo) util.PhotoAssetInput {
+	input := util.PhotoAssetInput{
+		Author:           photoAssetAuthor(opts),
+		Trail:            target.Trail,
+		Waypoint:         target.Waypoint,
+		SummitLog:        target.SummitLog,
+		StorageMode:      "copy",
+		Metadata:         map[string]any{},
+		ExternalProvider: opts.Manifest.ID,
+		ExternalID:       photo.ExternalID,
+	}
+	input.TakenAt = photo.TakenAt
+	if photo.Lat != nil {
+		input.Lat = *photo.Lat
+		input.HasLat = true
+	}
+	if photo.Lon != nil {
+		input.Lon = *photo.Lon
+		input.HasLon = true
+	}
+	return input
+}
+
+func photoAssetAuthor(opts Options) string {
+	if strings.TrimSpace(opts.ActorID) != "" {
+		return opts.ActorID
+	}
+	return opts.UserID
+}
+
+func fetchPhotoFileForAsset(ctx context.Context, photo pluginsystem.Photo, opts Options, maxBytes int64, allowedMimeTypes []string) (*filesystem.File, int64, error) {
+	now := time.Now()
+	if photo.Source.ExpiresAt != nil && photo.Source.ExpiresAt.Before(now) {
+		return nil, 0, errPhotoSourceExpired
+	}
+	return photoFile(ctx, photo, opts, maxBytes, allowedMimeTypes)
 }
 
 type CategoryMappingTarget struct {
@@ -61,6 +263,7 @@ type CategoryMappingValue struct {
 // stores the GPX/photos, maps GPX metrics onto the trail record, and creates the
 // optional related waypoints and summit log.
 func ImportTrail(ctx context.Context, app core.App, item pluginsystem.TrailImport, opts Options) (*Result, error) {
+	opts.maxImportedPhotosPerTarget = util.DefaultPluginMaxMediaItemsPerEntity
 	if item.Source.Provider == "" || item.Source.ExternalID == "" {
 		return nil, fmt.Errorf("source provider and externalId are required")
 	}
@@ -100,17 +303,11 @@ func ImportTrail(ctx context.Context, app core.App, item pluginsystem.TrailImpor
 	categoryTarget := CategoryTargetForImport(app, item, opts.CategoryMapping)
 	date := dateFromImport(item, metrics)
 	mediaBudget := &pluginMediaBudget{}
-	mediaContext := pluginMediaLogContext{
-		Provider:        item.Source.Provider,
-		TrailExternalID: item.Source.ExternalID,
-		TrailName:       fallbackName(item.Name),
-	}
-	photos := photoFiles(ctx, app, collection, item.Photos, opts, mediaBudget, mediaContext)
 
 	record.Load(map[string]any{
 		"name":           fallbackName(item.Name),
 		"description":    item.Description,
-		"public":         public,
+		"public":         false,
 		"completed":      item.Kind == "completed",
 		"distance":       metrics.Distance,
 		"elevation_gain": metrics.ElevationGain,
@@ -128,41 +325,93 @@ func ImportTrail(ctx context.Context, app core.App, item pluginsystem.TrailImpor
 		record.Set("completed_at", date)
 	}
 	record.Set("gpx", gpxFile)
-	if len(photos) > 0 {
-		record.Set("photos", photos)
-	}
 
 	util.SanitizeHTMLFieldsWithLimits(record)
-	// photoFiles drops the remaining photos once the sync is cancelled. Saving
-	// then would keep a trail that later syncs skip as already imported.
+	// Download before writing the trail and its deduplication reference. A
+	// cancelled transfer leaves no partial import that later syncs would skip.
+	trailPhotos, _, err := preparePhotoAssets(ctx, app, item.Photos, opts, mediaBudget, photoImportContext{Provider: item.Source.Provider, TrailExternalID: item.Source.ExternalID, TrailName: item.Name})
+	if err != nil {
+		return nil, err
+	}
+	waypointPhotos := make([][]util.PhotoAssetInput, len(item.Waypoints))
+	for i, waypoint := range item.Waypoints {
+		waypointPhotos[i], _, err = preparePhotoAssets(ctx, app, waypoint.Photos, opts, mediaBudget, photoImportContext{Provider: item.Source.Provider, TrailExternalID: item.Source.ExternalID, TrailName: item.Name, WaypointName: waypoint.Name})
+		if err != nil {
+			return nil, err
+		}
+	}
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	// The trail and its external reference are saved together, so a trail never
-	// exists without the reference that stops later syncs from importing it
-	// again. The trail's after-create hooks run once this commits; if one of
-	// them fails, the error is returned but both records stay.
+
+	// Keep the trail, its reference and material photo writes together.
+	// Cancellation rolls back the whole import, including reused photo changes.
+	// Other related-record errors retain the trail and its deduplication
+	// reference, matching the existing partial-import behavior.
+	committed := false
+	var relatedErr error
 	err = app.RunInTransaction(func(txApp core.App) error {
+		txApp.TxInfo().OnComplete(func(txErr error) error { committed = txErr == nil; return nil })
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		if err := txApp.Save(record); err != nil {
 			return err
 		}
-		return util.EnsureTrailExternalReference(txApp, record.Id, item.Source.Provider, item.Source.ExternalID, opts.Manifest.ID, ProviderCategoryFromImport(item))
+		if err := util.EnsureTrailExternalReference(txApp, record.Id, item.Source.Provider, item.Source.ExternalID, opts.Manifest.ID, ProviderCategoryFromImport(item)); err != nil {
+			return err
+		}
+		relatedErr = func() error {
+			if err := persistPhotoAssets(ctx, txApp, trailPhotos, PhotoAssetTarget{Trail: record.Id, PublicTrail: public}); err != nil {
+				return err
+			}
+			if err := createWaypoints(ctx, txApp, item.Waypoints, waypointPhotos, opts, record.Id, public, trackIndex); err != nil {
+				return err
+			}
+			if opts.CreateSummitLogForCompleted && item.Kind == "completed" {
+				return createSummitLog(txApp, record.Id, opts.ActorID, date, metrics)
+			}
+			return nil
+		}()
+		return ctx.Err()
 	})
+	err = errors.Join(err, relatedErr)
+	if err != nil && !committed {
+		return nil, err
+	}
+	// A committed import keeps its requested visibility even when a related
+	// record or post-commit hook failed; return that error after publication.
+	if public {
+		if publishErr := publishImportedTrail(app, record.Id); publishErr != nil {
+			return nil, errors.Join(err, publishErr)
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
 
-	if err := createWaypoints(ctx, app, item.Waypoints, opts, mediaBudget, record.Id, trackIndex, mediaContext); err != nil {
-		return nil, err
-	}
-
-	if opts.CreateSummitLogForCompleted && item.Kind == "completed" {
-		if err := createSummitLog(app, record.Id, opts.ActorID, date, metrics); err != nil {
-			return nil, err
-		}
-	}
-
 	return &Result{TrailID: record.Id, Created: true}, nil
+}
+
+func publishImportedTrail(app core.App, trailID string) error {
+	committed := false
+	err := app.RunInTransaction(func(txApp core.App) error {
+		txApp.TxInfo().OnComplete(func(txErr error) error {
+			committed = txErr == nil
+			return nil
+		})
+		trail, err := txApp.FindRecordById("trails", trailID)
+		if err != nil {
+			return err
+		}
+		trail.Set("public", true)
+		return txApp.Save(trail)
+	})
+	if err != nil && committed {
+		app.Logger().Warn("imported trail published but follow-up processing failed", "trail", trailID, "error", err)
+		return nil
+	}
+	return err
 }
 
 func normalizedDifficulty(value string) string {
@@ -479,7 +728,7 @@ func dateFromImport(item pluginsystem.TrailImport, metrics trailMetrics) time.Ti
 
 // createWaypoints persists plugin-provided waypoints after the trail exists so
 // they can reference the imported trail record.
-func createWaypoints(ctx context.Context, app core.App, waypoints []pluginsystem.Waypoint, opts Options, mediaBudget *pluginMediaBudget, trailID string, trackIndex trackDistanceIndex, mediaContext pluginMediaLogContext) error {
+func createWaypoints(ctx context.Context, app core.App, waypoints []pluginsystem.Waypoint, photos [][]util.PhotoAssetInput, opts Options, trailID string, publicTrail bool, trackIndex trackDistanceIndex) error {
 	if len(waypoints) == 0 {
 		return nil
 	}
@@ -492,7 +741,7 @@ func createWaypoints(ctx context.Context, app core.App, waypoints []pluginsystem
 		return err
 	}
 
-	for _, waypoint := range waypoints {
+	for index, waypoint := range waypoints {
 		record := core.NewRecord(collection)
 		icon := waypoint.Icon
 		if icon == "" {
@@ -502,11 +751,8 @@ func createWaypoints(ctx context.Context, app core.App, waypoints []pluginsystem
 		if distance, ok := trackIndex.nearest(geoPoint{Lat: waypoint.Lat, Lon: waypoint.Lon}); ok {
 			distanceFromStart = distance.fromStart
 		}
-		waypointMediaContext := mediaContext
-		waypointMediaContext.WaypointName = waypoint.Name
-		photos := photoFiles(ctx, app, collection, waypoint.Photos, opts, mediaBudget, waypointMediaContext)
 		// An unnamed waypoint is only there for its photos, so skip it without them.
-		if waypoint.Name == "" && waypoint.Description == "" && len(waypoint.Photos) > 0 && len(photos) == 0 {
+		if waypoint.Name == "" && waypoint.Description == "" && len(waypoint.Photos) > 0 && len(photos[index]) == 0 {
 			continue
 		}
 		record.Load(map[string]any{
@@ -519,11 +765,11 @@ func createWaypoints(ctx context.Context, app core.App, waypoints []pluginsystem
 			"distance_from_start": distanceFromStart,
 			"trail":               trailID,
 		})
-		if len(photos) > 0 {
-			record.Set("photos", photos)
-		}
 		util.SanitizeHTMLFieldsWithLimits(record)
 		if err := app.Save(record); err != nil {
+			return err
+		}
+		if err := persistPhotoAssets(ctx, app, photos[index], PhotoAssetTarget{Trail: trailID, Waypoint: record.Id, PublicTrail: publicTrail}); err != nil {
 			return err
 		}
 	}
@@ -531,26 +777,19 @@ func createWaypoints(ctx context.Context, app core.App, waypoints []pluginsystem
 	return nil
 }
 
-// photoFiles converts plugin photo descriptors into PocketBase file objects.
-// Individual photo failures are logged and skipped so one broken media URL does
-// not fail the whole trail import.
-//
 // pluginMediaBudget tracks bytes across the whole import (trail plus all of its
 // waypoints) so total media size stays bounded regardless of waypoint count.
-// The item count, by contrast, is capped per photoFiles call (i.e. per trail or
-// per waypoint) so a trail's own photos cannot starve every waypoint's photos.
 type pluginMediaBudget struct {
 	bytes int64
 }
 
-type pluginMediaLogContext struct {
-	Provider        string
-	TrailExternalID string
-	TrailName       string
-	WaypointName    string
-}
-
 var pluginMediaRetryDelays = []time.Duration{time.Second, 3 * time.Second}
+
+func (b *pluginMediaBudget) add(bytesRead int64) {
+	if b != nil {
+		b.bytes += bytesRead
+	}
+}
 
 func (b *pluginMediaBudget) remainingBytes() int64 {
 	remaining := util.DefaultPluginMaxImportMediaBytes - b.bytes
@@ -560,75 +799,6 @@ func (b *pluginMediaBudget) remainingBytes() int64 {
 	return util.DefaultPluginMediaMaxBytes
 }
 
-func photoFiles(ctx context.Context, app core.App, collection *core.Collection, photos []pluginsystem.Photo, opts Options, budget *pluginMediaBudget, mediaContext pluginMediaLogContext) []*filesystem.File {
-	if len(photos) == 0 {
-		return nil
-	}
-
-	files := make([]*filesystem.File, 0, len(photos))
-	allowedMimeTypes := photoMimeTypes(collection)
-	now := time.Now()
-	items := 0
-	for _, photo := range photos {
-		if items >= util.DefaultPluginMaxMediaItemsPerEntity {
-			logSkippedPluginPhoto(app, "skipping plugin photo because photo item limit was reached", mediaContext, photo, "limit", util.DefaultPluginMaxMediaItemsPerEntity)
-			continue
-		}
-		if err := ctx.Err(); err != nil {
-			logSkippedPluginPhoto(app, "skipping plugin photo because import context was cancelled", mediaContext, photo, "error", err)
-			return files
-		}
-		if photo.Source.ExpiresAt != nil && photo.Source.ExpiresAt.Before(now) {
-			logSkippedPluginPhoto(app, "skipping expired plugin photo", mediaContext, photo)
-			continue
-		}
-		maxBytes := budget.remainingBytes()
-		if maxBytes <= 0 {
-			logSkippedPluginPhoto(app, "skipping plugin photo because aggregate media byte limit was reached", mediaContext, photo, "limit", util.DefaultPluginMaxImportMediaBytes)
-			continue
-		}
-
-		file, bytesRead, err := photoFile(ctx, photo, opts, maxBytes, allowedMimeTypes)
-		if err != nil {
-			logSkippedPluginPhoto(app, "skipping invalid plugin photo", mediaContext, photo, "error", err)
-			continue
-		}
-		if file != nil {
-			files = append(files, file)
-			items++
-			budget.bytes += bytesRead
-		}
-	}
-
-	return files
-}
-
-func photoMimeTypes(collection *core.Collection) []string {
-	if collection == nil {
-		return nil
-	}
-	field, _ := collection.Fields.GetByName("photos").(*core.FileField)
-	if field == nil {
-		return nil
-	}
-	return field.MimeTypes
-}
-
-func logSkippedPluginPhoto(app core.App, message string, mediaContext pluginMediaLogContext, photo pluginsystem.Photo, extra ...any) {
-	attrs := []any{
-		"provider", mediaContext.Provider,
-		"trail_external_id", mediaContext.TrailExternalID,
-		"trail_name", mediaContext.TrailName,
-		"photo_external_id", photo.ExternalID,
-		"filename", photo.Filename,
-		"source_type", photo.Source.Type,
-	}
-	if mediaContext.WaypointName != "" {
-		attrs = append(attrs, "waypoint_name", mediaContext.WaypointName)
-	}
-	app.Logger().Warn(message, append(attrs, extra...)...)
-}
-
 // photoFile fetches one plugin-provided photo source. URL sources are validated
 // before PocketBase performs the server-side download.
 func photoFile(ctx context.Context, photo pluginsystem.Photo, opts Options, maxBytes int64, allowedMimeTypes []string) (*filesystem.File, int64, error) {
@@ -636,25 +806,28 @@ func photoFile(ctx context.Context, photo pluginsystem.Photo, opts Options, maxB
 	switch photo.Source.Type {
 	case "url":
 		if photo.Source.URL == "" {
-			return nil, 0, fmt.Errorf("photo URL is empty")
+			return nil, 0, fmt.Errorf("%w: URL is empty", errPhotoSourceInvalid)
 		}
 		if err := validateRemoteMediaURLSyntax(photo.Source.URL); err != nil {
-			return nil, 0, err
+			return nil, 0, fmt.Errorf("%w: %w", errPhotoSourceInvalid, err)
 		}
 		fetch = func() (*util.SafeFetchResult, error) {
-			return util.FetchPublicURL(ctx, photo.Source.URL, maxBytes)
+			return fetchPublicPluginMedia(ctx, photo.Source.URL, maxBytes)
 		}
 	case "connector":
 		fetch = func() (*util.SafeFetchResult, error) {
 			return fetchConnectorMedia(ctx, photo, opts, maxBytes)
 		}
 	default:
-		return nil, 0, fmt.Errorf("unsupported photo source type %q", photo.Source.Type)
+		return nil, 0, fmt.Errorf("%w: unsupported source type %q", errPhotoSourceInvalid, photo.Source.Type)
 	}
 
 	fetched, err := fetchPluginMediaWithRetry(ctx, pluginMediaRetryDelays, fetch)
 	if err != nil {
 		return nil, 0, err
+	}
+	if fetched == nil {
+		return nil, 0, nil
 	}
 	if err := validatePhotoMimeType(fetched.Body, allowedMimeTypes); err != nil {
 		return nil, int64(len(fetched.Body)), err
@@ -698,7 +871,7 @@ func validatePhotoMimeType(body []byte, allowedMimeTypes []string) error {
 			return nil
 		}
 	}
-	return fmt.Errorf("detected MIME type %q is not allowed (allowed: %s)", detected.String(), strings.Join(allowedMimeTypes, ", "))
+	return fmt.Errorf("%w: detected MIME type %q is not allowed (allowed: %s)", errPhotoUnsupported, detected.String(), strings.Join(allowedMimeTypes, ", "))
 }
 
 func fetchConnectorMedia(ctx context.Context, photo pluginsystem.Photo, opts Options, maxBytes int64) (*util.SafeFetchResult, error) {
@@ -1121,4 +1294,16 @@ func extensionFromContentTypes(candidates ...string) string {
 		}
 	}
 	return ".jpg"
+}
+
+func photoAssetMimeTypes(app core.App) ([]string, error) {
+	collection, err := app.FindCollectionByNameOrId("assets")
+	if err != nil {
+		return nil, err
+	}
+	field, _ := collection.Fields.GetByName("file").(*core.FileField)
+	if field == nil {
+		return nil, fmt.Errorf("assets.file is not a file field")
+	}
+	return field.MimeTypes, nil
 }

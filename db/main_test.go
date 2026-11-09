@@ -655,7 +655,24 @@ func newSearchInitApp(t *testing.T) *core.BaseApp {
 		&core.RelationField{Name: "list", CollectionId: lists.Id, MaxSelect: 1},
 		&core.RelationField{Name: "actor", CollectionId: actors.Id, MaxSelect: 1},
 	)
-	for _, collection := range []*core.Collection{listShares} {
+	assets := core.NewBaseCollection("assets")
+	assets.Fields.Add(
+		&core.TextField{Name: "type"},
+		&core.TextField{Name: "file"},
+		&core.TextField{Name: "storage_mode"},
+		&core.TextField{Name: "external_provider"},
+		&core.DateField{Name: "taken_at"},
+		&core.JSONField{Name: "metadata"},
+	)
+	trailAssets := core.NewBaseCollection("trail_assets")
+	trailAssets.Fields.Add(
+		&core.RelationField{Name: "asset", CollectionId: assets.Id, MaxSelect: 1},
+		&core.RelationField{Name: "trail", CollectionId: trails.Id, MaxSelect: 1},
+		&core.BoolField{Name: "is_thumbnail"},
+		&core.AutodateField{Name: "created", OnCreate: true},
+		&core.AutodateField{Name: "updated", OnCreate: true, OnUpdate: true},
+	)
+	for _, collection := range []*core.Collection{listShares, assets, trailAssets} {
 		if err := app.Save(collection); err != nil {
 			t.Fatal(err)
 		}
