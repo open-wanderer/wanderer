@@ -13,6 +13,7 @@ import { POST as updateTrail } from "../trail/form/[id]/+server";
 import { POST as updateList } from "../list/form/[id]/+server";
 import { POST as updateLog } from "../summit-log/form/[id]/+server";
 import { PUT as uploadTrail } from "../trail/upload/+server";
+import { PUT as uploadAssets } from "../assets/+server";
 
 it.each([
     ["/api/v1/trail/form", "PUT", "gpx", createTrail],
@@ -30,11 +31,17 @@ it.each([
         expect(file.size).toBe(3 * 1024 * 1024);
         return { ...record };
     });
-    const request = new Request("https://local.example" + path, { method, body: form });
+    const request = new Request("https://a.example" + path, { method, body: form });
     const event = { request, url: new URL(request.url), params: { id: record.id }, locals: { user: { id: "owner0000000001" }, pb: { collection: () => ({ create: persist, update: persist, getOne: async () => ({ ...record }) }) } } } as unknown as RequestEvent;
     const response = await limitRequestBodies({ event, resolve: (input) => route(input) });
-    expect(response.status).toBe(200);
-    expect(persist).toHaveBeenCalledOnce();
+    if (route === uploadWaypointPhotos) {
+        expect(response.status).toBe(400);
+        expect(await response.json()).toEqual({ message: "waypoint_photos_form_field_removed" });
+        expect(persist).not.toHaveBeenCalled();
+    } else {
+        expect(response.status).toBe(200);
+        expect(persist).toHaveBeenCalledOnce();
+    }
 });
 
 it.each([
@@ -46,7 +53,7 @@ it.each([
     const body = new ReadableStream<Uint8Array>({
         pull(controller) { reads++; controller.enqueue(new Uint8Array(16 * 1024)); controller.close(); },
     }, { highWaterMark: 0 });
-    const request = new Request(`https://local.example/api/v1/${kind}/abcdefghijklmn0/file`, {
+    const request = new Request(`https://a.example/api/v1/${kind}/abcdefghijklmn0/file`, {
         method: "POST", body, duplex: "half",
         headers: { "content-type": "multipart/form-data; boundary=test", "content-length": String(1024 ** 3) },
     } as RequestInit);
@@ -68,7 +75,7 @@ it.each([
     ["/api/v1/trail/form", "PUT", createTrail],
     ["/api/v1/summit-log/form", "PUT", createLog],
     ["/api/v1/waypoint/abcdefghijklmn0/file", "POST", uploadWaypointPhotos],
-] as const)("accepts several default-sized photos through %s", async (path, method, route) => {
+] as const)("rejects several removed photo parts without writing through %s", async (path, method, route) => {
     const form = new FormData();
     for (let i = 0; i < 3; i++) form.append("photos", new Blob([new Uint8Array(20 * 1024 * 1024)], { type: "image/png" }), `photo-${i}.png`);
     const record = { id: "abcdefghijklmn0", photos: [] };
@@ -77,11 +84,12 @@ it.each([
         expect(data.getAll("photos").map((file) => (file as File).size)).toEqual(Array(3).fill(20 * 1024 * 1024));
         return { ...record };
     });
-    const request = new Request("https://local.example" + path, { method, body: form });
+    const request = new Request("https://a.example" + path, { method, body: form });
     const event = { request, url: new URL(request.url), params: { id: record.id }, locals: { user: { id: "owner0000000001" }, pb: { collection: () => ({ create: persist, update: persist, getOne: async () => ({ ...record }) }) } } } as unknown as RequestEvent;
     const response = await limitRequestBodies({ event, resolve: (input) => route(input) });
-    expect(response.status).toBe(200);
-    expect(persist).toHaveBeenCalledOnce();
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ message: path.includes("waypoint") ? "waypoint_photos_form_field_removed" : path.includes("summit-log") ? "summit_log_photos_form_field_removed" : "trail_photos_form_field_removed" });
+    expect(persist).not.toHaveBeenCalled();
 });
 
 it.each([
@@ -93,7 +101,7 @@ it.each([
 ] as const)("rejects an anonymous upload without parsing its body at %s", async (path, method, route) => {
     let reads = 0;
     const body = new ReadableStream<Uint8Array>({ pull(controller) { reads++; controller.enqueue(new Uint8Array(16 * 1024)); controller.close(); } }, { highWaterMark: 0 });
-    const request = new Request("https://local.example" + path, { method, body, duplex: "half", headers: { "content-type": "multipart/form-data; boundary=test" } } as RequestInit);
+    const request = new Request("https://a.example" + path, { method, body, duplex: "half", headers: { "content-type": "multipart/form-data; boundary=test" } } as RequestInit);
     const parse = vi.spyOn(Request.prototype, "formData");
     const persist = vi.fn();
     try {
@@ -118,7 +126,7 @@ it.each([
     const body = new ReadableStream<Uint8Array>({
         pull(controller) { reads++; controller.enqueue(new Uint8Array(16 * 1024)); controller.close(); },
     }, { highWaterMark: 0 });
-    const request = new Request("https://local.example" + path, {
+    const request = new Request("https://a.example" + path, {
         method, body, duplex: "half",
         headers: { "content-type": "multipart/form-data; boundary=test", "content-length": String(declaredSize) },
     } as RequestInit);
@@ -139,4 +147,30 @@ it.each([
         expect(reads).toBe(0);
         expect(persist).not.toHaveBeenCalled();
     } finally { parse.mockRestore(); }
+});
+
+
+it.each(["trail", "waypoint", "summit_log"] as const)("preserves several default-sized photos through the asset API for %s", async (target) => {
+    const form = new FormData();
+    form.set(target, "abcdefghijklmn0");
+    for (let index = 0; index < 3; index++) {
+        form.append("files", new Blob([new Uint8Array(20 * 1024 * 1024)], { type: "image/png" }), `photo-${index}.png`);
+    }
+    const sizes: number[] = [];
+    const persist = vi.fn(async (data: FormData) => {
+        sizes.push((data.get("file") as File).size);
+        return { id: `asset000000000${sizes.length}` };
+    });
+    const collection = vi.fn((name: string) => ({
+        getOne: vi.fn(async () => ({ id: "abcdefghijklmn0", trail: "abcdefghijklmn0", author: "actor0000000001" })),
+        getFullList: vi.fn(async () => []),
+        create: name === "assets" ? persist : vi.fn(async () => ({ id: "link00000000001" })),
+    }));
+    const request = new Request("https://a.example/api/v1/assets", { method: "PUT", body: form });
+    const event = { request, url: new URL(request.url), locals: { user: { id: "owner0000000001", actor: "actor0000000001" }, pb: { collection, filter: () => "" } } } as unknown as RequestEvent;
+    const response = await limitRequestBodies({ event, resolve: input => uploadAssets(input) });
+    expect(response.status).toBe(200);
+    expect(persist).toHaveBeenCalledTimes(3);
+    expect(sizes).toEqual(Array(3).fill(20 * 1024 * 1024));
+    expect(await response.json()).toHaveLength(3);
 });

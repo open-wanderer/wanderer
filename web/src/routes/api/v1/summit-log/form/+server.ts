@@ -1,3 +1,4 @@
+import { hasRemovedPhotoFields } from "#lib/server/removed_photo_form.ts";
 import type { SummitLog } from '#lib/models/summit_log.ts';
 import { Collection, handleError, uploadCreate } from '#lib/util/api_util.ts';
 import type { RequestEvent } from '@sveltejs/kit';
@@ -7,7 +8,8 @@ import type { RequestEvent } from '@sveltejs/kit';
  * /api/v1/summit-log/form:
  *   put:
  *     summary: Create summit log with file upload
- *     description: Creates a new summit log with file upload (photos/GPX) and date normalization
+ *     description: >
+ *       Photo fields and their modifiers, including @jsonPayload, return 400 `summit_log_photos_form_field_removed` before any write. Use PUT /api/v1/assets to attach photos after saving.
  *     tags:
  *       - Summit Logs
  *     parameters:
@@ -38,7 +40,12 @@ import type { RequestEvent } from '@sveltejs/kit';
  *         description: Internal Server Error
  */
 export async function PUT(event: RequestEvent) {
+    if (!event.locals.user) return Response.json({ message: "Unauthorized" }, { status: 401 });
     try {
+        const data = await event.request.clone().formData();
+        if (hasRemovedPhotoFields(data)) {
+            return Response.json({ message: "summit_log_photos_form_field_removed" }, { status: 400 });
+        }
         const batchId = event.url.searchParams.get("federationBatch");
         if (batchId !== null && !/^[a-zA-Z0-9_-]{16,128}$/.test(batchId)) {
             return Response.json({ message: "invalid federation save batch" }, { status: 400 });

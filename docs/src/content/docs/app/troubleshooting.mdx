@@ -93,3 +93,11 @@ The app doesn't reroute in the beta; it keeps pointing at the next turn of the o
 
 **I don't hear any directions.**
 There is no voice guidance in the beta. Directions are shown in the banner at the top of the screen.
+
+
+## Photo API compatibility
+
+App releases up to and including `app-v0.1.0-beta.25` cannot upload photos to
+servers that use the asset API. Complete pending uploads before upgrading your
+server, then install an app release that supports that API before adding photos.
+Ask your administrator to check [photo API compatibility](/run/backend-configuration/mobile-app#photo-api-compatibility).

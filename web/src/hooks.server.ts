@@ -18,6 +18,7 @@ import { limitRequestBodies } from '#lib/server/request_body.ts'
 const SEARCH_TOKEN_VERSION = 1;
 const SEARCH_TOKEN_TTL_MS = 60 * 60 * 24 * 1000;
 const HEALTH_PATH = "/api/v1/health";
+const CAPABILITIES_PATH = "/api/v1/capabilities";
 // Budget for all PocketBase calls the auth hook makes for one request. Without
 // it a hung PocketBase holds the request for undici's 300 s headers timeout.
 const AUTH_BACKEND_TIMEOUT_MS = 10_000;
@@ -100,6 +101,9 @@ const auth: Handle = async ({ event, resolve }) => {
   // The health probe reports whether PocketBase is responding, so it must not
   // depend on the token checks and search-token fetch below: those can wait for
   // the full timeout or fail with a 500, and clients only treat 503 as offline.
+  if (url.pathname === CAPABILITIES_PATH && event.request.method === "GET") {
+    return Response.json({ assetApi: true })
+  }
   if (url.pathname === HEALTH_PATH) {
     event.locals.pb = pb
     return resolve(event)

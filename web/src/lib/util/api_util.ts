@@ -2,6 +2,7 @@ import { error, isHttpError, type RequestEvent } from "@sveltejs/kit";
 import { ClientResponseError, type ListResult } from "pocketbase";
 import { ZodError, type ZodType } from "zod";
 import { RecordListOptionsSchema, RecordIdSchema, RecordOptionsSchema } from "#lib/models/api/base_schema.ts";
+import { isPhotoField } from "#lib/util/removed_photo_fields.ts";
 
 export class APIError extends Error {
     status: number;
@@ -51,6 +52,20 @@ export enum Collection {
 
 }
 
+const removedPhotoErrors: Partial<Record<Collection, string>> = {
+    [Collection.trails]: "trail_photos_form_field_removed",
+    [Collection.waypoints]: "waypoint_photos_form_field_removed",
+    [Collection.summit_logs]: "summit_log_photos_form_field_removed",
+};
+
+function rejectRemovedPhotoKeys(data: unknown, collection: Collection): void {
+    const message = removedPhotoErrors[collection];
+    if (message && data !== null && typeof data === "object" && !Array.isArray(data)
+        && Object.keys(data).some(key => key !== "photos" && isPhotoField(key))) {
+        throw new ClientResponseError({ status: 400, response: { message } });
+    }
+}
+
 export async function list<T>(event: RequestEvent, collection: Collection) {
     const searchParams = Object.fromEntries(event.url.searchParams);
     const safeSearchParams = RecordListOptionsSchema.parse(searchParams);
@@ -92,6 +107,7 @@ export async function create<T>(event: RequestEvent, schema: ZodType<Record<stri
     const safeSearchParams = RecordOptionsSchema.parse(searchParams);
 
     const data = await event.request.json();
+    rejectRemovedPhotoKeys(data, collection);
     const safeData = schema.parse(data);
 
     const r = await event.locals.pb.collection(Collection[collection]).create<T>(safeData, { ...safeSearchParams, requestKey: null })
@@ -107,6 +123,7 @@ export async function update<T>(event: RequestEvent, schema: ZodType<Record<stri
     const safeSearchParams = RecordOptionsSchema.parse(searchParams);
 
     const data = await event.request.json();
+    rejectRemovedPhotoKeys(data, collection);
     const safeData = schema.parse(data);
 
     const r = await event.locals.pb.collection(Collection[collection]).update<T>(safeParams.id, safeData, { ...safeSearchParams, ...options })

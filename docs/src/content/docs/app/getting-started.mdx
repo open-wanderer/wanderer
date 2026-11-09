@@ -50,3 +50,11 @@ The app is organized into four tabs plus a central action button:
 - **Waypoint**: a point of interest along a trail: a viewpoint, a hut, a junction. Waypoints belong to a trail.
 - **Anchor**: a point you set while [planning a route](/app/plan-a-route). The planner connects anchors along paths; they are not waypoints.
 - **Region**: a downloadable piece of the map (a country or a part of one) for [offline use](/app/offline-use).
+
+
+## Photo API compatibility
+
+App releases up to and including `app-v0.1.0-beta.25` cannot upload photos to
+servers that use the asset API. Complete pending uploads before upgrading your
+server, then install an app release that supports that API before adding photos.
+Ask your administrator to check [photo API compatibility](/run/backend-configuration/mobile-app#photo-api-compatibility).
