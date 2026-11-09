@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/twpayne/go-polyline"
 )
 
 // These tests feed Parse generated streams that never exist as a []byte and
@@ -186,6 +188,60 @@ func TestHostileInputs(t *testing.T) {
 					t.Errorf("PointCount = %d, want 1", res.PointCount)
 				}
 			},
+		},
+		{
+			name: "finite-but-huge elevation swing",
+			src: func() *countingReader {
+				return &countingReader{r: strings.NewReader(`<gpx><trk><trkseg>` +
+					`<trkpt lat="47" lon="11"><ele>1e308</ele></trkpt>` +
+					`<trkpt lat="47.001" lon="11"><ele>-1e308</ele></trkpt>` +
+					`</trkseg></trk></gpx>`)}
+			},
+			maxBytes: 25 << 20, want: nil, maxRead: 1 << 20,
+			check: func(t *testing.T, res *Result) {
+				if res.ElevationGain != 0 || res.ElevationLoss != 0 || res.HasElevation {
+					t.Errorf("gain %v loss %v HasElevation %v, want 0, 0, false", res.ElevationGain, res.ElevationLoss, res.HasElevation)
+				}
+				if res.PointCount != 2 {
+					t.Errorf("PointCount = %d, want 2", res.PointCount)
+				}
+			},
+		},
+		{
+			name: "finite-but-huge latitudes",
+			src: func() *countingReader {
+				return &countingReader{r: strings.NewReader(`<gpx><trk><trkseg>` +
+					`<trkpt lat="1e308" lon="11"/><trkpt lat="1e308" lon="11"/><trkpt lat="47" lon="11"/>` +
+					`</trkseg></trk></gpx>`)}
+			},
+			maxBytes: 25 << 20, want: nil, maxRead: 1 << 20,
+			check: func(t *testing.T, res *Result) {
+				want := LatLon{Lat: 47, Lon: 11}
+				if res.PointCount != 1 || res.Centroid != want || res.Start != want {
+					t.Errorf("PointCount %d Centroid %+v Start %+v, want 1 and %+v for both", res.PointCount, res.Centroid, res.Start, want)
+				}
+				enc, err := res.Polyline()
+				if err != nil {
+					t.Fatalf("Polyline: %v", err)
+				}
+				coords, rest, err := polyline.DecodeCoords([]byte(enc))
+				if err != nil || len(rest) != 0 || len(coords) != 1 {
+					t.Fatalf("decoded %v with %d bytes left, error %v, want one coordinate", coords, len(rest), err)
+				}
+				b := res.Bounds
+				if c := coords[0]; c[0] < b.MinLat-1e-5 || c[0] > b.MaxLat+1e-5 || c[1] < b.MinLon-1e-5 || c[1] > b.MaxLon+1e-5 {
+					t.Errorf("decoded coordinate %v lies outside Bounds %+v", c, b)
+				}
+			},
+		},
+		{
+			name: "only out-of-bound positions",
+			src: func() *countingReader {
+				return &countingReader{r: strings.NewReader(`<gpx><trk><trkseg>` +
+					`<trkpt lat="1e308" lon="11"/><trkpt lat="47" lon="-1e308"/><trkpt lat="1e7" lon="1e7"/>` +
+					`</trkseg></trk></gpx>`)}
+			},
+			maxBytes: 25 << 20, want: []error{ErrNoTrack}, maxRead: 1 << 20,
 		},
 		{
 			name: "broken UTF-16 surrogate",

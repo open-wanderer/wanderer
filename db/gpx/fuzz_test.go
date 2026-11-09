@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/twpayne/go-polyline"
 )
 
 // fuzzLimit is the byte cap of every fuzz iteration, small so each one is fast.
@@ -70,6 +72,10 @@ func fuzzSeeds(f *testing.F) [][]byte {
 		[]byte("<gpx>"+strings.Repeat("<a>", 200)+track+"</gpx>"),
 		[]byte(`<?xml version="1.0" encoding="x-bogus"?><gpx>`+track+`</gpx>`),
 		append(utf16le(`<gpx><trk><name>a`, 0xD800), utf16le(`b</name><trkseg><trkpt lat="47" lon="11"/></trkseg></trk></gpx>`)[2:]...),
+		// CR-01: finite numbers far beyond any real value. They once summed to
+		// Inf and left a nil error beside a garbage polyline.
+		[]byte(`<gpx><trk><trkseg><trkpt lat="47" lon="11"><ele>1e308</ele></trkpt><trkpt lat="47.001" lon="11"><ele>-1e308</ele></trkpt></trkseg></trk></gpx>`),
+		[]byte(`<gpx><trk><trkseg><trkpt lat="1e308" lon="11"/><trkpt lat="1e308" lon="11"/><trkpt lat="47" lon="11"/></trkseg></trk></gpx>`),
 	)
 	return seeds
 }
@@ -130,8 +136,26 @@ func checkResult(t *testing.T, res *Result) {
 	if !finite(res.Centroid.Lat, res.Centroid.Lon, res.Start.Lat, res.Start.Lon) {
 		t.Fatalf("Centroid or Start is not finite")
 	}
-	if _, err := res.Polyline(); err != nil && !errors.Is(err, ErrTooComplex) {
+	enc, err := res.Polyline()
+	if err != nil && !errors.Is(err, ErrTooComplex) {
 		t.Fatalf("Polyline: %v, want nil or ErrTooComplex", err)
+	}
+	if err == nil {
+		// The encoded track must decode back to coordinates inside Bounds. A
+		// garbage encoding of out-of-range values would not (CR-01).
+		coords, rest, derr := polyline.DecodeCoords([]byte(enc))
+		if derr != nil || len(rest) != 0 {
+			t.Fatalf("Polyline does not decode: %v with %d bytes left", derr, len(rest))
+		}
+		if len(coords) > res.PointCount {
+			t.Fatalf("Polyline decodes to %d coordinates, PointCount = %d", len(coords), res.PointCount)
+		}
+		const slack = 1e-5
+		for i, c := range coords {
+			if len(c) != 2 || c[0] < b.MinLat-slack || c[0] > b.MaxLat+slack || c[1] < b.MinLon-slack || c[1] > b.MaxLon+slack {
+				t.Fatalf("decoded polyline coordinate %d lies outside Bounds %+v", i, b)
+			}
+		}
 	}
 
 	var buf bytes.Buffer

@@ -537,6 +537,8 @@ func TestDropsBadPositions(t *testing.T) {
 		`<trkpt lat="  " lon="  "/>`,
 		`<trkpt lat="47" lon="1e999"/>`,
 		`<trkpt lat="Infinity" lon="11"/>`,
+		`<trkpt lat="1e308" lon="11"/>`,
+		`<trkpt lat="47" lon="-1000000.5"/>`,
 	}
 	var sb strings.Builder
 	sb.WriteString(`<gpx><trk><trkseg>`)
@@ -550,7 +552,7 @@ func TestDropsBadPositions(t *testing.T) {
 	valid++
 	sb.WriteString(`</trkseg></trk>`)
 	// A route-only twin and a waypoint, to cover the other two position paths.
-	sb.WriteString(`<wpt lat="N/A" lon="11"><name>bad</name></wpt><wpt lat="47.5" lon="11.5"><name>good</name></wpt></gpx>`)
+	sb.WriteString(`<wpt lat="N/A" lon="11"><name>bad</name></wpt><wpt lat="1e7" lon="11"><name>far</name></wpt><wpt lat="47.5" lon="11.5"><name>good</name></wpt></gpx>`)
 
 	res, err := parseString(sb.String())
 	if err != nil {
@@ -576,5 +578,41 @@ func TestDropsBadPositions(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+// TestElevationBound pins the elevation bound through Parse: exactly 1e6 in
+// either direction is kept, anything beyond is no elevation.
+func TestElevationBound(t *testing.T) {
+	res, err := parseString(`<gpx><trk><trkseg>` +
+		`<trkpt lat="47" lon="11"><ele>1000000</ele></trkpt>` +
+		`<trkpt lat="47.001" lon="11"><ele>-1000000</ele></trkpt>` +
+		`<trkpt lat="47.002" lon="11"><ele>1000000.1</ele></trkpt>` +
+		`</trkseg></trk></gpx>`)
+	if err != nil {
+		t.Fatalf("got %v", err)
+	}
+	ele := res.tracks[0].segments[0].ele
+	if len(ele) != 3 || ele[0] != 1000000 || ele[1] != -1000000 || !math.IsNaN(ele[2]) {
+		t.Errorf("stored elevations = %v, want [1e6 -1e6 NaN]", ele)
+	}
+}
+
+// TestMeasurementBackstop feeds the builder out-of-bound stored values that no
+// input can produce through Parse once the bounds hold. A non-finite total must
+// still come out as ErrMalformed and no Result.
+func TestMeasurementBackstop(t *testing.T) {
+	b := newBuilder()
+	b.sawTrk = true
+	b.tracks = []measuredTrack{{segments: []measuredSegment{{
+		lat:    []float64{1e308, 1e308},
+		lon:    []float64{11, 11},
+		ele:    []float64{math.NaN(), math.NaN()},
+		timeMs: []int64{noTime, noTime},
+	}}}}
+	res, err := b.finish("")
+	wantErr(t, res, err, ErrMalformed)
+	if err != nil && !strings.Contains(err.Error(), "measurement out of range") {
+		t.Errorf("err = %q, want the static reason \"measurement out of range\"", err)
 	}
 }
