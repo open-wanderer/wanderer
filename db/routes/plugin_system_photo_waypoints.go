@@ -18,8 +18,9 @@ const maxPhotoWaypointsPerTrail = 25
 // movePhotosToWaypoints moves the trail photos that have a position onto
 // waypoints before the import: photos near one of the item's own waypoints
 // join it, the rest are grouped into new, unnamed waypoints. The first photo is
-// the cover and stays a trail photo, and so do photos without a valid position and
-// photos over the waypoint or per-waypoint limits, so none are lost.
+// the cover and stays a trail photo, and so do photos without a valid position,
+// photos a waypoint already has and photos over the waypoint or per-waypoint
+// limits, so none are lost.
 func movePhotosToWaypoints(app core.App, item *pluginsystem.TrailImport, mapping map[string]importer.CategoryMappingValue) {
 	if len(item.Photos) < 2 {
 		return
@@ -35,11 +36,21 @@ func movePhotosToWaypoints(app core.App, item *pluginsystem.TrailImport, mapping
 func groupPhotosIntoWaypoints(item *pluginsystem.TrailImport, settings waypointMergeSettings) {
 	trailPhotos := []pluginsystem.Photo{item.Photos[0]}
 	clusterPhotos := []waypointClusterPhoto{}
+	// Komoot sends a planned tour's highlight images both as trail photos and on
+	// the highlight waypoints.
+	onWaypoints := map[string]bool{}
+	for _, waypoint := range item.Waypoints {
+		for _, photo := range waypoint.Photos {
+			if photo.ExternalID != "" {
+				onWaypoints[photo.ExternalID] = true
+			}
+		}
+	}
 	// Clustering compares every photo with every cluster, and no more photos
 	// than this can be kept on waypoints, so the rest stay on the trail.
 	maxClusterPhotos := (maxPhotoWaypointsPerTrail + len(item.Waypoints)) * util.DefaultPluginMaxMediaItemsPerEntity
 	for i, photo := range item.Photos[1:] {
-		if photo.Lat == nil || photo.Lon == nil || *photo.Lat < -90 || *photo.Lat > 90 || *photo.Lon < -180 || *photo.Lon > 180 || len(clusterPhotos) >= maxClusterPhotos {
+		if photo.Lat == nil || photo.Lon == nil || *photo.Lat < -90 || *photo.Lat > 90 || *photo.Lon < -180 || *photo.Lon > 180 || onWaypoints[photo.ExternalID] || len(clusterPhotos) >= maxClusterPhotos {
 			trailPhotos = append(trailPhotos, photo)
 			continue
 		}
@@ -54,7 +65,9 @@ func groupPhotosIntoWaypoints(item *pluginsystem.TrailImport, settings waypointM
 		waypoints[i] = waypointClusterWaypoint{ID: strconv.Itoa(i), Lat: waypoint.Lat, Lon: waypoint.Lon, Time: unixMillis(waypoint.Time)}
 	}
 
-	newWaypoints := 0
+	// New waypoints go first, so the user's own photos download before the
+	// provider's waypoint images use up the import's media budget.
+	added := []pluginsystem.Waypoint{}
 	for _, cluster := range clusterWaypointPhotos(clusterPhotos, waypoints, settings) {
 		photos := make([]pluginsystem.Photo, 0, len(cluster.Photos))
 		for _, id := range cluster.Photos {
@@ -69,15 +82,20 @@ func groupPhotosIntoWaypoints(item *pluginsystem.TrailImport, settings waypointM
 			trailPhotos = append(trailPhotos, photos[taken:]...)
 			continue
 		}
-		if newWaypoints >= maxPhotoWaypointsPerTrail {
+		if len(added) >= maxPhotoWaypointsPerTrail {
 			trailPhotos = append(trailPhotos, photos...)
 			continue
 		}
-		newWaypoints++
 		taken := min(len(photos), util.DefaultPluginMaxMediaItemsPerEntity)
-		item.Waypoints = append(item.Waypoints, pluginsystem.Waypoint{Lat: cluster.Lat, Lon: cluster.Lon, Photos: photos[:taken]})
+		// The same icons as "From photos" in the trail editor.
+		icon := "image"
+		if taken > 1 {
+			icon = "images"
+		}
+		added = append(added, pluginsystem.Waypoint{Lat: cluster.Lat, Lon: cluster.Lon, Icon: icon, Photos: photos[:taken]})
 		trailPhotos = append(trailPhotos, photos[taken:]...)
 	}
+	item.Waypoints = append(added, item.Waypoints...)
 	item.Photos = trailPhotos
 }
 

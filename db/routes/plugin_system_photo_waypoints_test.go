@@ -41,12 +41,37 @@ func TestMovePhotosToWaypoints(t *testing.T) {
 	if len(item.Waypoints) != 2 {
 		t.Fatalf("got %d waypoints, want 2", len(item.Waypoints))
 	}
-	if got := photoIDs(item.Waypoints[0].Photos); len(got) != 1 || got[0] != "at-hut" {
+	lake := item.Waypoints[0]
+	if got := photoIDs(lake.Photos); lake.Name != "" || lake.Icon != "images" || len(got) != 2 || got[0] != "lake-1" || got[1] != "lake-2" {
+		t.Fatalf("new waypoint = %+v, want an unnamed waypoint first, with the images icon and both lake photos", lake)
+	}
+	if got := photoIDs(item.Waypoints[1].Photos); len(got) != 1 || got[0] != "at-hut" {
 		t.Fatalf("hut photos = %v, want [at-hut]", got)
 	}
-	lake := item.Waypoints[1]
-	if got := photoIDs(lake.Photos); lake.Name != "" || len(got) != 2 || got[0] != "lake-1" || got[1] != "lake-2" {
-		t.Fatalf("new waypoint = %+v, want an unnamed waypoint with both lake photos", lake)
+}
+
+func TestGroupPhotosIntoWaypointsKeepsPhotosAlreadyOnAWaypoint(t *testing.T) {
+	highlight := positionedPhoto("highlight", 47.0)
+	item := pluginsystem.TrailImport{
+		Waypoints: []pluginsystem.Waypoint{
+			{Name: "Summit", Lat: 47.0, Lon: 11, Photos: []pluginsystem.Photo{highlight}},
+			{Name: "Hut", Lat: 47.0003, Lon: 11},
+		},
+		Photos: []pluginsystem.Photo{positionedPhoto("cover", 46.0), highlight, positionedPhoto("own", 47.1)},
+	}
+
+	groupPhotosIntoWaypoints(&item, waypointMergeSettings{Enabled: true, Radius: defaultWaypointMergeRadius})
+
+	if got := photoIDs(item.Photos); len(got) != 2 || got[0] != "cover" || got[1] != "highlight" {
+		t.Fatalf("trail photos = %v, want [cover highlight]", got)
+	}
+	for _, waypoint := range item.Waypoints {
+		if waypoint.Name == "Hut" && len(waypoint.Photos) != 0 || waypoint.Name == "Summit" && len(waypoint.Photos) != 1 {
+			t.Fatalf("%s photos = %v, want the highlight only once, on the summit", waypoint.Name, photoIDs(waypoint.Photos))
+		}
+	}
+	if len(item.Waypoints) != 3 || item.Waypoints[0].Icon != "image" {
+		t.Fatalf("waypoints = %+v, want one new waypoint with the image icon", item.Waypoints)
 	}
 }
 

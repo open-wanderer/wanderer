@@ -491,6 +491,10 @@ func createWaypoints(ctx context.Context, app core.App, waypoints []pluginsystem
 		waypointMediaContext := mediaContext
 		waypointMediaContext.WaypointName = waypoint.Name
 		photos := photoFiles(ctx, app, collection, waypoint.Photos, opts, mediaBudget, waypointMediaContext)
+		// An unnamed waypoint is only there for its photos, so skip it without them.
+		if waypoint.Name == "" && waypoint.Description == "" && len(waypoint.Photos) > 0 && len(photos) == 0 {
+			continue
+		}
 		record.Load(map[string]any{
 			"name":                waypoint.Name,
 			"description":         waypoint.Description,
