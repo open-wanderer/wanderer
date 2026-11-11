@@ -464,6 +464,13 @@ Trail photos are attached to the imported trail. Waypoint photos are attached to
 the corresponding waypoint records. Waypoint `distance_from_start` is derived
 by the host from the nearest position on the imported GPX track.
 
+Trail photos with a position move to waypoints before the import. A photo near
+one of the item's waypoints joins it; the others are grouped into new, unnamed
+waypoints using the user's waypoint merge settings. The first photo stays on the
+trail as its cover, and so do photos without a position, photos whose
+`externalId` is already on a waypoint, and photos over the waypoint limits. An
+unnamed waypoint whose photos all fail to download is not saved.
+
 ### Provider difficulty
 
 `item.difficulty` is an optional string containing the provider's coarse

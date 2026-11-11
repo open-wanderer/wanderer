@@ -97,7 +97,7 @@ func ImportTrail(ctx context.Context, app core.App, item pluginsystem.TrailImpor
 	applyProviderStart(&metrics, trackIndex, item.Metadata)
 	applyProviderMetrics(&metrics, item.Metadata)
 	public := publicFromPrivacy(item.Privacy, opts.DefaultPublic)
-	categoryTarget := categoryTargetForImport(app, item, opts.CategoryMapping)
+	categoryTarget := CategoryTargetForImport(app, item, opts.CategoryMapping)
 	date := dateFromImport(item, metrics)
 	mediaBudget := &pluginMediaBudget{}
 	mediaContext := pluginMediaLogContext{
@@ -502,6 +502,10 @@ func createWaypoints(ctx context.Context, app core.App, waypoints []pluginsystem
 		waypointMediaContext := mediaContext
 		waypointMediaContext.WaypointName = waypoint.Name
 		photos := photoFiles(ctx, app, collection, waypoint.Photos, opts, mediaBudget, waypointMediaContext)
+		// An unnamed waypoint is only there for its photos, so skip it without them.
+		if waypoint.Name == "" && waypoint.Description == "" && len(waypoint.Photos) > 0 && len(photos) == 0 {
+			continue
+		}
 		record.Load(map[string]any{
 			"name":                waypoint.Name,
 			"description":         waypoint.Description,
@@ -922,7 +926,7 @@ func createSummitLog(app core.App, trailID string, actorID string, date time.Tim
 	return app.Save(record)
 }
 
-func categoryTargetForImport(app core.App, item pluginsystem.TrailImport, mapping map[string]CategoryMappingValue) CategoryMappingTarget {
+func CategoryTargetForImport(app core.App, item pluginsystem.TrailImport, mapping map[string]CategoryMappingValue) CategoryMappingTarget {
 	if categoryTarget, matched := CategoryTargetFromProviderMapping(app, ProviderCategoryFromImport(item), mapping); matched {
 		return categoryTarget
 	}
@@ -930,7 +934,7 @@ func categoryTargetForImport(app core.App, item pluginsystem.TrailImport, mappin
 }
 
 func categoryIDForImport(app core.App, item pluginsystem.TrailImport, mapping map[string]CategoryMappingValue) string {
-	return categoryTargetForImport(app, item, mapping).CategoryID
+	return CategoryTargetForImport(app, item, mapping).CategoryID
 }
 
 func ProviderCategoryFromImport(item pluginsystem.TrailImport) string {
