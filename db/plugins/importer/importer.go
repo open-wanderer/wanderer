@@ -152,9 +152,8 @@ func ImportTrail(ctx context.Context, app core.App, item pluginsystem.TrailImpor
 		return nil, err
 	}
 	// The reference now makes later syncs skip this trail, so save its
-	// waypoints even if the sync is cancelled. Their photos get a bounded
-	// time of their own; photoFiles skips the rest once it runs out.
-	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), importFinishTimeout)
+	// waypoints even if the sync is cancelled.
+	ctx, cancel := finishContext(ctx, importFinishTimeout)
 	defer cancel()
 
 	if err := createWaypoints(ctx, app, item.Waypoints, opts, mediaBudget, record.Id, trackIndex, mediaContext); err != nil {
@@ -547,9 +546,28 @@ type pluginMediaLogContext struct {
 
 var pluginMediaRetryDelays = []time.Duration{time.Second, 3 * time.Second}
 
-// importFinishTimeout bounds the waypoint photo downloads of a trail that is
-// already saved, since a cancelled sync no longer stops them.
-var importFinishTimeout = 5 * time.Minute
+// importFinishTimeout bounds the waypoint photo downloads of a saved trail
+// once its sync has ended; photoFiles skips the rest when it runs out.
+const importFinishTimeout = 5 * time.Minute
+
+// finishContext outlives ctx, and runs out timeout after ctx ends, so an
+// uncancelled sync is not capped.
+func finishContext(ctx context.Context, timeout time.Duration) (context.Context, context.CancelFunc) {
+	finish, cancel := context.WithCancel(context.WithoutCancel(ctx))
+	stop := context.AfterFunc(ctx, func() {
+		timer := time.NewTimer(timeout)
+		defer timer.Stop()
+		select {
+		case <-timer.C:
+			cancel()
+		case <-finish.Done():
+		}
+	})
+	return finish, func() {
+		stop()
+		cancel()
+	}
+}
 
 func (b *pluginMediaBudget) remainingBytes() int64 {
 	remaining := util.DefaultPluginMaxImportMediaBytes - b.bytes

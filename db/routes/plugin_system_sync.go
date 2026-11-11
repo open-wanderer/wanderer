@@ -173,10 +173,14 @@ var pluginRuntimeFor = func(plugin pluginsystem.LocalPlugin) (pluginsystem.Runti
 	return pluginsystem.NewRuntimeRegistry().RuntimeFor(plugin)
 }
 
-// syncPluginInstanceLocked keeps the cron from overlapping another sync.
-// skipped also covers a held instance lock; see syncFreshPluginInstance.
+// syncPluginInstanceLocked keeps the cron from overlapping another sync and
+// from taking the worker that manual syncs leave free. skipped also covers a
+// held instance lock; see syncFreshPluginInstance.
 func syncPluginInstanceLocked(ctx context.Context, app core.App, client meilisearch.ServiceManager, plugin pluginsystem.LocalPlugin, instanceID string) (*pluginSystemSyncResult, bool, error) {
-	release, acquired := pluginsystem.TryLockInstance(instanceID)
+	release, acquired, err := pluginSyncs.startScheduled(ctx, instanceID)
+	if err != nil {
+		return nil, false, err
+	}
 	if !acquired {
 		return nil, true, nil
 	}

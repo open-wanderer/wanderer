@@ -44,7 +44,7 @@
 </script>
 
 <div
-    class="flex flex-col gap-4 rounded-xl border border-input-border p-4 transition-colors hover:bg-secondary-hover md:flex-row md:items-center md:justify-between"
+    class="flex flex-col gap-4 rounded-xl border border-input-border p-4 transition-colors hover:bg-secondary-hover lg:flex-row lg:items-center lg:justify-between"
 >
     <div class="flex min-w-0 items-start gap-6">
         {#if img}
@@ -68,8 +68,8 @@
             {/if}
         </div>
     </div>
-    <div class="flex shrink-0 flex-col gap-2 md:items-start">
-        <div class="flex flex-wrap items-center justify-between gap-2 md:justify-end">
+    <div class="flex shrink-0 flex-col gap-2 lg:items-start">
+        <div class="flex items-center justify-between gap-2 lg:justify-end">
             <button
                 class="btn-icon"
                 type="button"
@@ -80,9 +80,17 @@
                 <i class="fa fa-circle-info" aria-hidden="true"></i>
             </button>
             {#if onsync}
-                <button class="btn-secondary" type="button" onclick={onsync} disabled={syncDisabled}
-                    ><i class="fa fa-rotate mr-2" aria-hidden="true"></i>{$_("plugin-sync-now")}</button
+                <button
+                    class="btn-icon"
+                    type="button"
+                    class:btn-disabled={syncDisabled}
+                    onclick={onsync}
+                    disabled={syncDisabled}
+                    title={$_("plugin-sync-now")}
+                    aria-label={$_("plugin-sync-now")}
                 >
+                    <i class="fa fa-rotate" aria-hidden="true"></i>
+                </button>
             {/if}
             <button
                 class="btn-secondary"

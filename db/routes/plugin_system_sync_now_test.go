@@ -76,6 +76,45 @@ func TestPluginSyncLimiterCapsRunningSyncs(t *testing.T) {
 	}
 }
 
+func TestScheduledSyncSharesTheManualCap(t *testing.T) {
+	limiter := newPluginSyncLimiter(0, 1)
+	scheduled, acquired, err := limiter.startScheduled(t.Context(), "cron-1")
+	if err != nil || !acquired {
+		t.Fatalf("scheduled sync did not start: acquired=%v, err=%v", acquired, err)
+	}
+	if _, _, err := limiter.startManual("manual-1", "manual-1"); !errors.Is(err, errPluginSyncBusy) {
+		t.Fatalf("manual sync took the free worker during the scheduled one: %v", err)
+	}
+	scheduled()
+
+	manual, _, err := limiter.startManual("manual-1", "manual-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	waiting, cancel := context.WithTimeout(t.Context(), 50*time.Millisecond)
+	defer cancel()
+	if _, _, err := limiter.startScheduled(waiting, "cron-2"); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("scheduled sync did not wait for the manual one: %v", err)
+	}
+	started := make(chan error, 1)
+	go func() {
+		release, _, err := limiter.startScheduled(t.Context(), "cron-2")
+		if err == nil {
+			release()
+		}
+		started <- err
+	}()
+	manual()
+	select {
+	case err := <-started:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("scheduled sync did not start once the manual one ended")
+	}
+}
+
 func TestManualSyncMaxRunningLeavesAWorkerFree(t *testing.T) {
 	for _, c := range []struct{ configured, workers, want int }{
 		{2, 2, 1}, {2, 8, 2}, {2, 1, 0}, {0, 8, 0},

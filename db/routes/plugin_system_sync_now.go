@@ -41,7 +41,8 @@ type pluginSyncLimiter struct {
 	now        func() time.Time
 	cooldown   time.Duration
 	maxRunning int
-	running    int
+	running    int // manual and scheduled syncs
+	freed      chan struct{} // closed when a sync ends
 	lastStart  map[string]time.Time // by user and plugin
 }
 
@@ -50,6 +51,7 @@ func newPluginSyncLimiter(cooldown time.Duration, maxRunning int) *pluginSyncLim
 		now:        time.Now,
 		cooldown:   cooldown,
 		maxRunning: maxRunning,
+		freed:      make(chan struct{}),
 		lastStart:  map[string]time.Time{},
 	}
 }
@@ -61,10 +63,10 @@ var pluginSyncs = newPluginSyncLimiter(
 
 var pluginSyncTimeout = envDuration("POCKETBASE_PLUGIN_SYNC_TIMEOUT", defaultPluginSyncTimeout, time.Second)
 
-// manualSyncMaxRunning leaves at least one plugin worker free of manual syncs,
-// shared by the scheduled sync and other plugin requests such as sending a
-// trail. Every sync holds a worker for its whole run, so without a free one
-// those would time out waiting.
+// manualSyncMaxRunning leaves at least one plugin worker free of syncs for
+// other plugin requests such as checking credentials or sending a trail. Every
+// sync holds a worker for its whole run, so without a free one those would
+// time out waiting.
 func manualSyncMaxRunning(configured int, workers int) int {
 	return max(0, min(configured, workers-1))
 }
@@ -97,12 +99,48 @@ func (l *pluginSyncLimiter) startManual(instanceID, cooldownKey string) (release
 	l.running++
 	reserved = true
 	l.lastStart[cooldownKey] = now
-	return func() {
+	return l.releaser(unlock), 0, nil
+}
+
+// startScheduled reserves an instance and a slot for the scheduled sync. It
+// counts against the manual cap, so a worker stays free while both run, and
+// waits while manual syncs hold every slot. acquired is false when the
+// instance is already syncing.
+func (l *pluginSyncLimiter) startScheduled(ctx context.Context, instanceID string) (release func(), acquired bool, err error) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	// One slot even when manual sync is off, so the schedule always runs.
+	for l.running >= max(1, l.maxRunning) {
+		freed := l.freed
+		l.mu.Unlock()
+		select {
+		case <-ctx.Done():
+			l.mu.Lock()
+			return nil, false, ctx.Err()
+		case <-freed:
+		}
 		l.mu.Lock()
-		defer l.mu.Unlock()
-		l.running--
-		unlock()
-	}, 0, nil
+	}
+	unlock, ok := pluginsystem.TryLockInstance(instanceID)
+	if !ok {
+		return nil, false, nil
+	}
+	l.running++
+	return l.releaser(unlock), true, nil
+}
+
+func (l *pluginSyncLimiter) releaser(unlock func()) func() {
+	var once sync.Once
+	return func() {
+		once.Do(func() {
+			l.mu.Lock()
+			defer l.mu.Unlock()
+			l.running--
+			close(l.freed)
+			l.freed = make(chan struct{})
+			unlock()
+		})
+	}
 }
 
 type pluginSyncRequest struct {
