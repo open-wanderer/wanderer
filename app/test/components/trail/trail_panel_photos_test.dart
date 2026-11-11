@@ -111,18 +111,19 @@ void main() {
         ..syncState = TrailSyncState.pending
         ..photos = ['uploaded.jpg'];
 
-  testWidgets('a partly uploaded capture renders each retained photo once', (
-    tester,
-  ) async {
-    final entity = row()
-      ..localPhotos = ['unsynced/account00000001/local-1-1/picked.jpg'];
-    await render(tester, entity.toModel());
-    final rendered = tester
-        .widgetList<WandererPhoto>(find.byType(WandererPhoto))
-        .toList();
-    expect(rendered.where((photo) => photo.path != null), hasLength(1));
-    expect(rendered.where((photo) => photo.url != null), hasLength(0));
-  });
+  testWidgets(
+    'a partly uploaded capture renders server photos beside remaining picks',
+    (tester) async {
+      final entity = row()
+        ..localPhotos = ['unsynced/account00000001/local-1-1/picked.jpg'];
+      await render(tester, entity.toModel());
+      final rendered = tester
+          .widgetList<WandererPhoto>(find.byType(WandererPhoto))
+          .toList();
+      expect(rendered.where((photo) => photo.path != null), hasLength(1));
+      expect(rendered.where((photo) => photo.url != null), hasLength(1));
+    },
+  );
 
   testWidgets(
     'a capture with cleared receipts still renders its server photo',

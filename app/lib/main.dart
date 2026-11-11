@@ -31,6 +31,7 @@ import 'package:wanderer/provider/account_scope_invalidation.dart';
 import 'package:wanderer/store/active_navigation_store.dart' as active_nav;
 import 'package:wanderer/store/local_photo_store.dart';
 import 'package:wanderer/store/app_photo_paths.dart';
+import 'package:wanderer/store/photo_queue_upgrade.dart';
 import 'package:wanderer/store/local_trail_store.dart';
 import 'package:wanderer/actions/launch_navigation.dart';
 import 'package:wanderer/services/app_shortcuts.dart';
@@ -60,6 +61,7 @@ void main() async {
   configurePhotoDocumentsDirectory(appDocDir.path);
   final dbPath = p.join(appDocDir.path, "objectbox");
   final store = await openStore(directory: dbPath);
+  await upgradePhotoQueue(store, documents: appDocDir);
   final proxyServer = await TileProxyServer.start(store);
 
   final cookiePath = p.join(appDocDir.path, ".cookies");

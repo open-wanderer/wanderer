@@ -140,7 +140,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(3, 7655646596805638170),
     name: 'WaypointEntity',
-    lastPropertyId: const obx_int.IdUid(15, 5363316924739740034),
+    lastPropertyId: const obx_int.IdUid(16, 5466563172868676489),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -235,6 +235,12 @@ final _entities = <obx_int.ModelEntity>[
         id: const obx_int.IdUid(15, 5363316924739740034),
         name: 'localKey',
         type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(16, 5466563172868676489),
+        name: 'downloadedPhotos',
+        type: 30,
         flags: 0,
       ),
     ],
@@ -1476,7 +1482,10 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final localKeyOffset = object.localKey == null
             ? null
             : fbb.writeString(object.localKey!);
-        fbb.startTable(16);
+        final downloadedPhotosOffset = fbb.writeList(
+          object.downloadedPhotos.map(fbb.writeString).toList(growable: false),
+        );
+        fbb.startTable(17);
         fbb.addInt64(0, object.obxId);
         fbb.addOffset(1, idOffset);
         fbb.addOffset(2, nameOffset);
@@ -1492,6 +1501,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
         fbb.addInt64(12, object.updated.millisecondsSinceEpoch);
         fbb.addOffset(13, localPhotosOffset);
         fbb.addOffset(14, localKeyOffset);
+        fbb.addOffset(15, downloadedPhotosOffset);
         fbb.finish(fbb.endTable());
         return object.obxId;
       },
@@ -1538,6 +1548,10 @@ obx_int.ModelDefinition getObjectBoxModel() {
           fb.StringReader(asciiOptimization: true),
           lazy: false,
         ).vTableGet(buffer, rootOffset, 30, []);
+        final downloadedPhotosParam = const fb.ListReader<String>(
+          fb.StringReader(asciiOptimization: true),
+          lazy: false,
+        ).vTableGet(buffer, rootOffset, 34, []);
         final localKeyParam = const fb.StringReader(asciiOptimization: true)
             .vTableGetNullable(buffer, rootOffset, 32);
         final object = WaypointEntity(
@@ -1553,6 +1567,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
           icon: iconParam,
           photos: photosParam,
           localPhotos: localPhotosParam,
+          downloadedPhotos: downloadedPhotosParam,
           localKey: localKeyParam,
         )..obxId = const fb.Int64Reader().vTableGet(buffer, rootOffset, 4, 0);
         object.trail.targetId = const fb.Int64Reader().vTableGet(
@@ -2933,6 +2948,11 @@ class WaypointEntity_ {
   /// See [WaypointEntity.localKey].
   static final localKey = obx.QueryStringProperty<WaypointEntity>(
     _entities[1].properties[14],
+  );
+
+  /// See [WaypointEntity.downloadedPhotos].
+  static final downloadedPhotos = obx.QueryStringVectorProperty<WaypointEntity>(
+    _entities[1].properties[15],
   );
 }
 

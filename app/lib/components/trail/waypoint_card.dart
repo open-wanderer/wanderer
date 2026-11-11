@@ -24,7 +24,9 @@ class WaypointCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final hasPhotos =
-        waypoint.localPhotos.isNotEmpty || waypoint.photos.isNotEmpty;
+        waypoint.localPhotos.isNotEmpty ||
+        waypoint.downloadedPhotos.isNotEmpty ||
+        waypoint.photos.isNotEmpty;
 
     // Tolerates a null. `Auth.logout()` drops this provider to a value-less
     // AsyncLoading, and a rejected session can now trigger that with this
@@ -34,21 +36,18 @@ class WaypointCard extends ConsumerWidget {
     // router redirect lands.
     final user = ref.watch(authProvider).value;
 
-    // A waypoint whose photos have been downloaded for offline use (library)
-    // carries BOTH `photos` (server filenames) and `localPhotos` (downloaded
-    // file paths) at the same time -- unlike `Trail`, which leaves `photos`
-    // empty for any DB-backed row. When local copies exist, prefer them
-    // exclusively: building network URLs alongside them would duplicate every
-    // photo in PhotoCollage (network copy first, local copy second) and,
-    // offline, the leading network copies fail to load while the trailing
-    // local ones succeed -- showing placeholders for photos that are in fact
-    // available on-device.
-    final webPhotos = waypoint.localPhotos.isNotEmpty
+    // Downloaded server photos and pending local picks have separate storage.
+    final localPhotos = [...waypoint.downloadedPhotos, ...waypoint.localPhotos];
+    final webPhotos = waypoint.downloadedPhotos.isNotEmpty
         ? const <String>[]
         : waypoint.photos
               .map(
                 (p) =>
-                    waypoint.getFileUrl(user?.serverUrl ?? '', p, thumb: '200x0') ??
+                    waypoint.getFileUrl(
+                      user?.serverUrl ?? '',
+                      p,
+                      thumb: '200x0',
+                    ) ??
                     '',
               )
               .toList();
@@ -69,10 +68,7 @@ class WaypointCard extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (hasPhotos)
-              PhotoCollage(
-                localPhotos: waypoint.localPhotos,
-                webPhotos: webPhotos,
-              ),
+              PhotoCollage(localPhotos: localPhotos, webPhotos: webPhotos),
 
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),

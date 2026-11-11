@@ -67,22 +67,9 @@ class TrailPanel extends ConsumerWidget {
     // inert without it, so the local-trail path renders identically.
     final isSkeleton = Skeletonizer.maybeOf(context)?.enabled ?? false;
 
-    // The legacy capture queue keeps uploaded picks until the row retires.
-    // Show those copies once while the same photos also have server names.
-    final webPhotos =
-        isUnsyncedState(trail.syncState) && trail.localPhotos.isNotEmpty
-        ? <String>[]
-        : trail.photos
-              .map(
-                (p) =>
-                    trail.getFileUrl(
-                      user?.serverUrl ?? '',
-                      p,
-                      thumb: '1200x0',
-                    ) ??
-                    '',
-              )
-              .toList();
+    final webPhotos = trail.photos
+        .map((p) => trail.getFileUrl(user?.serverUrl ?? '', p, thumb: '1200x0') ?? '')
+        .toList();
 
     final metrics = trail.expand?.gpx == null
         ? null

@@ -188,6 +188,25 @@ void main() {
   }
 
   test(
+    'queued waypoint receipts remain until the database acknowledgement',
+    () async {
+      await container
+          .read(waypointSaveProvider.notifier)
+          .saveQueuedWaypoint(
+            waypoint().copyWith(id: '', localPhotos: [photo.path]),
+            authorId: actor,
+            trailId: trail().id,
+          );
+      expect(await jobs(), hasLength(1));
+      await service.pruneCompleted(
+        const PhotoTarget.waypoint('waypoint0000001'),
+        actor,
+      );
+      expect(await jobs(), isEmpty);
+    },
+  );
+
+  test(
     'a server switch between child saves prevents the next child write',
     () async {
       observe = (options) {

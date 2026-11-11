@@ -2,6 +2,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:objectbox/objectbox.dart';
 import 'package:wanderer/entities/trail_entity.dart';
 import 'package:wanderer/models/waypoint.dart';
+import 'package:wanderer/store/app_photo_paths.dart';
 import 'package:wanderer/theme/icons.dart';
 import 'package:wanderer/util/local/id.dart';
 
@@ -23,6 +24,9 @@ class WaypointEntity {
 
   List<String> photos;
   List<String> localPhotos;
+
+  /// Offline copies of server photos, never an upload source.
+  List<String> downloadedPhotos;
 
   /// Carries list identity for a waypoint that has no server id yet
   /// yet. Mirrors [id] once a not-yet-uploaded
@@ -49,6 +53,7 @@ class WaypointEntity {
     this.icon,
     this.photos = const [],
     this.localPhotos = const [],
+    this.downloadedPhotos = const [],
     this.localKey,
   });
 
@@ -67,7 +72,8 @@ class WaypointEntity {
       distanceFromStart: w.distanceFromStart,
       author: w.author,
       photos: w.photos,
-      localPhotos: w.localPhotos,
+      localPhotos: w.localPhotos.map(storeCurrentPhotoPath).toList(),
+      downloadedPhotos: w.downloadedPhotos.map(storeCurrentPhotoPath).toList(),
       icon: fontAwesomeIconsMapReversed[w.icon],
       created: w.created,
       updated: w.updated,
@@ -89,7 +95,8 @@ extension WaypointEntityMapping on WaypointEntity {
       distanceFromStart: distanceFromStart,
       author: author,
       photos: photos,
-      localPhotos: localPhotos,
+      localPhotos: localPhotos.map(resolveStoredPhotoPath).toList(),
+      downloadedPhotos: downloadedPhotos.map(resolveStoredPhotoPath).toList(),
       icon: fontAwesomeIconsMap[icon] ?? FontAwesomeIcons.circle,
       updated: updated,
       created: created,

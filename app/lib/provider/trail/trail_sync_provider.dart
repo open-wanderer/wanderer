@@ -20,6 +20,9 @@ import 'package:wanderer/objectbox.g.dart';
 import 'package:wanderer/provider/api_provider.dart';
 import 'package:wanderer/provider/deferred_photo_session_provider.dart';
 import 'package:wanderer/provider/photo_api_provider.dart';
+import 'package:wanderer/provider/server_capabilities_provider.dart';
+import 'package:wanderer/services/asset_photo_client.dart';
+import 'package:wanderer/services/photo_mutation_service.dart';
 import 'package:wanderer/provider/objectbox_store_provider.dart';
 import 'package:wanderer/provider/online_status_provider.dart';
 import 'package:wanderer/provider/profile/profile_trails_provider.dart';
@@ -28,10 +31,11 @@ import 'package:wanderer/provider/trail/trail_library_provider.dart';
 import 'package:wanderer/provider/trail/trail_save_provider.dart';
 import 'package:wanderer/provider/waypoint/waypoint_provider.dart';
 import 'package:wanderer/store/current_account.dart';
-import 'package:wanderer/services/photo_mutation_service.dart';
 import 'package:wanderer/util/trail/form_data.dart';
 import 'package:wanderer/util/local/id.dart';
 import 'package:wanderer/store/local_photo_store.dart';
+import 'package:wanderer/store/photo_queue_upgrade.dart';
+import 'package:wanderer/store/app_photo_paths.dart';
 import 'package:wanderer/store/local_trail_store.dart';
 import 'package:wanderer/util/local/sync_backoff.dart';
 
@@ -191,6 +195,18 @@ class TrailSync extends _$TrailSync {
     // is exactly the leak account-scoping exists to prevent.
     final accountId = currentAccountId(store);
     if (accountId == null || _sessionExpired(accountId)) return;
+    final session = PhotoWriteSession(
+      ref.read(apiProvider),
+      currentEpoch: () => ref.read(apiProvider.notifier).sessionEpoch,
+    );
+    final documents = await getApplicationDocumentsDirectory();
+    await upgradePhotoQueue(store, documents: documents);
+    final mode = await ref.read(photoApiModeProvider)();
+    try {
+      session.check();
+    } on StateError {
+      return;
+    }
 
     final candidates = selectDrainCandidates(
       store,
@@ -208,7 +224,7 @@ class TrailSync extends _$TrailSync {
       try {
         final standalone = await ref
             .read(photoMutationServiceProvider)
-            .drain(currentUser.actorId);
+            .drain(currentUser.actorId, mode: mode);
         _reportPhotoRejections(standalone.rejectedCount);
       } catch (error, stack) {
         debugPrint(
@@ -218,6 +234,7 @@ class TrailSync extends _$TrailSync {
     }
 
     if (_sessionExpired(accountId)) return;
+    if (_legacyModeChanged(mode)) return;
 
     // Candidates BEFORE the connectivity probe: this drain runs on every app
     // resume, and probing first meant a `/health` network round-trip per
@@ -234,13 +251,23 @@ class TrailSync extends _$TrailSync {
     // in-flight set stays trivially easy to reason about for the delete
     // gate below.
     for (final entity in candidates) {
-      await _drainOne(store, entity, accountId);
+      if (_legacyModeChanged(mode)) return;
+      try {
+        session.check();
+      } on StateError {
+        return;
+      }
+      await _drainOne(store, entity, accountId, mode, documents.path, session);
     }
   }
 
   bool _sessionExpired(String accountId) => ref
       .read(deferredPhotoSessionProvider)
       .blocksAccount(ref.read(apiProvider).options.baseUrl, accountId);
+
+  bool _legacyModeChanged(PhotoApiMode mode) =>
+      mode == PhotoApiMode.legacy &&
+      ref.read(serverCapabilitiesProvider).assetApi == true;
 
   /// Implements the resume-from-step for a single trail.
   ///
@@ -253,6 +280,9 @@ class TrailSync extends _$TrailSync {
     Store store,
     TrailEntity entity,
     String accountId,
+    PhotoApiMode mode,
+    String documentsPath,
+    PhotoWriteSession session,
   ) async {
     final localId = entity.localId;
     if (localId == null) return;
@@ -310,34 +340,46 @@ class TrailSync extends _$TrailSync {
     try {
       markTrailUploading(store, localId);
 
-      // Step 1: tag reuse/create applies whether or not the trail
-      // itself still needs to be created.
       final trailModel = entity.toModel();
-      final resolvedTags = await ref
-          .read(trailSaveProvider.notifier)
-          .resolveTags(trailModel.expand?.tags ?? const []);
-
+      final pendingTrailPaths = _queuePhotoPaths(
+        entity.localPhotos,
+        documentsPath,
+        accountId,
+        localId,
+      );
+      session.check();
       var serverTrailId = entity.id;
+      var hasPendingPhotos = false;
+      var madeProgress = false;
+      var trailPhotosCompleted = false;
 
       // Step 2: create the trail itself, only when it has not already been
       // created by a prior partial attempt.
       if (isLocalId(entity.id)) {
+        final resolvedTags = await ref
+            .read(trailSaveProvider.notifier)
+            .resolveTags(trailModel.expand?.tags ?? const [], session: session);
         final trailToSend = trailModel.copyWith(
           author: authorId,
           tags: resolvedTags.map((t) => t.id!).toList(),
         );
         final formData = await trailToSend.toFormData(
-          newPhotos: trailModel.localPhotos.map((path) => File(path)).toList(),
+          newPhotos: mode == PhotoApiMode.legacy
+              ? pendingTrailPaths.map((path) => File(path)).toList()
+              : const [],
           isCreate: true,
         );
 
-        final response = await ref
-            .read(apiProvider)
-            .put(
-              '/trail/form',
-              data: formData,
-              queryParameters: {'expand': 'category,tags,author'},
-            );
+        final response = await photoMetadataWrite(
+          ref
+              .read(apiProvider)
+              .put(
+                session.route('/trail/form'),
+                data: formData,
+                queryParameters: {'expand': 'category,tags,author'},
+              ),
+          trailToSend.toJson(),
+        );
         // Commits the instant the server accepted the create,
         // BEFORE any waypoint upload starts below. There is no server-side
         // idempotency key, so a crash between "server accepted" and "id
@@ -357,8 +399,7 @@ class TrailSync extends _$TrailSync {
         // to find `[]` -- the value `TrailEntity.fromModel` leaves behind --
         // and step 4 persisted that emptiness before deleting the on-disk
         // copies.
-        final body = response.data;
-        final rawBody = body is Map ? body : const {};
+        final rawBody = response;
         final rawId = rawBody['id'];
         if (rawId is String && rawId.isNotEmpty) {
           final rawPhotos = rawBody['photos'];
@@ -377,67 +418,161 @@ class TrailSync extends _$TrailSync {
             store,
             localId: localId,
             serverId: rawId,
+            completedPhotoPaths: mode == PhotoApiMode.legacy
+                ? entity.localPhotos
+                : const [],
+            resolvedTags: resolvedTags,
             serverPhotoFilenames: rawPhotos is List
                 ? rawPhotos.whereType<String>().toList()
                 : null,
           );
         }
 
-        final created = Trail.fromJson(response.data);
+        final created = Trail.fromJson(response);
         serverTrailId = created.id;
+        madeProgress = true;
+        trailPhotosCompleted = mode == PhotoApiMode.legacy;
       }
 
-      // Step 3: each waypoint that has not already been created.
-      for (final waypointEntity in entity.waypoints) {
-        if (!isLocalId(waypointEntity.id)) continue;
+      if (!trailPhotosCompleted &&
+          (pendingTrailPaths.isNotEmpty ||
+              await ref
+                  .read(photoMutationServiceProvider)
+                  .hasJob(
+                    PhotoTarget.trail(serverTrailId),
+                    authorId,
+                    serverBaseUrl: session.baseUrl,
+                  ))) {
+        final photos = await ref
+            .read(photoMutationServiceProvider)
+            .apply(
+              target: PhotoTarget.trail(serverTrailId),
+              actorId: authorId,
+              serverBaseUrl: session.baseUrl,
+              newPhotos: pendingTrailPaths,
+              existingPhotos: _serverPhotos(entity.photos),
+              existingPhotosAreAuthoritative: false,
+              retryImmediately: false,
+              mode: mode,
+            );
+        _reportPhotoRejections(photos.rejectedCount);
+        if (photos.dropped) throw StateError('Photo target is unavailable');
+        hasPendingPhotos = photos.pending;
+        madeProgress |=
+            photos.madeProgress ||
+            !listEquals(photos.photos, _serverPhotos(entity.photos));
+        writeServerTrailId(
+          store,
+          localId: localId,
+          serverId: serverTrailId,
+          serverPhotoFilenames: photos.photos,
+          completedPhotoPaths: photos.pending
+              ? photos.completedPaths
+              : entity.localPhotos,
+        );
+        if (!photos.pending) {
+          await ref
+              .read(photoMutationServiceProvider)
+              .pruneCompleted(
+                PhotoTarget.trail(serverTrailId),
+                authorId,
+                serverBaseUrl: session.baseUrl,
+              );
+        }
+      }
 
-        // `WaypointEntity.fromModel` always mints a key for an empty-id
-        // waypoint, and the hasKeylessPendingWaypoint guard above this
-        // method's try already bailed the whole drain out before this loop
-        // could ever run against a corrupt row -- so a null here is
-        // unreachable by construction, not merely unlikely. Previously this
-        // was a `StateError` thrown from inside the try, which consumed one
-        // of the four kMaxSyncAttempts for an invariant break no retry could
-        // ever fix; see the guard's doc comment for the failure mode that
-        // produced.
-        final waypointLocalKey = waypointEntity.localKey!;
-
-        final waypointModel = waypointEntity.toModel();
-
-        final Waypoint createdWaypoint;
+      session.check();
+      // Step 3: create missing waypoints and resume their pending photos.
+      for (final waypointEntity in entity.waypoints.toList()) {
+        final waypointLocalKey = waypointEntity.localKey ?? waypointEntity.id;
+        final waypointModel = waypointEntity.toModel().copyWith(
+          localPhotos: _queuePhotoPaths(
+            waypointEntity.localPhotos,
+            documentsPath,
+            accountId,
+            localId,
+          ),
+          photos: _serverPhotos(waypointEntity.photos),
+        );
+        final Waypoint saved;
         try {
-          createdWaypoint = await ref
+          saved = await ref
               .read(waypointSaveProvider.notifier)
-              .create(
+              .saveQueuedWaypoint(
                 waypointModel,
                 authorId: authorId,
                 trailId: serverTrailId,
-                mode: PhotoApiMode.legacy,
+                mode: mode,
               );
-        } on WaypointPhotoUploadException catch (e) {
-          // The record exists server-side; only its photos failed. Persist
-          // the id NOW, exactly as the trail itself does, so the
-          // next attempt resumes at the photo upload instead of re-running
-          // `PUT /waypoint` and creating a duplicate. Then rethrow: this
-          // trail's upload really did not complete, so it must still count a
-          // failed attempt and be retried.
+        } on WaypointPhotoUploadException catch (error) {
           writeServerWaypointId(
             store,
             localId: localId,
             waypointLocalKey: waypointLocalKey,
-            serverWaypointId: e.created.id,
-            serverPhotoFilenames: e.created.photos,
+            serverWaypointId: error.created.id,
+            serverPhotoFilenames: error.created.photos,
           );
           rethrow;
         }
-
+        final waypointSave = ref.read(waypointSaveProvider.notifier);
+        if (waypointSave.photoTargetDeleted) {
+          final removed = removeQueuedWaypoint(
+            store,
+            accountId: accountId,
+            trailId: serverTrailId,
+            waypointId: saved.id,
+          );
+          for (final sources in removed) {
+            await deleteUnsyncedPhotoFiles(
+              accountId,
+              sources.localId,
+              sources.paths,
+            );
+          }
+          madeProgress = true;
+          continue;
+        }
+        _reportPhotoRejections(waypointSave.rejectedPhotoCount);
+        if (waypointSave.photoJobDropped)
+          throw StateError('Photo target is unavailable');
+        hasPendingPhotos |=
+            saved.localPhotos.isNotEmpty || waypointSave.photoJobPending;
+        madeProgress |=
+            isLocalId(waypointEntity.id) ||
+            saved.photos.length != waypointEntity.photos.length ||
+            (waypointModel.localPhotos.isNotEmpty && saved.localPhotos.isEmpty);
         writeServerWaypointId(
           store,
           localId: localId,
           waypointLocalKey: waypointLocalKey,
-          serverWaypointId: createdWaypoint.id,
-          serverPhotoFilenames: createdWaypoint.photos,
+          serverWaypointId: saved.id,
+          serverPhotoFilenames: saved.photos,
+          completedPhotoPaths: !waypointSave.photoJobPending
+              ? waypointEntity.localPhotos
+              : ref.read(waypointSaveProvider.notifier).completedPhotoPaths,
         );
+        if (!waypointSave.photoJobPending) {
+          await ref
+              .read(photoMutationServiceProvider)
+              .pruneCompleted(
+                PhotoTarget.waypoint(saved.id),
+                authorId,
+                serverBaseUrl: session.baseUrl,
+              );
+        }
+      }
+
+      if (hasPendingPhotos) {
+        recordPendingPhotos(
+          store,
+          localId,
+          accountId: accountId,
+          madeProgress: madeProgress,
+          now: DateTime.now(),
+          backoff: syncBackoffDelay,
+        );
+        ref.invalidate(localTrailProvider(localId));
+        return;
       }
 
       // Step 4: full success. The capture row has done its job and is
@@ -494,13 +629,18 @@ class TrailSync extends _$TrailSync {
       // caught here rather than escaping the notifier. The photo directory
       // is deliberately NOT deleted on failure; the retry still needs it.
       debugPrint('trail_sync_provider: drain failed for "$localId": $e\n$st');
-      recordDrainFailure(
-        store,
-        localId: localId,
-        now: DateTime.now(),
-        maxAttempts: kMaxSyncAttempts,
-        backoff: syncBackoffDelay,
-      );
+      if (isLegacyPhotoFieldRemoved(e)) {
+        ref.read(serverCapabilitiesProvider).markAssetApi();
+        resetDrainBackoff(store, localId, accountId: accountId);
+      } else {
+        recordDrainFailure(
+          store,
+          localId: localId,
+          now: DateTime.now(),
+          maxAttempts: kMaxSyncAttempts,
+          backoff: syncBackoffDelay,
+        );
+      }
       // A mounted detail screen must re-read the row's new failed or
       // backed-off state, otherwise its sync section keeps showing a stale
       // pending state with an Upload now button.
@@ -752,6 +892,30 @@ class TrailSync extends _$TrailSync {
       }
     }
 
+    final pendingQuery = store
+        .box<TrailEntity>()
+        .query(
+          TrailEntity_.localId.equals(localId) &
+              TrailEntity_.owner.equals(accountId),
+        )
+        .build();
+    final pending = pendingQuery.findFirst();
+    pendingQuery.close();
+    final actorQuery = store
+        .box<UserEntity>()
+        .query(UserEntity_.id.equals(accountId))
+        .build();
+    final actorId = actorQuery.findFirst()?.actorId;
+    actorQuery.close();
+    if (pending != null && actorId != null) {
+      final jobs = ref.read(photoMutationServiceProvider);
+      if (serverId != null)
+        await jobs.drop(PhotoTarget.trail(serverId), actorId);
+      for (final waypoint in pending.waypoints) {
+        if (!isLocalId(waypoint.id))
+          await jobs.drop(PhotoTarget.waypoint(waypoint.id), actorId);
+      }
+    }
     final rowOutcome = deleteLocalTrailRow(
       store,
       localId,
@@ -839,3 +1003,25 @@ class TrailSync extends _$TrailSync {
     return await deleteUnsynced(localId) == UnsyncedDeleteResult.deleted;
   }
 }
+
+List<String> _queuePhotoPaths(
+  List<String> stored,
+  String documents,
+  String accountId,
+  String localId,
+) {
+  final directory = unsyncedTrailPhotoDir(documents, accountId, localId);
+  return stored
+      .map((path) => resolvePhotoPath(documents, path))
+      .where((path) => p.isWithin(directory, path))
+      .toList();
+}
+
+List<String> _serverPhotos(List<String> photos) => photos
+    .where(
+      (photo) =>
+          Uri.tryParse(photo)?.hasAuthority == true ||
+          photo.startsWith('/api/') ||
+          (!photo.contains('/') && !photo.contains('\\')),
+    )
+    .toList();

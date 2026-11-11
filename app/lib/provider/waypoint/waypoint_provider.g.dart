@@ -33,7 +33,7 @@ final class WaypointSaveProvider
   WaypointSave create() => WaypointSave();
 }
 
-String _$waypointSaveHash() => r'66abb4538db40b2f810a4ae099e41f3e9b422255';
+String _$waypointSaveHash() => r'a3871373186fa0f7d3e9e1e088d50b6c26cf9fba';
 
 abstract class _$WaypointSave extends $AsyncNotifier<void> {
   FutureOr<void> build();

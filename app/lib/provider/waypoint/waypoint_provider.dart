@@ -45,7 +45,12 @@ class WaypointPhotoUploadException implements Exception {
 
 @Riverpod(keepAlive: true)
 class WaypointSave extends _$WaypointSave {
+  List<String> _completedPhotoPaths = const [];
+  List<String> get completedPhotoPaths => _completedPhotoPaths;
   int rejectedPhotoCount = 0;
+  bool photoJobDropped = false;
+  bool photoJobPending = false;
+  bool photoTargetDeleted = false;
   @override
   FutureOr<void> build() {}
 
@@ -62,6 +67,10 @@ class WaypointSave extends _$WaypointSave {
       currentEpoch: () => ref.read(apiProvider.notifier).sessionEpoch,
     );
     rejectedPhotoCount = 0;
+    photoJobDropped = false;
+    photoJobPending = false;
+    photoTargetDeleted = false;
+    _completedPhotoPaths = const [];
     mode ??= await ref.read(photoApiModeProvider)();
 
     final body = waypoint.toJson()
@@ -114,6 +123,10 @@ class WaypointSave extends _$WaypointSave {
       currentEpoch: () => ref.read(apiProvider.notifier).sessionEpoch,
     );
     rejectedPhotoCount = 0;
+    photoJobDropped = false;
+    photoJobPending = false;
+    photoTargetDeleted = false;
+    _completedPhotoPaths = const [];
     mode ??= await ref.read(photoApiModeProvider)();
 
     final body = newWaypoint.toJson()
@@ -189,6 +202,72 @@ class WaypointSave extends _$WaypointSave {
         );
   }
 
+  /// Used by the offline queue for both first creation and photo-only resume.
+  Future<Waypoint> saveQueuedWaypoint(
+    Waypoint waypoint, {
+    required String authorId,
+    required String trailId,
+    PhotoApiMode? mode,
+  }) async {
+    _completedPhotoPaths = const [];
+    rejectedPhotoCount = 0;
+    photoJobDropped = false;
+    photoJobPending = false;
+    photoTargetDeleted = false;
+    if (waypoint.id.isEmpty) {
+      return create(
+        waypoint,
+        authorId: authorId,
+        trailId: trailId,
+        mode: mode,
+        retainPhotoReceipts: true,
+      );
+    }
+    final api = ref.read(apiProvider);
+    final base = api.options.baseUrl;
+    if (waypoint.localPhotos.isEmpty &&
+        !await ref
+            .read(photoMutationServiceProvider)
+            .hasJob(
+              PhotoTarget.waypoint(waypoint.id),
+              authorId,
+              serverBaseUrl: base,
+            ))
+      return waypoint;
+    if (api.options.baseUrl != base) throw StateError('Photo session changed');
+    return uploadPendingPhotos(waypoint, authorId: authorId, mode: mode);
+  }
+
+  Future<Waypoint> uploadPendingPhotos(
+    Waypoint waypoint, {
+    required String authorId,
+    PhotoApiMode? mode,
+  }) async {
+    _completedPhotoPaths = const [];
+    final result = await ref
+        .read(photoMutationServiceProvider)
+        .apply(
+          target: PhotoTarget.waypoint(waypoint.id),
+          actorId: authorId,
+          newPhotos: waypoint.localPhotos,
+          existingPhotos: waypoint.photos,
+          existingPhotosAreAuthoritative: false,
+          retryImmediately: false,
+          removedPendingPaths: waypoint.removedPendingPhotos,
+          mode: mode,
+        );
+    rejectedPhotoCount = result.rejectedCount;
+    photoJobDropped = result.dropped;
+    photoJobPending = result.pending;
+    photoTargetDeleted = result.confirmedDeleted;
+    _completedPhotoPaths = result.completedPaths;
+    return waypoint.copyWith(
+      photos: result.photos,
+      localPhotos: result.pendingPaths,
+      removedPendingPhotos: const [],
+    );
+  }
+
   Future<Waypoint> _uploadPhotos(
     Waypoint waypoint, {
     required String authorId,
@@ -216,6 +295,10 @@ class WaypointSave extends _$WaypointSave {
             existingPhotos: waypoint.photos,
           );
       rejectedPhotoCount = result.rejectedCount;
+      photoJobDropped = result.dropped;
+      photoJobPending = result.pending;
+      photoTargetDeleted = result.confirmedDeleted;
+      _completedPhotoPaths = result.completedPaths;
       final saved = waypoint.copyWith(
         removedPendingPhotos: const [],
         photos: result.photos,
