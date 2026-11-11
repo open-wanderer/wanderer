@@ -41,8 +41,8 @@ type pluginSyncLimiter struct {
 	now        func() time.Time
 	cooldown   time.Duration
 	maxRunning int
-	running    int // manual and scheduled syncs
-	freed      chan struct{} // closed when a sync ends
+	running    int                  // manual and scheduled syncs
+	freed      chan struct{}        // closed when a sync ends
 	lastStart  map[string]time.Time // by user and plugin
 }
 
