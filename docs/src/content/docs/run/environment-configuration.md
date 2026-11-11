@@ -27,6 +27,9 @@ Since we use an unmodified installation of meilisearch you can use all variables
 | POCKETBASE_ENCRYPTION_KEY      | **Required.** Valid 32 character AES key. Used to encrypt secrets. Generate with `openssl rand -hex 16`. Never change it after the first start, or stored secrets can no longer be decrypted |                       |
 | POCKETBASE_PROXY_SECRET        | **Required.** Shared secret authenticating the frontend → backend hop for inbound ActivityPub delivery to user inboxes and the instance inbox. Must be set to the **same** value on both the `db` and `web` services. If unset, inbound federation (including instance federation) is rejected (fail closed). Generate with `openssl rand -hex 32` |                       |
 | POCKETBASE_CRON_SYNC_SCHEDULE  | Valid cron expression. Sets how often installed plugins are synced                                                | 0 2 ** *             |
+| POCKETBASE_PLUGIN_SYNC_COOLDOWN | How long a user waits after starting a sync of a plugin with "Sync now" before they can sync that plugin again, as a duration such as `15m` or `1h`. Counts per plugin, so switching on a second plugin still starts its first sync | `15m` |
+| POCKETBASE_PLUGIN_SYNC_MAX_RUNNING | How many syncs may run at once, counting the scheduled sync, which waits for a free slot. The limit is server-wide. `0` turns "Sync now" off; the scheduled sync still runs. Capped at one below the number of plugin workers (`WANDERER_PLUGIN_WORKER_MAX`, by default the CPU count, at least 2), so one worker stays free for other plugin requests such as sending a trail | `2` |
+| POCKETBASE_PLUGIN_SYNC_TIMEOUT | How long a sync started with "Sync now" may run before it is stopped, as a duration of at least `1s`, such as `30m`. A sync that is stopped continues with the remaining trails on the next run | `30m` |
 | POCKETBASE_CRON_SEARCH_REPAIR_SCHEDULE | Valid cron expression. Sets how often the search indexes are compared with the database and repaired. The job can also be run from the Crons page of the PocketBase dashboard | `0 4 * * *` |
 | POCKETBASE_SMTP_ENABLED        | Enables or disables SMTP functionality. Accepted values are true or false                                         | false                 |
 | POCKETBASE_SMTP_SENDER_ADDRESS | The email address used as the "From" address in outgoing emails                                                   |                       |
@@ -45,7 +48,9 @@ Since we use an unmodified installation of meilisearch you can use all variables
 | REGION_ARCHIVE_EXTRACT_TIMEOUT | Maximum duration a single region archive extraction may take, as a Go duration string (e.g. `45m`)                | 30m                   |
 | REGION_ARCHIVE_REBUILD_DAYS    | Age in days at which a region's vector archive is rebuilt from a newer Protomaps build                            | 7                     |
 
-Plugins are not configured through an environment variable. See
+Manual sync limits apply within one backend process. Restarting it resets the cooldowns.
+
+Provider credentials and settings are configured on the plugins page. See
 [Plugin installation](/run/installation/plugins) for installing runtime plugin
 bundles and configuring self-hosted connector trust settings.
 

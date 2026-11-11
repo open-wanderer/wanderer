@@ -416,8 +416,14 @@ func acquireWorkerSlot(ctx context.Context) (*semaphore.Weighted, error) {
 	return slot, nil
 }
 
+// MaxWorkers is how many plugin worker sessions may run at once
+// (WANDERER_PLUGIN_WORKER_MAX, by default the number of CPUs and at least 2).
+func MaxWorkers() int {
+	return envInt("WANDERER_PLUGIN_WORKER_MAX", maxInt(2, runtime.NumCPU()))
+}
+
 func workerSemaphore() *semaphore.Weighted {
-	limit := int64(envInt("WANDERER_PLUGIN_WORKER_MAX", maxInt(2, runtime.NumCPU())))
+	limit := int64(MaxWorkers())
 	workerSlotsMu.Lock()
 	defer workerSlotsMu.Unlock()
 	if workerSlots == nil {

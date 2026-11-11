@@ -11,7 +11,10 @@
         plugin_category_remap_apply,
         plugin_category_remap_preview,
         plugin_instances_create,
+        plugin_instances_index,
+        pluginInstances,
         plugin_instances_update,
+        plugin_sync,
     } from "#lib/stores/plugin_instance_store.ts";
     import { show_toast } from "#lib/stores/toast_store.svelte.ts";
     import {
@@ -26,6 +29,7 @@
     import { onMount, tick, untrack } from "svelte";
     import { _, locale } from "svelte-i18n";
     import { theme } from "#lib/stores/theme_store.ts";
+    import { APIError } from "#lib/util/api_util.ts";
 
     let { data } = $props();
 
@@ -75,9 +79,33 @@
         queueMicrotask(() => {
             void maybePromptBackfilledCategoryRemap();
         });
-        return theme.subscribe((value) => {
+        const unsubscribe = theme.subscribe((value) => {
             currentTheme = value;
         });
+        let refreshing = false;
+        const refreshAbort = new AbortController();
+        const refresh = setInterval(async () => {
+            if (refreshing || !instances.some((instance) => instance.busy || instance.status === "syncing")) return;
+            refreshing = true;
+            try {
+                const beforeRefresh = instances;
+                const refreshed = await plugin_instances_index((url, options) =>
+                    fetch(url, { ...options, signal: refreshAbort.signal }),
+                );
+                // Keep a newer toggle or settings save in both stores.
+                if (instances === beforeRefresh) instances = refreshed;
+                else pluginInstances.set(instances);
+            } catch {
+                // A temporary read failure can wait for the next poll.
+            } finally {
+                refreshing = false;
+            }
+        }, 3000);
+        return () => {
+            unsubscribe();
+            clearInterval(refresh);
+            refreshAbort.abort();
+        };
     });
 
     async function savePluginInstance(instance: Partial<PluginInstance>) {
@@ -91,10 +119,7 @@
                 saved = await plugin_instances_create(instance);
             }
 
-            instances = [
-                ...instances.filter((existing) => existing.id != saved.id),
-                saved,
-            ];
+            instances = replaceInstance(saved);
 
             show_toast({
                 text: $_("settings-saved"),
@@ -129,6 +154,12 @@
         return saved;
     }
 
+    // Update responses carry no busy flag, so keep the one the list reported.
+    function replaceInstance(saved: PluginInstance) {
+        const busy = instances.find((existing) => existing.id == saved.id)?.busy;
+        return [...instances.filter((existing) => existing.id != saved.id), { ...saved, busy }];
+    }
+
     async function onPluginToggle(
         plugin: PluginProvider,
         instance: PluginInstance | undefined,
@@ -152,12 +183,13 @@
                 enabled: value,
                 status: plugin.auth.type === "oauth2" || value ? "configured" : "disabled",
             });
-            instances = [
-                ...instances.filter((existing) => existing.id != saved.id),
-                saved,
-            ];
+            instances = replaceInstance(saved);
             if (value) {
                 await maybePromptCategoryRemap(saved, plugin);
+            }
+            if (value && pluginCanSync(plugin)) {
+                // The first sync would otherwise wait for the nightly schedule.
+                void syncPlugin(plugin, saved, { quiet: true });
             }
         } catch (e) {
             show_toast({
@@ -479,6 +511,51 @@
         return instanceError(instance);
     }
 
+    function pluginCanSync(plugin: PluginProvider) {
+        const capabilities = plugin.capabilities ?? [];
+        return capabilities.includes("list_routes.v1") || capabilities.includes("list_activities.v1");
+    }
+
+    async function syncPlugin(
+        plugin: PluginProvider,
+        instance: PluginInstance,
+        options: { quiet?: boolean } = {},
+    ) {
+        if (!instance.id) {
+            return;
+        }
+        const values = { plugin: pluginTitle(plugin) };
+        try {
+            await plugin_sync(instance.id);
+            instances = instances.map((item) => item.id === instance.id ? { ...item, busy: true } : item);
+            show_toast({
+                text: $_("plugin-sync-started", { values }),
+                icon: "check",
+                type: "success",
+            });
+        } catch (e) {
+            const status = e instanceof APIError ? e.status : undefined;
+            if (status === 409) {
+                instances = instances.map((item) => item.id === instance.id ? { ...item, busy: true } : item);
+            }
+            // Switching a plugin on asked for no sync: when it cannot start now
+            // (turned off, already running or too soon), the schedule syncs it.
+            if (options.quiet && (status === 403 || status === 409 || status === 429)) {
+                return;
+            }
+            let text = $_("plugin-sync-error", { values });
+            if (status === 403) {
+                text = $_("plugin-sync-off", { values });
+            } else if (status === 429) {
+                const minutes = Math.max(1, Math.ceil(((e as APIError).detail?.retryAfter ?? 60) / 60));
+                text = $_("plugin-sync-too-soon", { values: { ...values, minutes } });
+            } else if (status === 409) {
+                text = $_("plugin-sync-running", { values });
+            }
+            show_toast({ text, icon: "close", type: "error" });
+        }
+    }
+
     function pluginRequiresConnection(
         plugin: PluginProvider,
         instance: PluginInstance | undefined,
@@ -550,6 +627,10 @@
                         oninfo={() => openPluginInfo(plugin)}
                         onclick={() => openPluginSettings(plugin)}
                         ontoggle={(value) => onPluginToggle(plugin, instance, value)}
+                        syncDisabled={instance?.busy || instance?.status === "syncing"}
+                        onsync={instance?.enabled && !settingsDisabled && pluginCanSync(plugin)
+                            ? () => syncPlugin(plugin, instance)
+                            : undefined}
                     ></PluginCard>
                 {/each}
             </div>
