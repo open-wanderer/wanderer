@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="wanderer-corpus" xmlns="http://www.topografix.com/GPX/1/1">
+  <metadata>
+    <name>Positionless Ends</name>
+  </metadata>
+  <wpt lat="bad" lon="11.0"><name>Discarded</name></wpt>
+  <wpt lat="47.0005" lon="11.0005"><name>Kept</name><sym>campground</sym></wpt>
+  <trk>
+    <trkseg>
+      <trkpt><time>2024-05-01T10:00:00Z</time></trkpt>
+      <trkpt lat="47.0" lon="11.0"><time>2024-05-01T10:00:10Z</time></trkpt>
+      <trkpt lat="47.001" lon="11.001"><time>2024-05-01T10:00:20Z</time></trkpt>
+      <trkpt lon="11.002"><time>2024-05-01T10:00:31Z</time></trkpt>
+    </trkseg>
+  </trk>
+</gpx>

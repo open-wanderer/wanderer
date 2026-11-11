@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="wanderer-corpus" xmlns="http://www.topografix.com/GPX/1/1">
+  <metadata>
+    <name>Dense Switchback</name>
+  </metadata>
+  <trk>
+    <trkseg>
+      <trkpt lat="47" lon="11"></trkpt>
+      <trkpt lat="47.0000144" lon="11.0000462"></trkpt>
+      <trkpt lat="47.0000288" lon="11"></trkpt>
+      <trkpt lat="47.0000432" lon="11.0000462"></trkpt>
+      <trkpt lat="47.0000576" lon="11"></trkpt>
+      <trkpt lat="47.000072" lon="11.0000462"></trkpt>
+      <trkpt lat="47.0000864" lon="11"></trkpt>
+      <trkpt lat="47.0001008" lon="11.0000462"></trkpt>
+      <trkpt lat="47.0001152" lon="11"></trkpt>
+      <trkpt lat="47.0001296" lon="11.0000462"></trkpt>
+      <trkpt lat="47.000144" lon="11"></trkpt>
+      <trkpt lat="47.0001584" lon="11.0000462"></trkpt>
+      <trkpt lat="47.0001728" lon="11"></trkpt>
+      <trkpt lat="47.0001872" lon="11.0000462"></trkpt>
+      <trkpt lat="47.0002016" lon="11"></trkpt>
+      <trkpt lat="47.000216" lon="11.0000462"></trkpt>
+      <trkpt lat="47.0002304" lon="11"></trkpt>
+      <trkpt lat="47.0002448" lon="11.0000462"></trkpt>
+      <trkpt lat="47.0002592" lon="11"></trkpt>
+      <trkpt lat="47.0002736" lon="11.0000462"></trkpt>
+      <trkpt lat="47.000288" lon="11"></trkpt>
+      <trkpt lat="47.0003024" lon="11.0000462"></trkpt>
+      <trkpt lat="47.0003168" lon="11"></trkpt>
+      <trkpt lat="47.0003312" lon="11.0000462"></trkpt>
+      <trkpt lat="47.0003456" lon="11"></trkpt>
+      <trkpt lat="47.00036" lon="11.0000462"></trkpt>
+      <trkpt lat="47.0003744" lon="11"></trkpt>
+      <trkpt lat="47.0003888" lon="11.0000462"></trkpt>
+      <trkpt lat="47.0004032" lon="11"></trkpt>
+      <trkpt lat="47.0004176" lon="11.0000462"></trkpt>
+      <trkpt lat="47.000432" lon="11"></trkpt>
+      <trkpt lat="47.0004464" lon="11.0000462"></trkpt>
+      <trkpt lat="47.0004608" lon="11"></trkpt>
+      <trkpt lat="47.0004752" lon="11.0000462"></trkpt>
+      <trkpt lat="47.0004896" lon="11"></trkpt>
+      <trkpt lat="47.000504" lon="11.0000462"></trkpt>
+      <trkpt lat="47.0005184" lon="11"></trkpt>
+      <trkpt lat="47.0005328" lon="11.0000462"></trkpt>
+      <trkpt lat="47.0005472" lon="11"></trkpt>
+      <trkpt lat="47.0005616" lon="11.0000462"></trkpt>
+      <trkpt lat="47.000576" lon="11"></trkpt>
+    </trkseg>
+  </trk>
+</gpx>

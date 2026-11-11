@@ -1,6 +1,6 @@
-import { getValhallaBaseUrl } from '#lib/server/valhalla.ts';
 import { proxyJsonResponse } from '#lib/server/http.ts';
-import type { RequestEvent } from "@sveltejs/kit";
+import { getValhallaUrl } from '#lib/server/valhalla.ts';
+import { error, json, type RequestEvent } from "@sveltejs/kit";
 
 
 /**
@@ -30,13 +30,20 @@ import type { RequestEvent } from "@sveltejs/kit";
  *         description: Internal Server Error
  */
 export async function POST(event: RequestEvent) {
-    const baseUrl = getValhallaBaseUrl();
+    if (!event.locals.user) {
+        return error(401, "Unauthorized");
+    }
+
+    // Check the base before appending the path: null + '/height' would be the
+    // truthy string "null/height".
+    const valhallaUrl = getValhallaUrl();
+    const heightUrl = valhallaUrl + '/height';
     const data = await event.request.json()
-    if (!baseUrl) {
-        return Response.json({ message: "VALHALLA_URL not set" }, { status: 400 })
+    if (!valhallaUrl) {
+        return json({ message: "VALHALLA_URL not set" }, { status: 400 })
     }
     try {
-        const response = await event.fetch(baseUrl + '/height', { method: "POST", body: JSON.stringify(data) });
+        const response = await event.fetch(heightUrl, { method: "POST", body: JSON.stringify(data) });
         return await proxyJsonResponse(response);
     } catch (e: any) {
         return Response.json({ message: "Valhalla request failed" }, { status: 502 })

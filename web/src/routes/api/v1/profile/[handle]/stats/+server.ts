@@ -13,8 +13,12 @@ import {
 } from '#lib/server/profile_statistics.ts';
 import { getActorResponseForHandle } from '#lib/util/activitypub_server_util.ts';
 import { Collection, handleError } from '#lib/util/api_util.ts';
+import { DownloadError, fetchExternalJson } from '#lib/util/secure_fetch_util.ts';
 import { error, type RequestEvent } from '@sveltejs/kit';
 import { ClientResponseError } from 'pocketbase';
+
+// Not paged: every activity of the requested range, for a long-time user too.
+const MAX_REMOTE_STATS_BYTES = 32 * 1024 * 1024;
 
 /**
  * @swagger
@@ -63,6 +67,8 @@ import { ClientResponseError } from 'pocketbase';
  *         description: Not Found
  *       500:
  *         description: Internal Server Error
+ *       502:
+ *         description: The instance of a federated profile could not be reached safely
  */
 export async function GET(event: RequestEvent) {
     const handle = event.params.handle;
@@ -127,12 +133,11 @@ export async function GET(event: RequestEvent) {
             remoteSearchParams.delete('filter');
             const origin = new URL(actor.iri).origin
             const summitLogURL = `${origin}/api/v1/profile/${actor.preferred_username}/stats?` + remoteSearchParams
-            const response = await event.fetch(summitLogURL, { method: 'GET' })
+            const response = await fetchExternalJson(summitLogURL, { maxBytes: MAX_REMOTE_STATS_BYTES })
             if (!response.ok) {
-                const errorResponse = await response.json()
-                throw new ClientResponseError({ status: response.status, response: errorResponse });
+                throw new ClientResponseError({ status: response.status, response: response.json });
             }
-            const remoteActivities: Array<StatisticActivity | SummitLog> = await response.json()
+            const remoteActivities: Array<StatisticActivity | SummitLog> = response.json
             activities = remoteActivities.map((activity) =>
                 'source' in activity
                     ? activity
@@ -161,6 +166,10 @@ export async function GET(event: RequestEvent) {
             },
         })
     } catch (e) {
+        if (e instanceof DownloadError) {
+            console.warn(`federated stats for ${handle} failed`, e);
+            return Response.json({ message: "remote_instance_unavailable" }, { status: 502 });
+        }
         return handleError(e)
     }
 }

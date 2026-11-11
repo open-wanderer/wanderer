@@ -2,8 +2,9 @@ import GPX from "#lib/models/gpx/gpx.ts";
 import type { Trail, TrailSearchResult } from "#lib/models/trail.ts";
 import { searchLocationReverse } from "#lib/stores/search_store.ts";
 import { trails_create } from "#lib/stores/trail_store.ts";
+import { elevationFetch, withParseSlot } from "#lib/server/parse_slot.ts";
 import { handleError } from "#lib/util/api_util.ts";
-import { fromFile, gpx2trail } from "#lib/util/gpx_util.ts";
+import { fromUpload, gpx2trail } from "#lib/util/gpx_util.ts";
 import type { RequestEvent } from "@sveltejs/kit";
 import type { Meilisearch } from "meilisearch";
 import { ClientResponseError } from "pocketbase";
@@ -41,8 +42,12 @@ import { ClientResponseError } from "pocketbase";
  *         description: Bad Request - Invalid or empty GPX file
  *       401:
  *         description: Unauthorized
+ *       413:
+ *         description: The file is too large to parse
  *       500:
  *         description: Internal Server Error
+ *       503:
+ *         description: Too many files are waiting to be parsed
  */
 export async function PUT(event: RequestEvent) {
     if (!event.locals.user) {
@@ -50,20 +55,33 @@ export async function PUT(event: RequestEvent) {
     }
 
     try {
-        const data = await event.request.formData();
+        const data = await event.request.formData().catch((e) => {
+            // The request hook's 413 reaches this point as an HttpError.
+            if (e instanceof TypeError) {
+                console.error(e);
+                throw new ClientResponseError({ status: 400, response: { message: "Invalid multipart body" } });
+            }
+            throw e;
+        });
 
-        const { gpxData, gpxFile } = await fromFile(data.get("file") as Blob)
+        const { gpxFile, parseResult } = await withParseSlot(async () => {
+            const { gpxData, gpxFile } = await fromUpload(data.get("file") as Blob)
 
-        if (!gpxData.length) {
-            throw new ClientResponseError({ status: 400, response: { message: "Empty file" } })
-        }
-        let parseResult: { trail: Trail, gpx: GPX };
-        try {
-            parseResult = await gpx2trail(gpxData, data.get("name") as string | undefined, true, event.fetch);
-        } catch (e: any) {
-            console.error(e)
-            throw new ClientResponseError({ status: 400, response: { message: "Invalid file" } })
-        }
+            if (!gpxData.length) {
+                throw new ClientResponseError({ status: 400, response: { message: "Empty file" } })
+            }
+            let parseResult: { trail: Trail, gpx: GPX };
+            try {
+                parseResult = await gpx2trail(gpxData, data.get("name") as string | undefined, true, elevationFetch(event.fetch));
+            } catch (e: any) {
+                console.error(e)
+                throw new ClientResponseError({ status: 400, response: { message: "Invalid file" } })
+            }
+            if (!parseResult.gpx.hasPositions()) {
+                throw new ClientResponseError({ status: 400, response: { message: "No track points" } })
+            }
+            return { gpxFile, parseResult };
+        });
         let trail = parseResult.trail;
 
         const ignoreDuplicates = data.get("ignoreDuplicates") === "true"

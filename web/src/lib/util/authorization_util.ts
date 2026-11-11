@@ -13,6 +13,7 @@ const publicRoutes = [
   "/api/v1/auth",
   "/api/v1/user",
   "/api/v1/category",
+  "/api/v1/health",
   "/api/v1/auth/oauth",
   "/register",
   "/auth",

@@ -1,11 +1,12 @@
 import * as xml2js from 'isomorphic-xml2js';
 import { parseGpxXml } from './parse-xml';
 import Metadata from './metadata';
+import Person from './person';
 import Route from './route';
 import Track from './track';
-import TrackSegment from './track-segment';
+import TrackSegment, { segmentDurationMs } from './track-segment';
 import { allDatesToISOString, haversineDistance, removeEmpty } from './utils';
-import Waypoint from './waypoint';
+import Waypoint, { hasUsablePosition } from './waypoint';
 import GpxMetricsComputation from './gpx-metrics-computation';
 import { encodePolyline } from '#lib/util/polyline_util.ts';
 import { APIError } from '#lib/util/api_util.ts';
@@ -80,6 +81,11 @@ export default class GPX {
 
     if (object.metadata) {
       this.metadata = object.metadata;
+      // Files can carry the plain-text <email> form, which GPX 1.1 does not allow.
+      const author = this.metadata.author;
+      if (author && typeof author === 'object') {
+        this.metadata.author = new Person(author);
+      }
     }
     if (object.wpt) {
       if (!Array.isArray(object.wpt)) {
@@ -110,33 +116,26 @@ export default class GPX {
     let totalDistance = 0;
     let totalLat = 0
     let totalLon = 0
+    let summedPointCount = 0
 
     const metrics = new GpxMetricsComputation(5, 5);
 
     let minLat = Infinity, maxLat = -Infinity, minLon = Infinity, maxLon = -Infinity;
 
-    const allPoints: Waypoint[] = []
     for (const track of this.trk ?? []) {
       for (const segment of track.trkseg ?? []) {
         const points = segment.trkpt ?? [];
-        allPoints.push(...points);
 
-        if (points.length >= 2) {
-          const startTime = points[0].time;
-          const endTime = points[points.length - 1].time
-
-          if (startTime && endTime) {
-            totalDuration += endTime.getTime() - startTime.getTime();
-          }
-        }
+        totalDuration += segmentDurationMs(segment);
 
         const pointLength = points.length
-        for (let i = 1; i < pointLength; i++) {
+        for (let i = 0; i < pointLength; i++) {
           const point = points[i];
           metrics.addAndFilter(point)
 
           totalLat += point.$.lat ?? 0;
           totalLon += point.$.lon ?? 0;
+          summedPointCount++;
 
           minLat = Math.min(minLat, point.$.lat ?? Infinity);
           maxLat = Math.max(maxLat, point.$.lat ?? -Infinity);
@@ -146,17 +145,27 @@ export default class GPX {
       }
     }
 
-    totalElevationGain = metrics.totalElevationGainSmoothed;
-    totalElevationLoss = metrics.totalElevationLossSmoothed;
+    // final* rather than total*Smoothed: the track is complete here, so an
+    // excursion still pending in the noise filter (a climb the track ends on)
+    // is real and must be counted. The total*Smoothed fields deliberately
+    // exclude it to stay monotonic for per-segment differencing consumers.
+    totalElevationGain = metrics.finalElevationGain;
+    totalElevationLoss = metrics.finalElevationLoss;
     totalDistance = metrics.totalDistance;
 
     const boundingBox = { minLat, maxLat, minLon, maxLon };
-    const centroid = { lat: totalLat / allPoints.length, lon: totalLon / allPoints.length };
+    const centroid = { lat: totalLat / summedPointCount, lon: totalLon / summedPointCount };
 
     return {
       centroid,
       boundingBox,
       distance: totalDistance,
+      // Raw (unsmoothed), index-aligned with flatten() — one entry
+      // per point, first entry 0 — reserved for position interpolation
+      // (the trail-edit crop slider). Since 2026-08-01 this is the same
+      // accumulator as the reported `distance` above (both are
+      // metrics.totalDistance), so the last entry here equals that total
+      // by construction — see the executable invariant in gpx.test.ts.
       cumulativeDistance: metrics.cumulativeDistance,
       elevationGain: totalElevationGain,
       elevationLoss: totalElevationLoss,
@@ -186,7 +195,7 @@ export default class GPX {
         extensions: route.extensions,
       });
       const segment = new TrackSegment({});
-      segment.trkpt = route.rtept;
+      segment.trkpt = route.rtept?.filter(hasUsablePosition);
       track.trkseg = [segment];
       return track;
     });
@@ -194,6 +203,11 @@ export default class GPX {
     this.rte = undefined;
     this._features = undefined;
     return true;
+  }
+
+  /** Whether any track or route point has a position, as the app decides what it can import. */
+  hasPositions(): boolean {
+    return this.flatten().length > 0 || (this.rte?.some(route => route.rtept?.some(hasUsablePosition)) ?? false);
   }
 
   flatten() {
@@ -231,9 +245,9 @@ export default class GPX {
 
     const heightResponse: ValhallaHeightResponse = await r2.json()
     const heights = heightResponse.height ?? [];
-    const finiteHeights = heights.filter((height) => Number.isFinite(height)).length;
 
-    if (heights.length > 0 && finiteHeights === 0) {
+    // Anything else would write `undefined` over the file's own elevations.
+    if (heights.length !== coordinates.length || !heights.some((height) => Number.isFinite(height))) {
       return;
     }
 
@@ -244,7 +258,7 @@ export default class GPX {
           continue
         }
         segment.trkpt.forEach((pt) => {
-          pt.ele = heightResponse.height[heightIndex]
+          pt.ele = heights[heightIndex]
           heightIndex++;
         })
       }
@@ -303,7 +317,8 @@ export default class GPX {
 
     const builder = new xml2js.Builder(options)
     const gpx = new GPX(this);
-    (gpx as any).features = undefined
+    // Deleted, not cleared: the builder writes an element for every own key.
+    delete (gpx as any)._features;
     allDatesToISOString(gpx);
 
     let xmlString = builder.buildObject(gpx);

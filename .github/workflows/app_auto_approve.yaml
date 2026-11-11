@@ -1,0 +1,73 @@
+name: App Auto Approve
+
+# Approves the maintainer's PRs that change nothing outside app/, once the App
+# workflow has passed on their head commit. Anything else keeps the normal
+# review. The ruleset dismisses this approval on every push, so each new commit
+# has to pass again.
+#
+# Runs from the default branch's copy of this file and never checks out PR
+# code. A rename counts for both of its paths, so moving a file out of web/
+# into app/ is not app-only.
+
+on:
+  workflow_run:
+    workflows: [App]
+    types: [completed]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  approve:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.path == '.github/workflows/app_ci.yaml' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Approve app-only PRs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          ALLOWED_AUTHOR: Flomp
+        run: |
+          set -euo pipefail
+
+          for number in $(gh api "repos/$REPO/commits/$HEAD_SHA/pulls" --jq '.[].number'); do
+            pr=$(gh api "repos/$REPO/pulls/$number")
+            field() { jq -r "$1" <<<"$pr"; }
+
+            if [ "$(field .state)" != open ] ||
+               [ "$(field .base.ref)" != dev ] ||
+               [ "$(field .user.login)" != "$ALLOWED_AUTHOR" ] ||
+               [ "$(field .head.repo.full_name)" != "$REPO" ] ||
+               [ "$(field .head.sha)" != "$HEAD_SHA" ]; then
+              echo "#$number: not eligible"
+              continue
+            fi
+
+            files=$(gh api --paginate "repos/$REPO/pulls/$number/files" \
+              --jq '.[] | .filename, (.previous_filename // empty)')
+            listed=$(gh api --paginate "repos/$REPO/pulls/$number/files" --jq '.[].filename' | wc -l)
+
+            # The files API stops at 3000 entries; a short list proves nothing.
+            if [ "$listed" -eq 0 ] || [ "$listed" -ne "$(field .changed_files)" ]; then
+              echo "#$number: file list incomplete"
+              continue
+            fi
+
+            if grep -qv '^app/' <<<"$files"; then
+              echo "#$number: changes files outside app/"
+              continue
+            fi
+
+            gh api --method POST "repos/$REPO/pulls/$number/reviews" \
+              -f commit_id="$HEAD_SHA" \
+              -f event=APPROVE \
+              -f body="Only app/ changed and the App workflow passed on this commit." >/dev/null
+            echo "#$number: approved"
+          done

@@ -46,6 +46,7 @@ Since we use an unmodified installation of meilisearch you can use all variables
 | OIDC3_TRUST_EMAIL              | Same as `OIDC_TRUST_EMAIL`, for the `oidc3` provider                                                              | false                |
 | REGION_ARCHIVE_CRON_SCHEDULE   | Valid cron expression (UTC). Sets when offline [region archives](/run/backend-configuration/region-catalogue) are rebuilt | 0 3 * * *             |
 | REGION_ARCHIVE_EXTRACT_TIMEOUT | Maximum duration a single region archive extraction may take, as a Go duration string (e.g. `45m`)                | 30m                   |
+| REGION_ARCHIVE_REBUILD_DAYS    | Age in days at which a region's vector archive is rebuilt from a newer Protomaps build                            | 7                     |
 
 Manual sync limits apply within one backend process. Restarting it resets the cooldowns.
 

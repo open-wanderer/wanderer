@@ -1,0 +1,50 @@
+{
+  "id": "14-positionless-ends",
+  "covers": [
+    "positionless-point-time",
+    "bad-waypoint-position"
+  ],
+  "derivation": "hand",
+  "notes": "A track point without a position carries no geometry, but its time still bounds the segment in the app. A waypoint without a usable position is discarded, not placed at 0/0.",
+  "metrics": {
+    "distance": 134.5924014859008,
+    "elevationGain": 0,
+    "elevationLoss": 0,
+    "durationMs": 31000,
+    "pointCount": 2,
+    "boundingBox": {
+      "minLat": 47.0,
+      "maxLat": 47.001,
+      "minLon": 11.0,
+      "maxLon": 11.001
+    },
+    "centroid": {
+      "lat": 47.0005,
+      "lon": 11.000499999999999
+    }
+  },
+  "trail": {
+    "name": "Positionless Ends",
+    "description": null,
+    "lat": 47.0,
+    "lon": 11.0,
+    "date": "2024-05-01",
+    "distance": 134.5924014859008,
+    "elevationGain": 0,
+    "elevationLoss": 0,
+    "duration": 31.0,
+    "minLat": 47.0,
+    "maxLat": 47.001,
+    "minLon": 11.0,
+    "maxLon": 11.001,
+    "waypoints": [
+      {
+        "lat": 47.0005,
+        "lon": 11.0005,
+        "name": "Kept",
+        "description": null,
+        "icon": "campground"
+      }
+    ]
+  }
+}

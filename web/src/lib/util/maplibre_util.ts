@@ -9,7 +9,7 @@ import { _ } from "svelte-i18n";
 import { get } from "svelte/store";
 import { handleFromRecordWithIRI } from "./activitypub_util";
 import { getFileURL } from "./file_util";
-import { formatDistance, formatElevation, formatTimeHHMM } from "./format_util";
+import { formatDistance, formatElevation, formatTimeHHMM, trailDisplayDuration } from "./format_util";
 import { icons } from "./icon_util";
 
 export class FontawesomeMarker extends M.Marker {
@@ -238,7 +238,7 @@ export function createPopupFromTrail(trail: Trail) {
 
     const stats = [
         { icon: "fa-left-right", value: formatDistance(trail.distance) },
-        { icon: "fa-clock", value: formatTimeHHMM(trail.duration) },
+        { icon: "fa-clock", value: formatTimeHHMM(trailDisplayDuration(trail)) },
         { icon: "fa-arrow-trend-up", value: formatElevation(trail.elevation_gain) },
         { icon: "fa-arrow-trend-down", value: formatElevation(trail.elevation_loss) },
     ];

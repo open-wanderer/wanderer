@@ -1,0 +1,1095 @@
+{
+  "_note1": "KEEP THIS FILE! Check it into a version control system (VCS) like git.",
+  "_note2": "ObjectBox manages crucial IDs for your object model. See docs for details.",
+  "_note3": "If you have VCS merge conflicts, you must resolve them according to ObjectBox docs.",
+  "entities": [
+    {
+      "id": "1:7780573664962685596",
+      "lastPropertyId": "18:2536150042628885580",
+      "name": "UserEntity",
+      "properties": [
+        {
+          "id": "1:854683695191930618",
+          "name": "obxId",
+          "type": 6,
+          "flags": 1
+        },
+        {
+          "id": "2:7544298695757463036",
+          "name": "id",
+          "indexId": "1:6385663453030780933",
+          "type": 9,
+          "flags": 34848
+        },
+        {
+          "id": "3:4557026159293183610",
+          "name": "username",
+          "type": 9
+        },
+        {
+          "id": "4:8020216890117256428",
+          "name": "email",
+          "type": 9
+        },
+        {
+          "id": "7:4115797788444623288",
+          "name": "created",
+          "type": 10
+        },
+        {
+          "id": "8:8205764523610310818",
+          "name": "updated",
+          "type": 10
+        },
+        {
+          "id": "9:745437973107337822",
+          "name": "avatar",
+          "type": 9
+        },
+        {
+          "id": "10:5347105035037516494",
+          "name": "iri",
+          "type": 9
+        },
+        {
+          "id": "11:7893614394671506312",
+          "name": "preferredUsername",
+          "type": 9
+        },
+        {
+          "id": "13:7065438667653102047",
+          "name": "serverUrl",
+          "type": 9
+        },
+        {
+          "id": "14:2866207440067158385",
+          "name": "actorId",
+          "type": 9
+        },
+        {
+          "id": "15:8180888277546441967",
+          "name": "collectionId",
+          "type": 9
+        },
+        {
+          "id": "16:3428765833145641366",
+          "name": "collectionName",
+          "type": 9
+        },
+        {
+          "id": "17:3792668263909473854",
+          "name": "settingsId",
+          "indexId": "14:6564329935493948317",
+          "type": 11,
+          "flags": 520,
+          "relationTarget": "SettingsEntity"
+        },
+        {
+          "id": "18:2536150042628885580",
+          "name": "actorObxId",
+          "indexId": "22:8994270532329500705",
+          "type": 11,
+          "flags": 520,
+          "relationTarget": "ActorEntity"
+        }
+      ],
+      "relations": []
+    },
+    {
+      "id": "3:7655646596805638170",
+      "lastPropertyId": "15:5363316924739740034",
+      "name": "WaypointEntity",
+      "properties": [
+        {
+          "id": "1:1119971894978438801",
+          "name": "obxId",
+          "type": 6,
+          "flags": 1
+        },
+        {
+          "id": "2:6781039661897921653",
+          "name": "id",
+          "indexId": "3:6146359611678992410",
+          "type": 9,
+          "flags": 34848
+        },
+        {
+          "id": "3:6232195442270030812",
+          "name": "name",
+          "type": 9
+        },
+        {
+          "id": "4:1058488664314891238",
+          "name": "description",
+          "type": 9
+        },
+        {
+          "id": "5:9181160548180934549",
+          "name": "lat",
+          "type": 8
+        },
+        {
+          "id": "6:6019204779640563730",
+          "name": "lon",
+          "type": 8
+        },
+        {
+          "id": "7:6698441562614209151",
+          "name": "distanceFromStart",
+          "type": 8
+        },
+        {
+          "id": "8:6728496147675033423",
+          "name": "author",
+          "type": 9
+        },
+        {
+          "id": "9:4709368537483648393",
+          "name": "photos",
+          "type": 30
+        },
+        {
+          "id": "10:5660491449558039742",
+          "name": "trailId",
+          "indexId": "4:1432491091431803474",
+          "type": 11,
+          "flags": 520,
+          "relationTarget": "TrailEntity"
+        },
+        {
+          "id": "11:22872960591460866",
+          "name": "icon",
+          "type": 9
+        },
+        {
+          "id": "12:3800566134727195611",
+          "name": "created",
+          "type": 10
+        },
+        {
+          "id": "13:56903946369053220",
+          "name": "updated",
+          "type": 10
+        },
+        {
+          "id": "14:7256564728982687697",
+          "name": "localPhotos",
+          "type": 30
+        },
+        {
+          "id": "15:5363316924739740034",
+          "name": "localKey",
+          "type": 9
+        }
+      ],
+      "relations": []
+    },
+    {
+      "id": "4:2363998084594943076",
+      "lastPropertyId": "31:1159471176514645419",
+      "name": "ActorEntity",
+      "properties": [
+        {
+          "id": "1:1455115473708047080",
+          "name": "obxId",
+          "type": 6,
+          "flags": 1
+        },
+        {
+          "id": "2:6211609483789549441",
+          "name": "id",
+          "indexId": "5:7824785774344630163",
+          "type": 9,
+          "flags": 34848
+        },
+        {
+          "id": "9:1548868177123550885",
+          "name": "icon",
+          "type": 9
+        },
+        {
+          "id": "12:7089701782224823264",
+          "name": "collectionId",
+          "type": 9
+        },
+        {
+          "id": "13:7278223496070859047",
+          "name": "collectionName",
+          "type": 9
+        },
+        {
+          "id": "14:2326955019160268030",
+          "name": "created",
+          "type": 10
+        },
+        {
+          "id": "15:2553217175820669249",
+          "name": "updated",
+          "type": 10
+        },
+        {
+          "id": "16:8892551062447150823",
+          "name": "username",
+          "type": 9
+        },
+        {
+          "id": "17:5675535283616866170",
+          "name": "preferredUsername",
+          "type": 9
+        },
+        {
+          "id": "18:4975998639840599502",
+          "name": "domain",
+          "type": 9
+        },
+        {
+          "id": "19:2333428311785971332",
+          "name": "summary",
+          "type": 9
+        },
+        {
+          "id": "20:2818269695489441713",
+          "name": "published",
+          "type": 9
+        },
+        {
+          "id": "21:1069195201132391082",
+          "name": "followerCount",
+          "type": 6
+        },
+        {
+          "id": "22:7516672315797396927",
+          "name": "followingCount",
+          "type": 6
+        },
+        {
+          "id": "23:1693633985842516163",
+          "name": "iri",
+          "type": 9
+        },
+        {
+          "id": "24:2838130788612587597",
+          "name": "inbox",
+          "type": 9
+        },
+        {
+          "id": "25:1909903351605778140",
+          "name": "outbox",
+          "type": 9
+        },
+        {
+          "id": "26:6384276499146322384",
+          "name": "followers",
+          "type": 9
+        },
+        {
+          "id": "27:920184315794056948",
+          "name": "following",
+          "type": 9
+        },
+        {
+          "id": "28:8786533177012213516",
+          "name": "isLocal",
+          "type": 1
+        },
+        {
+          "id": "29:8496904456418437626",
+          "name": "publicKey",
+          "type": 9
+        },
+        {
+          "id": "30:5785294752582365921",
+          "name": "lastFetched",
+          "type": 9
+        },
+        {
+          "id": "31:1159471176514645419",
+          "name": "user",
+          "type": 9
+        }
+      ],
+      "relations": []
+    },
+    {
+      "id": "5:686829528950894660",
+      "lastPropertyId": "7:857403103277587453",
+      "name": "CategoryEntity",
+      "properties": [
+        {
+          "id": "1:2599047968028547488",
+          "name": "obxId",
+          "type": 6,
+          "flags": 1
+        },
+        {
+          "id": "2:4415595460383375281",
+          "name": "id",
+          "indexId": "8:4718814122639372743",
+          "type": 9,
+          "flags": 34848
+        },
+        {
+          "id": "3:8424041497880750984",
+          "name": "name",
+          "type": 9
+        },
+        {
+          "id": "4:3156416638292948859",
+          "name": "icon",
+          "type": 9
+        },
+        {
+          "id": "5:2927904461146245733",
+          "name": "shortName",
+          "type": 9
+        },
+        {
+          "id": "6:6437104223388593365",
+          "name": "translationsJson",
+          "type": 9
+        },
+        {
+          "id": "7:857403103277587453",
+          "name": "settingsJson",
+          "type": 9
+        }
+      ],
+      "relations": []
+    },
+    {
+      "id": "6:5034082009762803572",
+      "lastPropertyId": "43:6714850291729218023",
+      "name": "TrailEntity",
+      "properties": [
+        {
+          "id": "1:5299149535511830048",
+          "name": "obxId",
+          "type": 6,
+          "flags": 1
+        },
+        {
+          "id": "2:1914946022853974202",
+          "name": "id",
+          "indexId": "10:3880445053260492764",
+          "type": 9,
+          "flags": 34848
+        },
+        {
+          "id": "3:8344740337131913",
+          "name": "name",
+          "type": 9
+        },
+        {
+          "id": "4:5784639934898213221",
+          "name": "location",
+          "type": 9
+        },
+        {
+          "id": "5:4096671256270162003",
+          "name": "date",
+          "type": 10
+        },
+        {
+          "id": "6:3957560846555925683",
+          "name": "public",
+          "type": 1
+        },
+        {
+          "id": "7:1897717487670717671",
+          "name": "distance",
+          "type": 8
+        },
+        {
+          "id": "8:4636004336896989343",
+          "name": "elevationGain",
+          "type": 8
+        },
+        {
+          "id": "9:1761544284657008361",
+          "name": "elevationLoss",
+          "type": 8
+        },
+        {
+          "id": "10:3962346293653741731",
+          "name": "duration",
+          "type": 8
+        },
+        {
+          "id": "11:6483951435407375913",
+          "name": "lat",
+          "type": 8
+        },
+        {
+          "id": "12:2339857249057538093",
+          "name": "lon",
+          "type": 8
+        },
+        {
+          "id": "13:7674082864376685614",
+          "name": "gpxData",
+          "type": 9
+        },
+        {
+          "id": "14:4258327538739854949",
+          "name": "description",
+          "type": 9
+        },
+        {
+          "id": "15:8667416806123970136",
+          "name": "photos",
+          "type": 30
+        },
+        {
+          "id": "17:8096833450792418458",
+          "name": "dbDifficulty",
+          "type": 6
+        },
+        {
+          "id": "18:624875987550753326",
+          "name": "authorId",
+          "indexId": "11:8331567837012043270",
+          "type": 11,
+          "flags": 520,
+          "relationTarget": "ActorEntity"
+        },
+        {
+          "id": "19:4064924508174561242",
+          "name": "categoryId",
+          "indexId": "12:5788203279492778612",
+          "type": 11,
+          "flags": 520,
+          "relationTarget": "CategoryEntity"
+        },
+        {
+          "id": "20:8911311424169059426",
+          "name": "created",
+          "type": 10
+        },
+        {
+          "id": "21:3743255950615280682",
+          "name": "updated",
+          "type": 10
+        },
+        {
+          "id": "22:4844198063624822025",
+          "name": "maxLat",
+          "type": 8
+        },
+        {
+          "id": "23:7653326966957921410",
+          "name": "maxLon",
+          "type": 8
+        },
+        {
+          "id": "24:6823241243665890973",
+          "name": "minLat",
+          "type": 8
+        },
+        {
+          "id": "25:5606963275384491232",
+          "name": "minLon",
+          "type": 8
+        },
+        {
+          "id": "26:4841945116984417903",
+          "name": "navCacheJson",
+          "type": 9
+        },
+        {
+          "id": "28:5980375855283526072",
+          "name": "savedByUserIds",
+          "type": 30
+        },
+        {
+          "id": "29:5553735844226385778",
+          "name": "movingDuration",
+          "type": 8
+        },
+        {
+          "id": "30:8182271228801290814",
+          "name": "owner",
+          "indexId": "24:7121962790424774298",
+          "type": 9,
+          "flags": 2048
+        },
+        {
+          "id": "31:2606882451500225288",
+          "name": "localId",
+          "type": 9
+        },
+        {
+          "id": "32:2576169746972271716",
+          "name": "localPhotos",
+          "type": 30
+        },
+        {
+          "id": "33:268515948566237041",
+          "name": "syncAttempts",
+          "type": 6
+        },
+        {
+          "id": "34:7983000755271513655",
+          "name": "syncNextAttemptAt",
+          "type": 10
+        },
+        {
+          "id": "35:5632961350659741043",
+          "name": "dbSyncState",
+          "type": 6
+        },
+        {
+          "id": "36:8775495908518461498",
+          "name": "categoryRecordId",
+          "type": 9
+        },
+        {
+          "id": "37:1649720019780589249",
+          "name": "subcategoryRecordId",
+          "type": 9
+        },
+        {
+          "id": "38:630483868249705587",
+          "name": "completed",
+          "type": 1
+        },
+        {
+          "id": "39:4035010791212347560",
+          "name": "tagsJson",
+          "type": 9
+        },
+        {
+          "id": "40:5633987781709141042",
+          "name": "authorRecordId",
+          "type": 9
+        },
+        {
+          "id": "41:5932086776653694163",
+          "name": "originalGpxData",
+          "type": 9
+        },
+        {
+          "id": "42:8517137984344132738",
+          "name": "trackFollowsRoads",
+          "type": 1
+        },
+        {
+          "id": "43:6714850291729218023",
+          "name": "trackHeightsRecalculated",
+          "type": 1
+        }
+      ],
+      "relations": []
+    },
+    {
+      "id": "7:7624156081543730552",
+      "lastPropertyId": "14:4465420488338205867",
+      "name": "SettingsEntity",
+      "properties": [
+        {
+          "id": "1:9020446465757785365",
+          "name": "obxId",
+          "type": 6,
+          "flags": 1
+        },
+        {
+          "id": "3:5779793722438796365",
+          "name": "id",
+          "indexId": "13:5651349155198270293",
+          "type": 9,
+          "flags": 34848
+        },
+        {
+          "id": "4:4191464783654371072",
+          "name": "unit",
+          "type": 9
+        },
+        {
+          "id": "5:6587722155465911148",
+          "name": "languageCode",
+          "type": 9
+        },
+        {
+          "id": "6:4891406185376558126",
+          "name": "bio",
+          "type": 9
+        },
+        {
+          "id": "7:7753087457254100397",
+          "name": "locationJson",
+          "type": 9
+        },
+        {
+          "id": "10:4126653197482212680",
+          "name": "privacyJson",
+          "type": 9
+        },
+        {
+          "id": "11:4579483818578345590",
+          "name": "notificationsJson",
+          "type": 9
+        },
+        {
+          "id": "13:5568817240500151872",
+          "name": "user",
+          "type": 9
+        },
+        {
+          "id": "14:4465420488338205867",
+          "name": "behaviorJson",
+          "type": 9
+        }
+      ],
+      "relations": []
+    },
+    {
+      "id": "8:5734302023385580278",
+      "lastPropertyId": "9:682150364037804139",
+      "name": "LocalSettingsEntity",
+      "properties": [
+        {
+          "id": "1:6916182731366758331",
+          "name": "obxId",
+          "type": 6,
+          "flags": 1
+        },
+        {
+          "id": "2:293543109978045611",
+          "name": "themeMode",
+          "type": 9
+        },
+        {
+          "id": "4:3385512587357651788",
+          "name": "backgroundLocationAsked",
+          "type": 1
+        },
+        {
+          "id": "5:8115035759713055760",
+          "name": "tileProxyPort",
+          "type": 6
+        },
+        {
+          "id": "6:6855151211241706250",
+          "name": "tileProxySecret",
+          "type": 9
+        },
+        {
+          "id": "7:7983362523492084682",
+          "name": "mapStyleSourcesJson",
+          "type": 9
+        },
+        {
+          "id": "8:143030534291058117",
+          "name": "demTileTemplate",
+          "type": 9
+        },
+        {
+          "id": "9:682150364037804139",
+          "name": "recentServersJson",
+          "type": 9
+        }
+      ],
+      "relations": []
+    },
+    {
+      "id": "9:1133408451611476214",
+      "lastPropertyId": "9:8863469595509014354",
+      "name": "SubcategoryEntity",
+      "properties": [
+        {
+          "id": "1:2520402438592423638",
+          "name": "obxId",
+          "type": 6,
+          "flags": 1
+        },
+        {
+          "id": "2:6443892466393290385",
+          "name": "id",
+          "indexId": "16:2159451227595925580",
+          "type": 9,
+          "flags": 34848
+        },
+        {
+          "id": "3:3173114901057838824",
+          "name": "category",
+          "indexId": "17:8954079352209712639",
+          "type": 9,
+          "flags": 2048
+        },
+        {
+          "id": "4:7500180028087810225",
+          "name": "name",
+          "type": 9
+        },
+        {
+          "id": "5:61963327945568393",
+          "name": "shortName",
+          "type": 9
+        },
+        {
+          "id": "6:7072297717486544684",
+          "name": "icon",
+          "type": 9
+        },
+        {
+          "id": "7:6079142531578951383",
+          "name": "badgeIcon",
+          "type": 9
+        },
+        {
+          "id": "8:7327599832160544687",
+          "name": "translationsJson",
+          "type": 9
+        },
+        {
+          "id": "9:8863469595509014354",
+          "name": "settingsJson",
+          "type": 9
+        }
+      ],
+      "relations": []
+    },
+    {
+      "id": "10:8580051984298238879",
+      "lastPropertyId": "19:8065206108951194476",
+      "name": "ActiveNavigationEntity",
+      "properties": [
+        {
+          "id": "1:2456543006312398477",
+          "name": "obxId",
+          "type": 6,
+          "flags": 1
+        },
+        {
+          "id": "2:1319751191818698749",
+          "name": "dbSessionType",
+          "type": 6
+        },
+        {
+          "id": "3:4426284220675333170",
+          "name": "trailId",
+          "indexId": "18:2115373350521693955",
+          "type": 9,
+          "flags": 2048
+        },
+        {
+          "id": "5:2526828348485933512",
+          "name": "currentManeuverIndex",
+          "type": 6
+        },
+        {
+          "id": "7:5950189903538839312",
+          "name": "distanceMeters",
+          "type": 8
+        },
+        {
+          "id": "8:3257927514119542250",
+          "name": "elevationGainMeters",
+          "type": 8
+        },
+        {
+          "id": "9:6993434478254272144",
+          "name": "elevationLossMeters",
+          "type": 8
+        },
+        {
+          "id": "10:7120512051580696228",
+          "name": "currentElapsedSeconds",
+          "type": 6
+        },
+        {
+          "id": "11:7300894265119865440",
+          "name": "pausedAccumSeconds",
+          "type": 6
+        },
+        {
+          "id": "12:6195951392290872947",
+          "name": "isPaused",
+          "type": 1
+        },
+        {
+          "id": "13:1107707565331003473",
+          "name": "updatedAtUtc",
+          "type": 10
+        },
+        {
+          "id": "15:6592228571325291899",
+          "name": "breadcrumbPolyline",
+          "type": 9
+        },
+        {
+          "id": "16:2830579861996529165",
+          "name": "elevations",
+          "type": 29
+        },
+        {
+          "id": "17:5054022175370517237",
+          "name": "timestampsUtc",
+          "type": 27
+        },
+        {
+          "id": "18:5891370304847306650",
+          "name": "recordingCosting",
+          "type": 9
+        },
+        {
+          "id": "19:8065206108951194476",
+          "name": "navResponseJson",
+          "type": 9
+        }
+      ],
+      "relations": []
+    },
+    {
+      "id": "11:3994262290222200730",
+      "lastPropertyId": "5:6747273162193410297",
+      "name": "DownloadedTilePackageEntity",
+      "properties": [
+        {
+          "id": "1:4374773426317627388",
+          "name": "obxId",
+          "type": 6,
+          "flags": 1
+        },
+        {
+          "id": "2:4154466746856851188",
+          "name": "dbStatus",
+          "type": 6
+        },
+        {
+          "id": "3:1923335049010027300",
+          "name": "localFilePath",
+          "type": 9
+        },
+        {
+          "id": "4:5314799543154432512",
+          "name": "downloadedAtUtc",
+          "type": 10
+        },
+        {
+          "id": "5:6747273162193410297",
+          "name": "sizeBytesOnDisk",
+          "type": 6
+        }
+      ],
+      "relations": []
+    },
+    {
+      "id": "12:7228865513396600510",
+      "lastPropertyId": "20:4586267527719177846",
+      "name": "RegionEntity",
+      "properties": [
+        {
+          "id": "1:8961513366638899041",
+          "name": "obxId",
+          "type": 6,
+          "flags": 1
+        },
+        {
+          "id": "2:4039124996490710874",
+          "name": "id",
+          "type": 9
+        },
+        {
+          "id": "3:5311151678852809106",
+          "name": "name",
+          "type": 9
+        },
+        {
+          "id": "4:2209570915226870566",
+          "name": "minLon",
+          "type": 8
+        },
+        {
+          "id": "5:161630790384350211",
+          "name": "minLat",
+          "type": 8
+        },
+        {
+          "id": "6:1811641814319407837",
+          "name": "maxLon",
+          "type": 8
+        },
+        {
+          "id": "7:1733392075640969278",
+          "name": "maxLat",
+          "type": 8
+        },
+        {
+          "id": "8:3947505946992521604",
+          "name": "version",
+          "type": 9
+        },
+        {
+          "id": "9:6002601932204643725",
+          "name": "vectorUrl",
+          "type": 9
+        },
+        {
+          "id": "10:6875410086344237922",
+          "name": "vectorSize",
+          "type": 6
+        },
+        {
+          "id": "11:6324962793112723008",
+          "name": "demUrl",
+          "type": 9
+        },
+        {
+          "id": "12:3889641482139647731",
+          "name": "demSize",
+          "type": 6
+        },
+        {
+          "id": "13:6369582494340244517",
+          "name": "error",
+          "type": 9
+        },
+        {
+          "id": "14:2245437139079201970",
+          "name": "inCatalog",
+          "type": 1
+        },
+        {
+          "id": "15:5749850859456718531",
+          "name": "lastDownloadedVersion",
+          "type": 9
+        },
+        {
+          "id": "16:2156400899818498663",
+          "name": "dbCatalogStatus",
+          "type": 6
+        },
+        {
+          "id": "17:4955623694421458024",
+          "name": "dbDemStatus",
+          "type": 6
+        },
+        {
+          "id": "18:8868632539812944634",
+          "name": "vectorPackageId",
+          "indexId": "20:3862938813523067739",
+          "type": 11,
+          "flags": 520,
+          "relationTarget": "DownloadedTilePackageEntity"
+        },
+        {
+          "id": "19:7368931415973576532",
+          "name": "demPackageId",
+          "indexId": "21:8934601337546040437",
+          "type": 11,
+          "flags": 520,
+          "relationTarget": "DownloadedTilePackageEntity"
+        },
+        {
+          "id": "20:4586267527719177846",
+          "name": "path",
+          "indexId": "23:6305628536415824179",
+          "type": 9,
+          "flags": 34848
+        }
+      ],
+      "relations": []
+    },
+    {
+      "id": "13:4676683893580730501",
+      "lastPropertyId": "6:4756847332702777632",
+      "name": "SearchHistoryEntity",
+      "properties": [
+        {
+          "id": "1:22844111561118981",
+          "name": "obxId",
+          "type": 6,
+          "flags": 1
+        },
+        {
+          "id": "2:7143057000820591564",
+          "name": "accountId",
+          "indexId": "25:7709695258168272042",
+          "type": 9,
+          "flags": 2048
+        },
+        {
+          "id": "3:5251127243326205080",
+          "name": "key",
+          "type": 9
+        },
+        {
+          "id": "4:4258881604691988225",
+          "name": "kind",
+          "type": 9
+        },
+        {
+          "id": "5:2531686859314683909",
+          "name": "payload",
+          "type": 9
+        },
+        {
+          "id": "6:4756847332702777632",
+          "name": "usedAt",
+          "type": 10
+        }
+      ],
+      "relations": []
+    }
+  ],
+  "lastEntityId": "13:4676683893580730501",
+  "lastIndexId": "25:7709695258168272042",
+  "lastRelationId": "0:0",
+  "lastSequenceId": "0:0",
+  "modelVersion": 5,
+  "modelVersionParserMinimum": 5,
+  "retiredEntityUids": [
+    1110440324073703466
+  ],
+  "retiredIndexUids": [
+    3377491348144337262,
+    4235871213533179134,
+    2837718969465956680
+  ],
+  "retiredPropertyUids": [
+    1147012112998304753,
+    3896929027028370202,
+    1409733009498121897,
+    7921232477696211942,
+    8734760942027652929,
+    8309975378608870504,
+    2061140349716715489,
+    3478838850561223350,
+    4633545859467314617,
+    3799099416049182279,
+    4411460958579875322,
+    253743785267331821,
+    8552668431786485534,
+    6214998589720119333,
+    615976205296825514,
+    7371414356684518277,
+    5197995161268917610,
+    6187814042941586665,
+    6840342277843594327,
+    1812807332952068626,
+    9136991032941775518,
+    7794410368169499342,
+    2819114294463030087,
+    996220570439739060,
+    5060847788006779689,
+    5742765872032684371,
+    6863795329558654133,
+    6424477110698723980,
+    1547099082488576745,
+    3333678685559283574,
+    35962998092108439,
+    3550785788891250678,
+    7446729006448357631,
+    5096657038833034963,
+    1392396091350786512,
+    6208667096274902561,
+    3987020287664329095,
+    3442859084048240220,
+    1802378494213556929,
+    1531949722887503626,
+    1385314773466755533,
+    5220757162905877938
+  ],
+  "retiredRelationUids": [],
+  "version": 1
+}

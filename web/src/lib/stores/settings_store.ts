@@ -22,11 +22,17 @@ export async function settings_for_user(userId: string): Promise<Settings> {
         throw new APIError(r.status, response.message, response.detail);
     }
     const user = await r.json();
-    const settings: Settings[] | undefined = user.expand?.settings_via_user;
-    if (!Array.isArray(settings) || settings.length !== 1 || !settings[0]?.id || settings[0].user !== userId) {
+    // settings.user has a unique index, so PocketBase expands the
+    // back-relation as a single record. A backend that predates the index
+    // returns a list instead, e.g. while web is upgraded before the database.
+    const expanded: Settings | Settings[] | undefined = user.expand?.settings_via_user;
+    const settings = Array.isArray(expanded)
+        ? (expanded.length === 1 ? expanded[0] : undefined)
+        : expanded;
+    if (!settings?.id || settings.user !== userId) {
         throw new APIError(404, 'Settings not found', undefined);
     }
-    return settings[0];
+    return settings;
 }
 
 export async function settings_create(settings: Settings) {

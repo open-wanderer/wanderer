@@ -130,6 +130,11 @@ import "github.com/open-wanderer/wanderer/plugins/sdk"
 The SDK contains plugin-side protocol types and host-function helpers. It does
 not depend on wanderer core or PocketBase.
 
+SDK versions are tagged as `plugins/sdk/vX.Y.Z`. A wanderer release that
+changes the SDK tags the next SDK version on its own commit and names it in its
+release notes. New fields in an SDK version take effect from that release on;
+older hosts ignore them.
+
 Most plugins use:
 
 - `sdk.HostRequest` for provider API calls through `wanderer.http_request`
@@ -458,6 +463,13 @@ rules, deduplicates by provider/external ID, and stores the returned state.
 Trail photos are attached to the imported trail. Waypoint photos are attached to
 the corresponding waypoint records. Waypoint `distance_from_start` is derived
 by the host from the nearest position on the imported GPX track.
+
+Trail photos with a position move to waypoints before the import. A photo near
+one of the item's waypoints joins it; the others are grouped into new, unnamed
+waypoints using the user's waypoint merge settings. The first photo stays on the
+trail as its cover, and so do photos without a position, photos whose
+`externalId` is already on a waypoint, and photos over the waypoint limits. An
+unnamed waypoint whose photos all fail to download is not saved.
 
 ### Provider difficulty
 
