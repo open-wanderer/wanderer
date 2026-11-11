@@ -1,4 +1,10 @@
 import 'dart:io';
+import 'dart:ui' show Locale, PlatformDispatcher;
+
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:wanderer/i18n/app_localizations.dart';
+import 'package:wanderer/provider/local_settings_provider.dart';
+import 'package:wanderer/provider/toast_provider.dart';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
@@ -12,6 +18,8 @@ import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/models/waypoint.dart';
 import 'package:wanderer/objectbox.g.dart';
 import 'package:wanderer/provider/api_provider.dart';
+import 'package:wanderer/provider/deferred_photo_session_provider.dart';
+import 'package:wanderer/provider/photo_api_provider.dart';
 import 'package:wanderer/provider/objectbox_store_provider.dart';
 import 'package:wanderer/provider/online_status_provider.dart';
 import 'package:wanderer/provider/profile/profile_trails_provider.dart';
@@ -20,6 +28,7 @@ import 'package:wanderer/provider/trail/trail_library_provider.dart';
 import 'package:wanderer/provider/trail/trail_save_provider.dart';
 import 'package:wanderer/provider/waypoint/waypoint_provider.dart';
 import 'package:wanderer/store/current_account.dart';
+import 'package:wanderer/services/photo_mutation_service.dart';
 import 'package:wanderer/util/trail/form_data.dart';
 import 'package:wanderer/util/local/id.dart';
 import 'package:wanderer/store/local_photo_store.dart';
@@ -181,13 +190,34 @@ class TrailSync extends _$TrailSync {
     // Read fresh every run, never a cached field -- a stale id here
     // is exactly the leak account-scoping exists to prevent.
     final accountId = currentAccountId(store);
-    if (accountId == null) return;
+    if (accountId == null || _sessionExpired(accountId)) return;
 
     final candidates = selectDrainCandidates(
       store,
       accountId: accountId,
       now: DateTime.now(),
     );
+
+    final userQuery = store
+        .box<UserEntity>()
+        .query(UserEntity_.id.equals(accountId))
+        .build();
+    final currentUser = userQuery.findFirst();
+    userQuery.close();
+    if (currentUser != null) {
+      try {
+        final standalone = await ref
+            .read(photoMutationServiceProvider)
+            .drain(currentUser.actorId);
+        _reportPhotoRejections(standalone.rejectedCount);
+      } catch (error, stack) {
+        debugPrint(
+          'trail_sync_provider: standalone photo drain failed: $error\n$stack',
+        );
+      }
+    }
+
+    if (_sessionExpired(accountId)) return;
 
     // Candidates BEFORE the connectivity probe: this drain runs on every app
     // resume, and probing first meant a `/health` network round-trip per
@@ -207,6 +237,10 @@ class TrailSync extends _$TrailSync {
       await _drainOne(store, entity, accountId);
     }
   }
+
+  bool _sessionExpired(String accountId) => ref
+      .read(deferredPhotoSessionProvider)
+      .blocksAccount(ref.read(apiProvider).options.baseUrl, accountId);
 
   /// Implements the resume-from-step for a single trail.
   ///
@@ -378,6 +412,7 @@ class TrailSync extends _$TrailSync {
                 waypointModel,
                 authorId: authorId,
                 trailId: serverTrailId,
+                mode: PhotoApiMode.legacy,
               );
         } on WaypointPhotoUploadException catch (e) {
           // The record exists server-side; only its photos failed. Persist
@@ -473,6 +508,25 @@ class TrailSync extends _$TrailSync {
     } finally {
       state = {...state}..remove(localId);
     }
+  }
+
+  void _reportPhotoRejections(int count) {
+    if (count == 0) return;
+    var locale = ref.read(localeProvider) ?? PlatformDispatcher.instance.locale;
+    if (!AppLocalizations.supportedLocales.any(
+      (supported) => supported.languageCode == locale.languageCode,
+    )) {
+      locale = const Locale('en');
+    }
+    ref
+        .read(toastProvider.notifier)
+        .add(
+          ToastMessage(
+            type: ToastType.warning,
+            icon: FontAwesomeIcons.circleExclamation,
+            text: lookupAppLocalizations(locale).photos_rejected_upload(count),
+          ),
+        );
   }
 
   /// Deletes [accountId]'s [localId] unsynced photo directory, swallowing

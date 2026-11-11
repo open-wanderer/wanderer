@@ -1290,4 +1290,41 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get clear_search_history_confirm => 'Remove all recent searches?';
+
+  @override
+  String get photo_cover => 'Cover photo';
+
+  @override
+  String get photo_set_cover => 'Use as cover';
+
+  @override
+  String get photos_pending_upload =>
+      'Trail saved. Photos are kept on this device and will upload when your server is available.';
+
+  @override
+  String photos_rejected_upload(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count photos were rejected by your server. Check their file sizes and types, then try adding them again.',
+      one: 'One photo was rejected by your server. Check the file size and type, then try adding it again.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String signout_photo_jobs_warning(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count uploads are pending.',
+      one: 'One upload is pending.',
+    );
+    return '$_temp0 Signing out removes pending photo changes outside queued captures. Queued captures and their photos remain on this device.';
+  }
+
+  @override
+  String get photos_session_expired =>
+      'Tu sesión ha caducado. Las fotos permanecen en este dispositivo. Las subidas continuarán cuando vuelvas a iniciar sesión.';
 }

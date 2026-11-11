@@ -667,7 +667,9 @@
   "@distance_from_your_location": {
     "description": "Body of the map screen's selected-location panel. distance is pre-formatted with its unit, e.g. '2.40 km' or '350 m'.",
     "placeholders": {
-      "distance": { "type": "String" }
+      "distance": {
+        "type": "String"
+      }
     }
   },
   "plan_route_from_here": "Route von hier planen",
@@ -676,5 +678,11 @@
   },
   "recent_searches": "Letzte Suchanfragen",
   "clear_search_history": "Suchverlauf löschen",
-  "clear_search_history_confirm": "Alle letzten Suchanfragen entfernen?"
+  "clear_search_history_confirm": "Alle letzten Suchanfragen entfernen?",
+  "photo_cover": "Titelbild",
+  "photo_set_cover": "Als Titelbild verwenden",
+  "photos_pending_upload": "Route gespeichert. Die Fotos bleiben auf diesem Gerät und werden hochgeladen, sobald dein Server erreichbar ist.",
+  "photos_rejected_upload": "{count, plural, =1{Ein Foto wurde vom Server abgelehnt. Prüfe Dateigrösse und Typ und füge es erneut hinzu.} other{{count} Fotos wurden vom Server abgelehnt. Prüfe Dateigrössen und Typen und füge sie erneut hinzu.}}",
+  "signout_photo_jobs_warning": "{count, plural, =1{Ein Upload steht aus.} other{{count} Uploads stehen aus.}} Beim Abmelden werden ausstehende Fotoänderungen ausserhalb vorgemerkter Aufzeichnungen entfernt. Vorgemerkte Aufzeichnungen und ihre Fotos bleiben auf diesem Gerät.",
+  "photos_session_expired": "Deine Sitzung ist abgelaufen. Fotos bleiben auf diesem Gerät. Uploads werden fortgesetzt, wenn du dich wieder anmeldest."
 }

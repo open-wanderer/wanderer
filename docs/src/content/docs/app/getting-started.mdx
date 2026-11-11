@@ -51,10 +51,14 @@ The app is organized into four tabs plus a central action button:
 - **Anchor**: a point you set while [planning a route](/app/plan-a-route). The planner connects anchors along paths; they are not waypoints.
 - **Region**: a downloadable piece of the map (a country or a part of one) for [offline use](/app/offline-use).
 
-
 ## Photo API compatibility
 
-App releases up to and including `app-v0.1.0-beta.25` cannot upload photos to
-servers that use the asset API. Complete pending uploads before upgrading your
-server, then install an app release that supports that API before adding photos.
-Ask your administrator to check [photo API compatibility](/run/backend-configuration/mobile-app#photo-api-compatibility).
+Servers that use the asset API need the first app release after `app-v0.1.0-beta.25`
+to show and upload photos. App releases up to and including `app-v0.1.0-beta.25`
+cannot show or upload photos on these servers; update the app before upgrading
+your server.
+
+The updated app chooses the photo workflow automatically and also works with
+older app-compatible servers. If it cannot confirm the server's photo support,
+it keeps pending photo changes on the device and retries; trail details can still
+be saved. See [photo API compatibility](/run/backend-configuration/mobile-app#photo-api-compatibility).

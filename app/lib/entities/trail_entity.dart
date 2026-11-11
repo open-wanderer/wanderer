@@ -7,6 +7,7 @@ import 'package:wanderer/entities/category_entity.dart';
 import 'package:wanderer/entities/waypoint_entity.dart';
 import 'package:wanderer/models/tag.dart';
 import 'package:wanderer/models/trail.dart';
+import 'package:wanderer/store/app_photo_paths.dart';
 import 'package:wanderer/models/trail_sync_state.dart';
 import 'package:wanderer/util/gpx/conversion.dart';
 import 'package:wanderer/util/local/id.dart';
@@ -352,6 +353,12 @@ extension TrailEntityMapping on TrailEntity {
   /// detail/save/upload paths keep the default and read a fresh full model.
   Trail toModel({bool includeGpx = true}) {
     final tags = decodeTrailTags(tagsJson);
+    final serverPhotos = photos.where(isServerPhotoReference).toList();
+    final localPaths = localPhotos.isNotEmpty
+        ? localPhotos
+        : photos.where(
+            (photo) => photo.isNotEmpty && !isServerPhotoReference(photo),
+          );
 
     return Trail(
       // A local-sentinel id is blanked here so an empty id means
@@ -393,13 +400,10 @@ extension TrailEntityMapping on TrailEntity {
       // Left at the `Trail.author` default when neither is available.
       author: authorRecordId ?? author.target?.id ?? _unknownAuthorId,
       isLocal: true,
-      // A row's own `localPhotos` win when present -- an overlap row's
-      // capture copies are the ones the drain still needs. A plain
-      // downloaded row has an empty `localPhotos`, so the fallback to
-      // `photos` keeps every downloaded-trail reader working. This
-      // expression's correctness never depended on unsynced-ness and
-      // download membership excluding one another.
-      localPhotos: localPhotos.isNotEmpty ? localPhotos : photos,
+      photos: serverPhotos,
+      // Pending picks take precedence over downloaded copies. Server URLs
+      // and legacy filenames remain photo references, never picked files.
+      localPhotos: localPaths.map(resolveStoredPhotoPath).toList(),
       localId: localId,
       syncState: syncState,
       originalGpxData: includeGpx ? originalGpxData : null,

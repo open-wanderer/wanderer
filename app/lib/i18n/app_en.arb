@@ -721,7 +721,9 @@
   "@distance_from_your_location": {
     "description": "Body of the map screen's selected-location panel. distance is pre-formatted with its unit, e.g. '2.40 km' or '350 m'.",
     "placeholders": {
-      "distance": { "type": "String" }
+      "distance": {
+        "type": "String"
+      }
     }
   },
   "plan_route_from_here": "Plan route from here",
@@ -739,5 +741,39 @@
   "clear_search_history_confirm": "Remove all recent searches?",
   "@clear_search_history_confirm": {
     "description": "Body of the dialog confirming that the whole search history is removed."
+  },
+  "photo_cover": "Cover photo",
+  "photo_set_cover": "Use as cover",
+  "photos_pending_upload": "Trail saved. Photos are kept on this device and will upload when your server is available.",
+  "photos_rejected_upload": "{count, plural, =1{One photo was rejected by your server. Check the file size and type, then try adding it again.} other{{count} photos were rejected by your server. Check their file sizes and types, then try adding them again.}}",
+  "signout_photo_jobs_warning": "{count, plural, =1{One upload is pending.} other{{count} uploads are pending.}} Signing out removes pending photo changes outside queued captures. Queued captures and their photos remain on this device.",
+  "@photo_cover": {
+    "description": "Tooltip for the currently selected trail cover."
+  },
+  "@photo_set_cover": {
+    "description": "Action that selects a photo as the trail cover."
+  },
+  "@photos_pending_upload": {
+    "description": "Warning after metadata was saved while photo changes remain queued on the device."
+  },
+  "@photos_rejected_upload": {
+    "description": "Warning after saving when unsupported or oversized photo uploads were rejected.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@signout_photo_jobs_warning": {
+    "description": "Sign-out confirmation when durable photo jobs will be removed; count includes queued trail rows and photo jobs.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "photos_session_expired": "Your session has expired. Photos stay on this device. Uploads will resume after you sign in again.",
+  "@photos_session_expired": {
+    "description": "Information when uploads wait for signing in again during navigation or recording."
   }
 }

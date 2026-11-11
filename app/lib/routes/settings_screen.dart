@@ -86,7 +86,7 @@ class SettingsScreen extends ConsumerWidget {
                 if (!await confirmSignOutWithUnsyncedTrails(context, ref)) {
                   return;
                 }
-                ref.read(authProvider.notifier).logout();
+                ref.read(authProvider.notifier).logout(purgePhotoJobs: true);
               },
             ),
           ),

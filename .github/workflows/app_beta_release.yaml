@@ -97,7 +97,34 @@ jobs:
           flutter pub get
           flutter analyze --no-fatal-infos
 
+      # Keep in sync with the ObjectBox provisioning step in app_ci.yaml.
+      - name: Provision native ObjectBox for tests
+        id: objectbox
+        shell: bash
+        run: |
+          # Headless flutter tests open native stores without building a desktop app.
+          native_dir="$(mktemp -d "${RUNNER_TEMP:?}/objectbox.XXXXXXXX")"
+          archive="$native_dir/objectbox-linux-x64.tar.gz"
+          curl --fail --silent --show-error --location --retry 2 --max-time 60 \
+            --proto '=https' --proto-redir '=https' --output "$archive" \
+            'https://github.com/objectbox/objectbox-c/releases/download/v6.0.0-beta2/objectbox-linux-x64.tar.gz'
+          gzip -t "$archive"
+          member='lib/libobjectbox.so'
+          listing="$(tar -tvzf "$archive" -- "$member")"
+          if [[ "$listing" != -* || "$listing" == *$'\n'* ]]; then
+            echo "Expected exactly one regular ObjectBox archive member: $member" >&2
+            exit 1
+          fi
+          tar -xOzf "$archive" -- "$member" > "$native_dir/libobjectbox.so"
+          printf '%s  %s\n' \
+            a302c91fcfa9875faa1101ade4bbd1b68ab751380e8bf2b15466d38c1a3533f3 \
+            "$native_dir/libobjectbox.so" | sha256sum --check --strict -
+          rm -- "$archive"
+          printf 'library_dir=%s\n' "$native_dir" >> "${GITHUB_OUTPUT:?}"
+
       - name: Test
+        env:
+          LD_LIBRARY_PATH: ${{ steps.objectbox.outputs.library_dir }}
         run: flutter test
 
   android:

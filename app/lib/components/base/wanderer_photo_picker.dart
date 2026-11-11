@@ -27,6 +27,7 @@ class WandererPhotoPicker extends StatefulWidget {
 
   /// Emits the current list of local file paths whenever it changes.
   final ValueChanged<List<String>> onChanged;
+  final ValueChanged<String>? onLocalPhotoRemoved;
 
   /// Emits the remaining (non-removed) web photo filenames whenever the user
   /// removes one. Left null by callers that don't support server-photo
@@ -38,6 +39,10 @@ class WandererPhotoPicker extends StatefulWidget {
   /// callers that don't need it (no button is shown).
   final void Function(String path)? onExifRequested;
 
+  final String? initialThumbnailPhoto;
+  final ValueChanged<String?>? onThumbnailChanged;
+  final Set<String> generatedPreviews;
+
   const WandererPhotoPicker({
     super.key,
     this.label,
@@ -45,8 +50,12 @@ class WandererPhotoPicker extends StatefulWidget {
     this.initialWebPhotos = const [],
     this.resolveWebPhotoUrl,
     required this.onChanged,
+    this.onLocalPhotoRemoved,
     this.onWebPhotosChanged,
     this.onExifRequested,
+    this.initialThumbnailPhoto,
+    this.onThumbnailChanged,
+    this.generatedPreviews = const {},
   });
 
   @override
@@ -57,9 +66,34 @@ class _WandererPhotoPickerState extends State<WandererPhotoPicker> {
   late List<String> _localPhotos = List.of(widget.initialLocalPhotos);
   late List<String> _webPhotos = List.of(widget.initialWebPhotos);
 
+  late String? _thumbnailPhoto = widget.initialThumbnailPhoto;
+
+  bool get _hasRealPhoto =>
+      _localPhotos.isNotEmpty ||
+      _webPhotos.any((photo) => !widget.generatedPreviews.contains(photo));
+
+  bool _canCover(String photo) =>
+      !_hasRealPhoto || !widget.generatedPreviews.contains(photo);
+
+  void _selectCover(String? photo) {
+    setState(() => _thumbnailPhoto = photo);
+    widget.onThumbnailChanged?.call(photo);
+  }
+
+  void _repairCover() {
+    final photos = [..._webPhotos, ..._localPhotos];
+    if (_thumbnailPhoto != null &&
+        photos.contains(_thumbnailPhoto) &&
+        _canCover(_thumbnailPhoto!))
+      return;
+    final eligible = photos.where(_canCover);
+    _selectCover(eligible.isEmpty ? null : eligible.first);
+  }
+
   void _removeWeb(int index) {
     setState(() => _webPhotos = [..._webPhotos]..removeAt(index));
     widget.onWebPhotosChanged?.call(_webPhotos);
+    _repairCover();
   }
 
   Future<void> _pick() async {
@@ -69,11 +103,14 @@ class _WandererPhotoPickerState extends State<WandererPhotoPicker> {
       () => _localPhotos = [..._localPhotos, ...picked.map((x) => x.path)],
     );
     widget.onChanged(_localPhotos);
+    _repairCover();
   }
 
   void _removeLocal(int index) {
+    widget.onLocalPhotoRemoved?.call(_localPhotos[index]);
     setState(() => _localPhotos = [..._localPhotos]..removeAt(index));
     widget.onChanged(_localPhotos);
+    _repairCover();
   }
 
   void _reorderLocal(int oldIndex, int newIndex) {
@@ -85,6 +122,7 @@ class _WandererPhotoPickerState extends State<WandererPhotoPicker> {
       _localPhotos = updated;
     });
     widget.onChanged(_localPhotos);
+    _repairCover();
   }
 
   @override
@@ -125,6 +163,12 @@ class _WandererPhotoPickerState extends State<WandererPhotoPicker> {
                   widget.resolveWebPhotoUrl?.call(_webPhotos[i]) ??
                       _webPhotos[i],
                 ),
+                isThumbnail: _thumbnailPhoto == _webPhotos[i],
+                onThumbnail:
+                    widget.onThumbnailChanged == null ||
+                        !_canCover(_webPhotos[i])
+                    ? null
+                    : () => _selectCover(_webPhotos[i]),
                 onRemove: widget.onWebPhotosChanged == null
                     ? null
                     : () => _removeWeb(i),
@@ -137,6 +181,10 @@ class _WandererPhotoPickerState extends State<WandererPhotoPicker> {
                 child: _Thumbnail(
                   image: WandererPhoto.file(_localPhotos[i]),
                   onRemove: () => _removeLocal(i),
+                  isThumbnail: _thumbnailPhoto == _localPhotos[i],
+                  onThumbnail: widget.onThumbnailChanged == null
+                      ? null
+                      : () => _selectCover(_localPhotos[i]),
                   onExif: widget.onExifRequested == null
                       ? null
                       : () => widget.onExifRequested!(_localPhotos[i]),
@@ -196,8 +244,16 @@ class _Thumbnail extends StatelessWidget {
   final Widget image;
   final VoidCallback? onRemove;
   final VoidCallback? onExif;
+  final bool isThumbnail;
+  final VoidCallback? onThumbnail;
 
-  const _Thumbnail({required this.image, this.onRemove, this.onExif});
+  const _Thumbnail({
+    required this.image,
+    this.onRemove,
+    this.onExif,
+    this.isThumbnail = false,
+    this.onThumbnail,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -208,6 +264,22 @@ class _Thumbnail extends StatelessWidget {
         fit: StackFit.expand,
         children: [
           ClipRRect(borderRadius: BorderRadius.circular(6), child: image),
+          if (onThumbnail != null)
+            Positioned(
+              bottom: 4,
+              left: 4,
+              child: Tooltip(
+                message: isThumbnail
+                    ? AppLocalizations.of(context)!.photo_cover
+                    : AppLocalizations.of(context)!.photo_set_cover,
+                child: _OverlayButton(
+                  icon: isThumbnail
+                      ? FontAwesomeIcons.solidStar
+                      : FontAwesomeIcons.star,
+                  onTap: onThumbnail!,
+                ),
+              ),
+            ),
           if (onRemove != null)
             Positioned(
               top: 4,
