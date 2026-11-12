@@ -33,10 +33,12 @@
                 })),
         }}
     ></MetaTags>
-    <TrailInfoPanel
-        activeTab={parseInt(page.url.searchParams.get("t") ?? "0")}
-        initTrail={data.trail}
-        mode="overview"
-        handle={page.params.handle!}
-    ></TrailInfoPanel>
+    {#key `${page.params.handle}/${data.trail.id}`}
+        <TrailInfoPanel
+            activeTab={parseInt(page.url.searchParams.get("t") ?? "0")}
+            initTrail={data.trail}
+            mode="overview"
+            handle={page.params.handle!}
+        ></TrailInfoPanel>
+    {/key}
 {/if}
