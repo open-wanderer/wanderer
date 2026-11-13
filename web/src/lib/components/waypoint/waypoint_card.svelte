@@ -4,7 +4,6 @@
     import {
         getFileURL,
         isVideoURL,
-        readAsDataURLAsync,
     } from "#lib/util/file_util.ts";
     import { _ } from "svelte-i18n";
     import Dropdown, { type DropdownItem } from "../base/dropdown.svelte";
@@ -21,26 +20,24 @@
 
     let gallery: PhotoGallery | undefined = $state();
 
+    import { waypointFilePreviews } from "#lib/util/photo_preview_util.ts";
+
     let imgSrc: string[] = $state([]);
     $effect(() => {
+        let cancelled = false;
         if (waypoint.photos?.length) {
             imgSrc = waypoint.photos
                 .filter((_, i) => i < 3)
                 .reverse()
                 .map((p) => getFileURL(waypoint, p, "300x300"));
         } else if (waypoint._photos?.length && browser) {
-            Promise.all(
-                waypoint._photos
-                    .filter((_, i) => i < 3)
-                    .map(async (f) => {
-                        return await readAsDataURLAsync(f);
-                    }),
-            ).then((v) => {
-                imgSrc = v;
-            });
+            waypointFilePreviews(waypoint._photos).then((previews) => {
+                if (!cancelled) imgSrc = previews;
+            }).catch(() => {});
         } else {
             imgSrc = [];
         }
+        return () => { cancelled = true; };
     });
 
     const dropdownItems = [
