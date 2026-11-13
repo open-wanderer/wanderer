@@ -1,4 +1,5 @@
 <script lang="ts">
+    import type { MergeSelection, MergeSettings } from "./trail_merge_types.ts";
     import Modal from "#lib/components/base/modal.svelte";
     import Select, { type SelectItem } from "#lib/components/base/select.svelte";
     import { trails_show } from "#lib/stores/trail_store.ts";
@@ -12,11 +13,6 @@
     import { show_toast } from "#lib/stores/toast_store.svelte.ts";
     import { _ } from "svelte-i18n";
     import { APIError } from "#lib/util/api_util.ts";
-
-    export interface MergeSelection {
-        targetTrail: Trail;
-        sourceTrails: Trail[];
-    }
 
     export interface OpenMergeModalOptions {
         preferredTargetTrailId?: string;
@@ -319,14 +315,6 @@
         }
     }
 
-    export interface MergeSettings {
-        summitLog: boolean;
-        photos: boolean;
-        comments: boolean;
-        delete: boolean;
-        tags: boolean;
-        likes: boolean;
-    }
     
     const settings: MergeSettings = $state({
         ...defaultSettings,

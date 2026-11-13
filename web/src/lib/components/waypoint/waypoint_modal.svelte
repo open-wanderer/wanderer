@@ -16,7 +16,7 @@
     import Modal from "../base/modal.svelte";
     import TextField from "../base/text_field.svelte";
     import Textarea from "../base/textarea.svelte";
-    import PhotoPicker from "../trail/photo_picker.svelte";
+    import PhotoPicker from "../photo/photo_picker.svelte";
     import type { Waypoint } from "#lib/models/waypoint.ts";
 
     interface Props {
