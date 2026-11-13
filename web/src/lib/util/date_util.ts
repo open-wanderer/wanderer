@@ -145,10 +145,20 @@ export function convertGPSTimestampToDate(dateStamp: unknown, timeStamp: unknown
     if (typeof dateStamp !== "string" || !Array.isArray(timeStamp) || timeStamp.length !== 3) {
         return undefined;
     }
-    const [year, month, day] = dateStamp.split(":").map(Number);
+    const parts = dateStamp.trim().match(/^(\d{4}):(\d{2}):(\d{2})$/);
+    if (!parts) return undefined;
+    const [year, month, day] = parts.slice(1).map(Number);
     const [hours, minutes, seconds] = timeStamp.map(Number);
-    const time = Date.UTC(year, month - 1, day, hours, minutes) + seconds * 1000;
-    return Number.isFinite(time) ? new Date(time) : undefined;
+    if (year < 1 || month < 1 || month > 12 || day < 1 || day > 31 ||
+        !Number.isInteger(hours) || hours < 0 || hours > 23 ||
+        !Number.isInteger(minutes) || minutes < 0 || minutes > 59 ||
+        !Number.isFinite(seconds) || seconds < 0 || seconds >= 60) return undefined;
+    const date = new Date(0);
+    date.setUTCFullYear(year, month - 1, day);
+    date.setUTCHours(hours, minutes, 0, 0);
+    if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return undefined;
+    date.setTime(date.getTime() + seconds * 1000);
+    return date;
 }
 
 // EXIF DateTimeOriginal ("YYYY:MM:DD HH:MM:SS") is camera-local time, so it
