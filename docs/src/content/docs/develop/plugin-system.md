@@ -573,8 +573,12 @@ host owns that mapping.
 
 Plugin manifests may suggest defaults for host-owned settings with
 `hostConfig`. These values are stored in `installed_plugins.config.host` and can
-be overridden per plugin instance with `plugin_instances.config.host`. Host
-config is never passed to plugin exports.
+be overridden per plugin instance with `plugin_instances.config.host` only for
+the explicitly supported user-level fields listed below. Connector targets and
+trust settings under `host.connectors` remain exclusively in the
+administrator-controlled `installed_plugins.config.host` and are ignored if
+submitted through a plugin instance. Host config is never passed to plugin
+exports.
 
 Supported host fields:
 
@@ -586,7 +590,7 @@ Supported host fields:
 | `merge.enabled` | boolean | Trail import | Runs auto-merge after creating imported trails. |
 | `createSummitLogForCompleted` | boolean | Trail import | Creates summit logs for completed imported trails. Defaults to `true`. |
 | `categoryMapping` | object | Trail import | Maps plugin-provided `metadata.providerCategory` values to local category or subcategory targets. |
-| `connectors` | object | Host request/media policy | Concrete settings for configured connectors. |
+| `connectors` | object | Host request/media policy | Administrator-owned concrete settings for configured connectors; never overridable per plugin instance. |
 
 The settings UI lets users edit `categoryMapping` per plugin instance for trail
 import plugins. A mapping value can be a string for broad category-only
