@@ -116,6 +116,7 @@
     import { validator } from "#lib/vendor/felte-validator-zod/index.ts";
     import cryptoRandomString from "crypto-random-string";
     import { createForm } from "felte";
+    import { copyTrailEditorValues } from "#lib/util/trail_editor_util.ts";
     import * as M from "maplibre-gl";
     import { onMount, untrack } from "svelte";
     import { _, locale } from "svelte-i18n";
@@ -293,7 +294,7 @@
     }
 
     const getInitialFormValues = () => ({
-        ...data.trail,
+        ...copyTrailEditorValues(data.trail),
         completed_at: completionDateValue(data.trail.completed_at),
         public: data.trail.id
             ? data.trail.public
@@ -365,10 +366,10 @@
                         photoFiles,
                         gpxFile,
                     );
-                    createdTrail.completed_at = completionDateValue(
-                        createdTrail.completed_at,
-                    );
-                    setFields(createdTrail);
+                    setFields({
+                        ...copyTrailEditorValues(createdTrail),
+                        completed_at: completionDateValue(createdTrail.completed_at),
+                    });
                     trail.set(createdTrail);
                 } else {
                     const updatedTrail = await trails_update(
@@ -377,10 +378,10 @@
                         photoFiles,
                         gpxFile,
                     );
-                    updatedTrail.completed_at = completionDateValue(
-                        updatedTrail.completed_at,
-                    );
-                    setFields(updatedTrail);
+                    setFields({
+                        ...copyTrailEditorValues(updatedTrail),
+                        completed_at: completionDateValue(updatedTrail.completed_at),
+                    });
                 }
                 photoFiles = [];
 
@@ -512,7 +513,7 @@
                 // updateTrailWithRouteData for why it is 0, not undefined.
                 setFields("moving_duration", 0);
             } else {
-                setFields(parseResult.trail);
+                setFields(copyTrailEditorValues(parseResult.trail));
             }
             $formData.id = prevId ?? cryptoRandomString({ length: 15 });
             $formData.expand!.gpx_data = gpxData;
