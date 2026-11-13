@@ -1,0 +1,2 @@
+export const MAX_PHOTO_SIZE_BYTES = 20971520;
+export const MAX_WAYPOINT_PHOTOS = 99;

@@ -477,6 +477,7 @@
   "password-updated": "Password updated",
   "passwords-must-match": "Passwords must match",
   "photos": "Photos & Videos",
+  "waypoint-photos-skipped-limits": "{n, plural, one {# photo was skipped} other {# photos were skipped}}. Photos must be at most {size} MiB and a waypoint can hold at most {max} photos.",
   "pick-a-trail": "Pick a trail",
   "planned-a-trail": "planned a trail",
   "planned-tours": "Planned tours",
