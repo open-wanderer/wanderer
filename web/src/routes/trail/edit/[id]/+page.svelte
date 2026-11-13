@@ -2462,6 +2462,7 @@
             <Select
                 name="difficulty"
                 label={$_("difficulty")}
+                error={$errors.difficulty}
                 items={[
                     { text: $_("easy"), value: "easy" },
                     { text: $_("moderate"), value: "moderate" },
