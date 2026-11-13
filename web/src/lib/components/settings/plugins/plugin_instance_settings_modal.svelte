@@ -1,10 +1,10 @@
 <script lang="ts">
-    import Datepicker from "#lib/components/base/datepicker.svelte";
     import Modal from "#lib/components/base/modal.svelte";
-    import Select, { type SelectItem } from "#lib/components/base/select.svelte";
+    import type { SelectItem } from "#lib/components/base/select.svelte";
     import SingleSelect from "#lib/components/base/single_select.svelte";
     import TextField from "#lib/components/base/text_field.svelte";
-    import Toggle from "#lib/components/base/toggle.svelte";
+    import PluginConfigFields from "#lib/components/settings/plugins/plugin_config_fields.svelte";
+    import PluginTrailSettings from "#lib/components/settings/plugins/plugin_trail_settings.svelte";
     import PluginMergeSettings from "#lib/components/settings/plugins/plugin_merge_settings.svelte";
     import CategoryPicker from "#lib/components/trail/category_picker.svelte";
     import type { Category } from "#lib/models/category.ts";
@@ -626,86 +626,23 @@
                 </p>
             {/if}
 
-            {#if hasTourKindChoice}
-                <div class="flex flex-wrap gap-x-4">
-                    <Toggle
-                        bind:value={planned}
-                        label={$_("planned-tours", { values: { n: 2 } })}
-                    ></Toggle>
-                    <Toggle
-                        bind:value={completed}
-                        label={$_("completed-tours", { values: { n: 2 } })}
-                    ></Toggle>
-                </div>
-            {/if}
+            <PluginTrailSettings
+                {hasTourKindChoice}
+                {supportsSourcePrivacy}
+                bind:planned
+                bind:completed
+                bind:privacy
+                {privacySelectItems}
+            />
 
-            {#if supportsSourcePrivacy}
-                <Select
-                    label={$_("privacy")}
-                    items={privacySelectItems}
-                    bind:value={privacy}
-                ></Select>
-                <p class="text-xs text-gray-500 max-w-lg">
-                    {#if privacy == "original"}
-                        {$_("plugin-privacy-hint-original")}
-                    {:else}
-                        {$_("plugin-privacy-hint-user")}
-                    {/if}
-                </p>
-            {/if}
-
-            {#each visibleConfigSchema as field}
-                {#if field.type === "select"}
-                    <Select
-                        label={fieldLabel(field)}
-                        items={selectItems(field)}
-                        bind:value={extraConfig[field.key] as string}
-                        error={fieldError(field)}
-                    ></Select>
-                {:else if field.type === "boolean"}
-                    <Toggle
-                        bind:value={extraConfig[field.key]}
-                        label={fieldLabel(field)}
-                        error={fieldError(field)}
-                    ></Toggle>
-                    {@const hint = fieldHint(field)}
-                    {#if hint}
-                        <p class="text-xs text-gray-500 max-w-lg">{hint}</p>
-                    {/if}
-                {:else if field.type === "date"}
-                    {@const hint = fieldHint(field)}
-                    {#if hint}
-                        <p
-                            class="text-xs text-gray-500 max-w-lg pt-4 pb-1 border-t border-input-border"
-                        >
-                            {hint}
-                        </p>
-                    {/if}
-                    <div class="flex items-end relative gap-x-2">
-                        <Datepicker
-                            label={fieldLabel(field)}
-                            bind:value={extraConfig[field.key]}
-                            error={fieldError(field)}
-                        ></Datepicker>
-                        <button
-                            class="btn-icon mb-[10px]"
-                            type="button"
-                            onclick={() => {
-                                extraConfig[field.key] = undefined;
-                            }}
-                            aria-label={$_("clear")}
-                        ><i class="fa fa-close"></i></button>
-                    </div>
-                {:else if field.type === "text" || field.type === "url"}
-                    <TextField
-                        label={fieldLabel(field)}
-                        bind:value={extraConfig[field.key]}
-                        name={field.key}
-                        type={field.type === "url" ? "url" : "text"}
-                        error={fieldError(field)}
-                    ></TextField>
-                {/if}
-            {/each}
+            <PluginConfigFields
+                fields={visibleConfigSchema}
+                bind:config={extraConfig}
+                {fieldLabel}
+                {fieldHint}
+                {fieldError}
+                {selectItems}
+            />
 
             {#if supportsCategoryMapping && categories.length > 0}
                 <div class="space-y-2 pt-4 border-t border-input-border">
