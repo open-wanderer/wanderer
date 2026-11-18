@@ -48,7 +48,16 @@
     });
 
     async function deleteAccount() {
-        await users_delete($currentUser!);
+        try {
+            await users_delete($currentUser!);
+        } catch (e) {
+            show_toast({
+                text: $_("error-deleting-account"),
+                icon: "close",
+                type: "error",
+            });
+            return;
+        }
         void logout();
         window.location.assign("/");
     }
