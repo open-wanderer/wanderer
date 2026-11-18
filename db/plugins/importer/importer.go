@@ -316,12 +316,15 @@ func trackDistanceIndexFromGPX(gpxData *gpx.GPX) trackDistanceIndex {
 	if gpxData == nil {
 		return index
 	}
+	// The distance runs on across the gaps between segments and tracks, as the
+	// web's distance from start does, but a gap is no recorded track that a
+	// waypoint could be projected onto.
 	totalDistance := 0.0
+	var previous geoPoint
+	hasPrevious := false
 	for _, track := range gpxData.Tracks {
 		for _, segment := range track.Segments {
-			var previous geoPoint
-			hasPrevious := false
-			for _, point := range segment.Points {
+			for i, point := range segment.Points {
 				current := geoPoint{Lat: point.Latitude, Lon: point.Longitude}
 				if !hasPrevious {
 					index.points = append(index.points, indexedTrackPoint{
@@ -333,15 +336,15 @@ func trackDistanceIndexFromGPX(gpxData *gpx.GPX) trackDistanceIndex {
 					continue
 				}
 				length := util.HaversineDistanceMeters(previous.Lat, previous.Lon, current.Lat, current.Lon)
-				if length > 0 {
+				if length > 0 && i > 0 {
 					index.segments = append(index.segments, indexedTrackSegment{
 						start:         previous,
 						end:           current,
 						startDistance: totalDistance,
 						length:        length,
 					})
-					totalDistance += length
 				}
+				totalDistance += length
 				index.points = append(index.points, indexedTrackPoint{
 					point:    current,
 					distance: totalDistance,
