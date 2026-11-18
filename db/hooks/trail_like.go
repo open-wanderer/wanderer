@@ -2,6 +2,7 @@ package hooks
 
 import (
 	"database/sql"
+	"errors"
 	"pocketbase/federation"
 	"pocketbase/util"
 
@@ -73,14 +74,9 @@ func DeleteTrailLikeHandler(client meilisearch.ServiceManager) func(e *core.Reco
 		record := e.Record
 
 		trailId := record.GetString("trail")
-		actorId := record.GetString("actor")
-		actor, err := e.App.FindRecordById("activitypub_actors", actorId)
-		if err != nil {
-			return err
-		}
-		// trail might deleted be already if this is called as part of a cascade
+		// Cascades (trail or account deletion) may have removed trail or actor.
 		trail, err := e.App.FindRecordById("trails", trailId)
-		if err != nil && err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil
 		} else if err != nil {
 			return err
@@ -107,11 +103,15 @@ func DeleteTrailLikeHandler(client meilisearch.ServiceManager) func(e *core.Reco
 			return err
 		}
 
-		if !actor.GetBool("is_local") {
-			// this happens if someone likes a remote trail
-			// we create a local copy
-			// no need to create an activity for that
-			return nil
+		actorId := record.GetString("actor")
+		actor, err := e.App.FindRecordById("activitypub_actors", actorId)
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return nil // actor deletion is federated by its own hooks
+		case err != nil:
+			return err
+		case !actor.GetBool("is_local"):
+			return nil // remote likes are local copies
 		}
 
 		err = federation.CreateUnlikeActivity(e.App, record)
