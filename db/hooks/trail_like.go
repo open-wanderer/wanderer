@@ -81,10 +81,6 @@ func DeleteTrailLikeHandler(client meilisearch.ServiceManager) func(e *core.Reco
 		} else if err != nil {
 			return err
 		}
-		actor, err := e.App.FindRecordById("activitypub_actors", record.GetString("actor"))
-		if err != nil && !errors.Is(err, sql.ErrNoRows) {
-			return err
-		}
 		likes, err := e.App.FindAllRecords("trail_like",
 			dbx.NewExp("trail={:trail}", dbx.Params{"trail": trailId}),
 		)
@@ -107,9 +103,15 @@ func DeleteTrailLikeHandler(client meilisearch.ServiceManager) func(e *core.Reco
 			return err
 		}
 
-		// Actor deletion is federated by its own hooks; remote likes are local copies.
-		if actor == nil || !actor.GetBool("is_local") {
-			return nil
+		actorId := record.GetString("actor")
+		actor, err := e.App.FindRecordById("activitypub_actors", actorId)
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return nil // actor deletion is federated by its own hooks
+		case err != nil:
+			return err
+		case !actor.GetBool("is_local"):
+			return nil // remote likes are local copies
 		}
 
 		err = federation.CreateUnlikeActivity(e.App, record)
