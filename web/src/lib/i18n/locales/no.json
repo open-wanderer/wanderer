@@ -204,6 +204,7 @@
   "entry": "Oppføring",
   "error-copying-trail": "Feil ved kopiering av sti",
   "error-creating-user": "Feil ved oppretting av bruker",
+  "error-deleting-account": "Error deleting account",
   "error-deleting-token": "Feil ved sletting av token",
   "error-disabling-strava-plugin": "Feil ved deaktivering av Strava-programtillegg",
   "error-during-login": "Feil under innlogging",
