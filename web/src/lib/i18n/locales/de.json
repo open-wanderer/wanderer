@@ -204,6 +204,7 @@
   "entry": "Eintrag",
   "error-copying-trail": "Fehler beim Kopieren der Route",
   "error-creating-user": "Fehler beim Erstellen des Nutzers",
+  "error-deleting-account": "Error deleting account",
   "error-deleting-token": "Fehler beim Löschen des Token",
   "error-disabling-strava-plugin": "Fehler beim Deaktivieren des Strava-Plugins",
   "error-during-login": "Fehler beim Login",
