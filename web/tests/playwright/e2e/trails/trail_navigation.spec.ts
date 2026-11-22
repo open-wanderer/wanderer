@@ -1,7 +1,34 @@
+import type { Page } from '@playwright/test';
 import { expect, test } from '../../fixtures';
 
-for (const prefix of ['/trail/view', '/map/trail']) {
-    test(`refreshes trail details through a notification on ${prefix}`, async ({ page, context }) => {
+// Notifications link to /trail/view, so the map page is left through an in-app
+// link instead, like the trail search in the navbar.
+const navigations = [
+    {
+        prefix: '/trail/view',
+        via: 'a notification',
+        navigate: async (page: Page, destination: { id: string; name: string }) => {
+            await page.getByRole('button', { name: 'Toggle notification dropdown' }).click();
+            await page.locator('.dropdown li').filter({ hasText: destination.name }).click();
+        },
+    },
+    {
+        prefix: '/map/trail',
+        via: 'an in-app link',
+        navigate: async (page: Page, destination: { id: string; name: string }) => {
+            await page.locator('main').evaluate((main, href) => {
+                const link = document.createElement('a');
+                link.href = href;
+                link.textContent = 'Next trail';
+                main.append(link);
+            }, `/map/trail/@Test/${destination.id}`);
+            await page.getByRole('link', { name: 'Next trail', exact: true }).click();
+        },
+    },
+];
+
+for (const { prefix, via, navigate } of navigations) {
+    test(`refreshes trail details on ${prefix} after navigating through ${via}`, async ({ page, context }) => {
         const trails: { id: string; name: string }[] = [];
         try {
             for (const name of ['Navigation source', 'Navigation destination']) {
@@ -34,8 +61,7 @@ for (const prefix of ['/trail/view', '/map/trail']) {
             await expect(panel.getByRole('heading', { name: source.name, exact: true })).toBeVisible();
             const document = await page.evaluate(() => performance.timeOrigin);
 
-            await page.getByRole('button', { name: 'Toggle notification dropdown' }).click();
-            await page.locator('.dropdown li').filter({ hasText: destination.name }).click();
+            await navigate(page, destination);
 
             await expect(page).toHaveURL(`${prefix}/@Test/${destination.id}`);
             await expect(panel.getByRole('heading', { name: destination.name, exact: true })).toBeVisible();
