@@ -41,3 +41,29 @@ describe("Trail request schemas - moving_duration", () => {
         expect(() => TrailUpdateSchema.parse({ name: "Test trail", moving_duration: -1 })).toThrow();
     });
 });
+
+// Regression (#1521): imports without a rating store an empty difficulty on
+// purpose (#1266). The web editor validates the loaded record against these
+// schemas, so rejecting "" made the save button silently do nothing.
+describe("Trail request schemas - empty difficulty", () => {
+    const baseCreate = {
+        name: "Test trail",
+        public: true,
+        completed: false,
+        author: "abcdefghijklmno",
+    };
+
+    it("TrailCreateSchema accepts an empty difficulty as unset", () => {
+        expect(TrailCreateSchema.parse({ ...baseCreate, difficulty: "" }).difficulty).toBeUndefined();
+    });
+
+    it("TrailUpdateSchema accepts an empty difficulty as unset", () => {
+        expect(TrailUpdateSchema.parse({ name: "Test trail", difficulty: "" }).difficulty).toBeUndefined();
+    });
+
+    it("still accepts the three grades and rejects unknown values", () => {
+        expect(TrailCreateSchema.parse({ ...baseCreate, difficulty: "moderate" }).difficulty).toBe("moderate");
+        expect(() => TrailCreateSchema.parse({ ...baseCreate, difficulty: "extreme" })).toThrow();
+        expect(() => TrailUpdateSchema.parse({ name: "Test trail", difficulty: "extreme" })).toThrow();
+    });
+});
