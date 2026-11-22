@@ -204,6 +204,7 @@
   "entry": "Sarrera",
   "error-copying-trail": "Error copying trail",
   "error-creating-user": "Errorea erabiltzailea sortzen",
+  "error-deleting-account": "Error deleting account",
   "error-deleting-token": "Error deleting token",
   "error-disabling-strava-plugin": "Errorea strava plugina desaktibatzean",
   "error-during-login": "Errorea sartzean",
