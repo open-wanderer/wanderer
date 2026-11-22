@@ -204,6 +204,7 @@
   "entry": "Voce",
   "error-copying-trail": "Error copying trail",
   "error-creating-user": "Errore nella creazione dell'utente",
+  "error-deleting-account": "Error deleting account",
   "error-deleting-token": "Error deleting token",
   "error-disabling-strava-plugin": "Error disabling strava plugin",
   "error-during-login": "Errore durante il login",
