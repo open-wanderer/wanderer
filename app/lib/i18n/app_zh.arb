@@ -1,6 +1,6 @@
 {
-  "@@locale": "zh-CN",
-  "about": "关于",
+  "@@locale": "zh-TW",
+  "about": "About",
   "@about": {
     "description": "Standalone heading used in three places: the 'About' tab on the trail detail panel (about the trail), prefixed to a username as 'About <username>' on the account screen, and the settings entry and title of the screen about the app itself. Needs to read as a section heading in all of them."
   },
@@ -43,11 +43,11 @@
   },
   "appearance": "Appearance",
   "account": "Account",
-  "account_delete_confirm": "您现在要删除当前账户，所有的路线都会删除无法恢复，确认继续操作吗？",
-  "account_privacy": "账户隐私",
-  "add_bio": "添加个人信息",
-  "add_waypoint": "添加坐标",
-  "after": "之后",
+  "account_delete_confirm": "You are about to delete your account. All your trails will also be deleted. Do you want to proceed?",
+  "account_privacy": "Account privacy",
+  "add_bio": "Add Bio",
+  "add_waypoint": "Add Waypoint",
+  "after": "After",
   "@after": {
     "description": "Used two ways. (1) Label above the date picker that filters for trails dated after the chosen day. (2) Prefixed to a distance on the waypoint sheet as 'After 2.4 km', meaning how far along the trail the waypoint sits. Pick wording that works for both a date and a distance."
   },
@@ -55,28 +55,28 @@
   "@all": {
     "description": "Filter chip in global search meaning 'all result categories' (trails, lists, places and users together), as opposed to one specific category."
   },
-  "altitude": "海拔",
-  "author": "作者",
+  "altitude": "Altitude",
+  "author": "Author",
   "@author": {
     "description": "Noun. Heading and input placeholder for the filter that narrows trails to a specific author's username."
   },
-  "average_speed": "平均速度",
-  "background_location_body": "wanderer collects location data in the background so your trail keeps recording when the screen is off or the app is closed. Your recorded track stays on your device until you choose to save the trail.\n\nAndroid only offers this in system settings: open Location and choose \"Allow all the time\".",
+  "average_speed": "Avg. Speed",
+  "background_location_body": "wanderer collects location data in the background so your trail keeps recording when the screen is off or the app is closed. Your recorded track stays on your device until you choose to save the trail.\n\nAndroid only offers this in system settings: open Permissions → Location and choose \"Allow all the time\".",
   "background_location_confirm": "Open settings",
   "background_location_title": "Keep recording in the background",
-  "basic_info": "基本信息",
-  "before": "之前",
+  "basic_info": "Basic Info",
+  "before": "Before",
   "@before": {
     "description": "Label above the date picker that filters for trails dated before the chosen day. Pairs with the 'after' string."
   },
-  "by": "由",
+  "by": "by",
   "@by": {
     "description": "Byline preposition, rendered lowercase and immediately followed by a username: 'by alice'. Appears on trail cards, list cards and summit log entries. Not the standalone word 'by' in any other sense."
   },
-  "cancel": "取消",
+  "cancel": "Cancel",
   "discard": "Discard",
   "discard_trail_confirm": "Discard this trail and its changes?",
-  "card": "{n, plural, =1 {卡片} other {卡片}}",
+  "card": "{n, plural, =1 {Card} other {Cards}}",
   "@card": {
     "placeholders": {
       "n": {
@@ -85,13 +85,13 @@
       }
     }
   },
-  "categories": "分类",
-  "category": "分类",
-  "change_email": "更改邮箱",
-  "change_password": "更改密码",
-  "clear_all": "清除全部",
-  "close": "关闭",
-  "comment": "{n, plural, =1 {评论} other {评论}}",
+  "categories": "Categories",
+  "category": "Category",
+  "change_email": "Change email",
+  "change_password": "Change password",
+  "clear_all": "Clear all",
+  "close": "Close",
+  "comment": "{n, plural, =1 {Comment} other {Comments}}",
   "@comment": {
     "placeholders": {
       "n": {
@@ -100,99 +100,99 @@
       }
     }
   },
-  "completed": "已完成",
-  "completion_status": "完成状态",
-  "confirm_deletion": "确认删除",
+  "completed": "Completed",
+  "completion_status": "Completion Status",
+  "confirm_deletion": "Confirm Deletion",
   "couldnt_start_navigation": "Couldn't start navigation. Check your connection and try again.",
   "location_services_disabled": "Location services are disabled. Please enable GPS to use navigation.",
   "location_permission_denied": "Location permission is required for navigation.",
   "location_permission_permanently_denied": "Location permission is permanently denied. Please enable it in Settings.",
   "location_unavailable": "Unable to determine your location. Please try again.",
-  "copy_link": "复制链接",
-  "create_waypoint": "创建路径点",
-  "creation_date": "创建日期",
-  "current_password": "当前密码",
-  "danger_zone": "危险区域",
-  "date": "日期",
+  "copy_link": "Copy Link",
+  "create_waypoint": "Create waypoint",
+  "creation_date": "Creation date",
+  "current_password": "Current password",
+  "danger_zone": "Danger zone",
+  "date": "Date",
   "@date": {
     "description": "Noun. Used as a sort option ('sort trails by date'), as the heading of the date-range filter sheet, and as the label of the date field in the trail form. A single neutral noun is needed for all three."
   },
-  "delete": "删除",
+  "delete": "Delete",
   "not_now": "Not now",
   "open": "Open",
   "@open": {
     "description": "Verb. Menu action that opens a downloaded trail from the library. Not the adjective 'open' and not the opposite of 'closed'."
   },
-  "delete_account": "注销账户",
-  "delete_trail_confirm": "您确认想要删除当前行程？此操作不可撤回。",
+  "delete_account": "Delete Account",
+  "delete_trail_confirm": "Do you really want to delete this trail? This action cannot be undone.",
   "delete_blocked_while_uploading": "This trail is uploading right now. Wait for the upload to finish, then try again.",
   "delete_unsynced_trail_confirm": "Delete this trail? It hasn't been uploaded yet, so this can't be undone.",
   "delete_needs_connection": "This trail is already on the server. Connect to the internet to delete it.",
-  "description": "描述",
-  "difficult": "困难",
-  "difficulty": "难度",
-  "directions": "导航",
-  "distance": "距离",
-  "download": "下载",
-  "duration": "持续时间",
-  "easy": "简单",
-  "edit": "编辑",
+  "description": "Description",
+  "difficult": "Difficult",
+  "difficulty": "Difficulty",
+  "directions": "Directions",
+  "distance": "Distance",
+  "download": "Download",
+  "duration": "Duration",
+  "easy": "Easy",
+  "edit": "Edit",
   "edit_needs_connection": "Editing works on the server copy of this trail. Connect to the internet to edit it.",
-  "edit_waypoint": "编辑坐标",
-  "edited": "已编辑",
+  "edit_waypoint": "Edit Waypoint",
+  "edited": "edited",
   "@edited": {
     "description": "Adjective appended in parentheses after a comment's timestamp to mark that the comment was changed after posting: '2 hours ago (edited)'. Rendered lowercase."
   },
-  "elevation_gain": "上升海拔",
-  "elevation_loss": "下降海拔",
+  "elevation_gain": "Elevation Gain",
+  "elevation_loss": "Elevation Loss",
   "elevation_profile": "Elevation Profile",
-  "email": "电子邮箱",
-  "email_not_unique": "此电子邮件地址已被使用。",
-  "email_updated": "邮箱已更改",
+  "email": "Email",
+  "email_not_unique": "This email address is already in use.",
+  "email_updated": "Email updated",
   "error_deleting_trail": "Error deleting trail",
-  "error_reading_file": "读取文件错误",
+  "error_reading_file": "Error reading file",
   "error_saving_settings": "Error saving settings",
-  "error_saving_trail": "保存路线失败",
-  "error_updating_password": "更新密码失败",
-  "explore": "探索",
+  "error_saving_trail": "Error saving trail",
+  "error_updating_password": "Error updating password",
+  "explore": "Explore",
   "exit_navigation": "Exit",
   "stop_navigation_confirm": "Stop navigation and return to the trail?",
-  "stop_recording": "停止录制",
-  "stop_recording_confirm": "停止录制？",
+  "stop_recording": "Stop recording",
+  "stop_recording_confirm": "Stop recording?",
   "search_this_area": "Search this area",
   "filter_category_deselect_hint": "Press and hold to deselect a category",
   "@filter_category_deselect_hint": {
     "description": "Hint above the category chips on the trail filter screen. A long press removes a category from the selection."
   },
-  "filter_tags": "过滤标签",
+  "filter_tags": "Filter tags",
   "filter_trails": "Filter trails",
-  "finish": "完成",
+  "finish": "Finish",
   "@finish": {
     "description": "Used two ways. (1) Noun: label of the last row in the trail's waypoint timeline, marking the end of the trail. (2) Tooltip on the route planner's confirm action, meaning 'finish planning this route'. Prefer wording that carries both, or the noun sense if it must be one."
   },
   "finish_disabled_hint": "Add at least 2 anchors to finish your route.",
-  "follow": "关注",
-  "followers": "关注者",
-  "following": "已关注",
-  "from_photos": "来自照片",
-  "help": "帮助",
-  "hiking": "徒步",
-  "home": "主页",
-  "icon": "图标",
+  "follow": "Follow",
+  "followers": "Followers",
+  "following": "Following",
+  "from_photos": "From Photos",
+  "help": "Help",
+  "hiking": "Hiking",
+  "home": "Home",
+  "icon": "Icon",
   "@icon": {
     "description": "Noun. Label of the icon picker field in the waypoint form — which symbol to show for this waypoint on the map."
   },
-  "imperial": "英制",
-  "joined": "已加入",
-  "language": "语言",
-  "latitude": "纬度",
-  "like_status": "喜欢状态",
-  "liked": "赞",
+  "imperial": "Imperial",
+  "joined": "Joined",
+  "language": "Language",
+  "latitude": "Latitude",
+  "like_status": "Like Status",
+  "liked": "Liked",
   "@liked": {
     "description": "Adjective. Filter toggle that narrows the list to trails you have liked."
   },
-  "likes": "赞",
-  "list": "{n, plural, =1 {列表} other {列表}}",
+  "likes": "Likes",
+  "list": "{n, plural, =1 {List} other {Lists}}",
   "@list": {
     "placeholders": {
       "n": {
@@ -201,10 +201,10 @@
       }
     }
   },
-  "location": "地点",
+  "location": "Location",
   "locations": "Locations",
   "center_on_my_location": "Center on my location",
-  "location_tracking_notification_title": "Wanderer",
+  "location_tracking_notification_title": "wanderer",
   "location_tracking_notification_text": "Recording your trail",
   "location_tracking_notification_text_navigating": "Navigating {trail}",
   "@location_tracking_notification_text_navigating": {
@@ -214,13 +214,13 @@
       }
     }
   },
-  "login": "登录",
-  "logout": "登出",
-  "longitude": "经度",
-  "map": "地图",
-  "metric": "公制",
-  "moderate": "中等",
-  "my_account": "我的账户",
+  "login": "Login",
+  "logout": "Logout",
+  "longitude": "Longitude",
+  "map": "Map",
+  "metric": "Metric",
+  "moderate": "Moderate",
+  "my_account": "My Account",
   "in_distance": "in {distance}",
   "@in_distance": {
     "placeholders": {
@@ -229,14 +229,14 @@
       }
     }
   },
-  "name": "名称",
+  "name": "Name",
   "@name": {
     "description": "Noun. Used as a sort option ('sort by name') and as the label of the trail name field in the trail form."
   },
   "navigate": "Navigate",
-  "new_password": "新密码",
-  "new_password_success": "新密码已设置",
-  "new_trail": "创建新路线",
+  "new_password": "New password",
+  "new_password_success": "The new password has been set",
+  "new_trail": "New Trail",
   "trail_source_planner": "Open trail planner",
   "trail_source_planner_description": "Draw a new route on the map, waypoint by waypoint.",
   "trail_source_record": "Record trail",
@@ -248,16 +248,16 @@
   "@trail_source_offline_import_error": {
     "description": "Shown when the user picks a non-GPX file for import while offline. Names the formats that need a connection and points at GPX as the offline-capable alternative."
   },
-  "no_comments_so_far": "到目前为止没有评论",
-  "no_data": "无数据",
-  "no_description_for_now": "暂无描述",
-  "no_gps_data_in_image": "图像中没有GPS数据",
-  "no_preference": "尚未规划",
+  "no_comments_so_far": "No comments so far",
+  "no_data": "No data",
+  "no_description_for_now": "No description for now",
+  "no_gps_data_in_image": "No GPS data found in this photo.",
+  "no_preference": "No preference",
   "no_trails_found": "No trails found",
-  "not_completed": "未完成",
-  "notifications": "通知",
-  "only_me": "仅自己",
-  "or": "或",
+  "not_completed": "Not completed",
+  "notifications": "Notifications",
+  "only_me": "Only me",
+  "or": "or",
   "@or": {
     "description": "Divider word between the email login form and the OAuth provider buttons on the login screen."
   },
@@ -269,9 +269,9 @@
     "description": "Label of the profile trail count card when the count comes from local storage (unsynced captures plus downloaded trails) because the device is offline."
   },
   "pause": "Pause",
-  "password": "密码",
-  "password_confirm": "确认密码",
-  "passwords_must_match": "两次输入的密码必须一致",
+  "password": "Password",
+  "password_confirm": "Confirm password",
+  "passwords_must_match": "Passwords must match",
   "photo_copy_failed_toast": "{count, plural, =1 {Trail saved, but 1 photo couldn't be saved.} other {Trail saved, but {count} photos couldn't be saved.}}",
   "@photo_copy_failed_toast": {
     "placeholders": {
@@ -281,7 +281,7 @@
       }
     }
   },
-  "photos": "图片",
+  "photos": "Photos & Videos",
   "photos_skipped_no_gps": "{count, plural, =1 {1 photo skipped — no GPS data} other {{count} photos skipped — no GPS data}}",
   "@photos_skipped_no_gps": {
     "placeholders": {
@@ -291,14 +291,14 @@
       }
     }
   },
-  "privacy": "隐私",
-  "private": "非公开的",
-  "profile": "个人资料",
-  "public": "公开",
+  "privacy": "Privacy",
+  "private": "Private",
+  "profile": "Profile",
+  "public": "Public",
   "reached_end_of_trail": "You've reached the end of the trail.",
-  "register": "注册",
+  "register": "Register",
   "reorder_photos_hint": "Long-press and drag to reorder photos.",
-  "reset": "重置",
+  "reset": "Reset",
   "@reset": {
     "description": "Verb. Button that clears every active filter back to its default. Not 'restart' and not 'reset password'."
   },
@@ -311,7 +311,7 @@
       }
     }
   },
-  "resume_recording_prompt": "恢复录制？",
+  "resume_recording_prompt": "Resume recording?",
   "route": "{n, plural, =1 {Route} other {Routes}}",
   "@route": {
     "placeholders": {
@@ -326,30 +326,30 @@
   "recalculate_heights": "Recalculate heights",
   "recalculate_heights_description": "Replace recorded GPS elevation with more accurate values from the map.",
   "track_transform_failed": "Couldn't adjust the track. Check your connection and try again.",
-  "save": "保存",
+  "save": "Save",
   "save_track": "Save track",
   "search": "Search",
-  "search_for_trails_places": "搜索路线、地点",
+  "search_for_trails_places": "Search for trails, lists, places",
   "select_date": "Select date",
-  "settings": "设置",
-  "settings_notification_comment_mention": "有人在评论中提到您",
-  "settings_notification_list_share": "有人与您分享了一个列表",
-  "settings_notification_new_follower": "您有一位新关注者",
-  "settings_notification_summit_log_create": "有人在您的轨迹上创建了一个summit日志",
-  "settings_notification_summit_log_mention": "有人在summit日志中提到了你",
-  "settings_notification_trail_comment": "有人在你的轨迹上留下了一条评论",
-  "settings_notification_trail_like": "Somone liked your trail",
-  "settings_notification_trail_mention": "有人在轨迹中提到你",
-  "settings_notification_trail_share": "有人与您分享了一条轨迹",
-  "settings_privacy_account_private": "只有您可以看到您的个人资料。您将不会出现在搜索结果中。 其他用户不能关注您或与您分享轨迹。您仍然可以发布轨迹或列表。",
-  "settings_privacy_account_public": "每个人都可以看到您的个人资料。您将出现在搜索结果中。其他用户可以关注您并与您分享轨迹。",
-  "settings_privacy_lists_private": "您的列表默认是私密的。只有您能够看到它们。 您可以在任何时候修改此设置。",
-  "settings_privacy_lists_public": "您的列表默认是公开的。每个人都可以看到它们。您可以在任何时候更改此设置为个人列表使用。",
-  "settings_privacy_trails_private": "您的轨迹默认是私密的。只有您能够看到它们。 您可以在任何时候修改此设置。",
-  "settings_privacy_trails_public": "您的轨迹默认是公开的。每个人都可以看到它们。您可以在任何时候更改此设置为个人轨迹。",
-  "share": "分享",
-  "share_profile": "分享个人资料",
-  "shared": "共享",
+  "settings": "Settings",
+  "settings_notification_comment_mention": "Someone mentioned you in a comment",
+  "settings_notification_list_share": "Someone shared a list with you",
+  "settings_notification_new_follower": "You have a new follower",
+  "settings_notification_summit_log_create": "Someone created a summit log on your trail",
+  "settings_notification_summit_log_mention": "Someone mentioned you in a summit log",
+  "settings_notification_trail_comment": "Someone left a comment on your trail",
+  "settings_notification_trail_like": "Someone liked your trail",
+  "settings_notification_trail_mention": "Someone mentioned you in a trail",
+  "settings_notification_trail_share": "Someone shared a trail with you",
+  "settings_privacy_account_private": "Only you can see your profile. You will not appear in search results. Other users cannot follow you or share trails with you. You can still publish trails or lists.",
+  "settings_privacy_account_public": "Everyone can see your profile. You appear in search results. Other users can follow you and share trails with you.",
+  "settings_privacy_lists_private": "Your lists are private by default. No one except you will be able to see them. You can change this setting at any point for individual lists.",
+  "settings_privacy_lists_public": "Your lists are public by default. Everyone will be able to see them. You can change this setting at any point for individual lists.",
+  "settings_privacy_trails_private": "Your trails are private by default. No one except you will be able to see them. You can change this setting at any point for individual trails.",
+  "settings_privacy_trails_public": "Your trails are public by default. Everyone will be able to see them. You can change this setting at any point for individual trails.",
+  "share": "Share",
+  "share_profile": "Share profile",
+  "shared": "Shared",
   "@shared": {
     "description": "Adjective. Filter toggle that narrows the list to trails other users have shared with you."
   },
@@ -357,7 +357,7 @@
   "@shortcut_new_trail": {
     "description": "App shortcut shown when long-pressing the app icon on the home screen (Android) or Home Screen (iOS); opens the screen to plan, record or import a new trail. Keep it short: launchers truncate shortcut labels after about 10 to 25 characters."
   },
-  "show_on_map": "地图中展示",
+  "show_on_map": "Show on map",
   "signout_unsynced_warning": "{count, plural, =1 {You have 1 trail not uploaded yet. Signing out won't delete it — it'll be here when you sign back in — but it won't upload until then.} other {You have {count} trails not uploaded yet. Signing out won't delete them — they'll be here when you sign back in — but they won't upload until then.}}",
   "@signout_unsynced_warning": {
     "placeholders": {
@@ -367,24 +367,24 @@
       }
     }
   },
-  "slogan": "你的路线。你的数据。你的服务器。",
-  "sort": "排序",
+  "slogan": "Your trails. Your data. Your server.",
+  "sort": "Sort",
   "@sort": {
     "description": "Button label that opens the sort options for a trail or list collection. Verb or noun, whichever reads better as a short button."
   },
-  "speed": "速度",
+  "speed": "Speed",
   "@speed": {
     "description": "Noun. Label of the current-speed readout on the live navigation screen."
   },
-  "start": "开始",
+  "start": "Start",
   "@start": {
     "description": "Noun. Label of the first row in the trail's waypoint timeline, marking the trailhead. Not the verb 'to start'."
   },
-  "subcategories": "子分类",
+  "subcategories": "Subcategories",
   "@subcategories": {
     "description": "Label for the subcategories filter section"
   },
-  "summit_book": "详细日程",
+  "summit_book": "Summit Book",
   "sync_discard_draft_confirm": "Delete this recording? It hasn't been uploaded anywhere.",
   "sync_draft": "Draft",
   "sync_failed": "Upload failed · Tap to retry",
@@ -400,12 +400,12 @@
   "sync_section_upload": "Upload",
   "sync_section_upload_now": "Upload now",
   "sync_uploading": "Uploading…",
-  "tags": "标签",
+  "tags": "Tags",
   "theme_dark": "Dark",
   "theme_light": "Light",
   "theme_system": "Follow system",
   "time_in_motion": "Time in Motion",
-  "trail": "{n, plural, =1 {路线} other {路线}}",
+  "trail": "{n, plural, =1 {Trail} other {Trails}}",
   "@trail": {
     "placeholders": {
       "n": {
@@ -414,20 +414,20 @@
       }
     }
   },
-  "trail_saved_successfully": "路线保存成功",
+  "trail_saved_successfully": "Trail saved successfully",
   "trail_not_on_this_device": "This trail is no longer on this device.",
   "trail_uploaded_reopen_to_edit": "This trail finished uploading. Re-open it from your trails to keep editing.",
   "some_waypoints_failed_to_save": "Trail saved, but some waypoints failed to save",
-  "units": "单位",
+  "units": "Units",
   "users": "Users",
-  "username": "用户名",
-  "username_not_unique": "此用户名已被使用。请尝试其他用户名。",
-  "visibilty_status": "可见状态",
+  "username": "Username",
+  "username_not_unique": "This username is already taken. Please try another.",
+  "visibilty_status": "Visibility status",
   "web": "Web",
   "@web": {
     "description": "Noun naming a notification delivery channel: notifications shown in the web app, as opposed to push notifications on the phone. Appears as a toggle label under each notification type."
   },
-  "waypoints": "{n, plural, =1 {路点} other {路点}}",
+  "waypoints": "{n, plural, =1 {Waypoint} other {Waypoints}}",
   "@waypoints": {
     "placeholders": {
       "n": {
@@ -440,7 +440,7 @@
   "@welcome_to": {
     "description": "Sentence fragment on the welcome screen, followed by the untranslated product name: 'Welcome to wanderer'. Keep it as a fragment; the brand name is appended in code and must not be included in the translation."
   },
-  "wrong_username_or_password": "用户名或密码无效",
+  "wrong_username_or_password": "Wrong username or password",
   "oauth_provider_unavailable": "This server no longer offers this sign-in option.",
   "oauth_login_rate_limited": "Too many sign-in attempts from your network. Try again in a minute.",
   "oauth_login_rate_limited_seconds": "Too many sign-in attempts from your network. Try again in {seconds, plural, =1{1 second} other{{seconds} seconds}}.",
@@ -484,7 +484,7 @@
   "technical_details": "Technical Details",
   "link": "Link",
   "url": "URL",
-  "open_in_new_tab": "在新标签页中打开",
+  "open_in_new_tab": "Open in new tab",
   "remove": "Remove",
   "remove_download_confirm_body": "This removes the downloaded copy from this device. The trail itself is not deleted — you'll need to download it again to use it offline.",
   "apply": "Apply",
@@ -492,7 +492,7 @@
     "description": "Verb. Confirm button in the rich text editor's link dialog — applies the entered link to the selected text."
   },
   "add_at_least_2_anchors_hint": "Add at least 2 anchors to see the elevation profile.",
-  "reverse_direction": "反向",
+  "reverse_direction": "Reverse direction",
   "delete_all": "Delete all",
   "auto_routing": "Auto-routing",
   "auto_routing_hint": "Automatically follow roads and paths between anchors.",
@@ -528,11 +528,11 @@
     "description": "Button label that collapses an expanded profile bio back to its truncated form"
   },
   "feed": "Feed",
-  "profile_feed_empty_own": "你还没有活动。",
+  "profile_feed_empty_own": "You have no activity yet.",
   "@profile_feed_empty_own": {
     "description": "Shown under the Feed heading on your own profile when it has no activity yet. A New Trail button follows it."
   },
-  "profile_feed_empty_other": "{username}还没有活动。",
+  "profile_feed_empty_other": "{username} has no activity yet.",
   "@profile_feed_empty_other": {
     "description": "Shown under the Feed heading on another user profile when it has no activity yet.",
     "placeholders": {
@@ -615,7 +615,7 @@
       }
     }
   },
-  "edit_route": "编辑路线",
+  "edit_route": "Edit route",
   "undo": "Undo",
   "redo": "Redo",
   "bold": "Bold",
