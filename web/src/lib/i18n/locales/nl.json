@@ -204,6 +204,7 @@
   "entry": "Item",
   "error-copying-trail": "Fout bij kopiëren van route",
   "error-creating-user": "Fout bij aanmaken gebruiker",
+  "error-deleting-account": "Error deleting account",
   "error-deleting-token": "Fout bij verwijderen token",
   "error-disabling-strava-plugin": "Fout bij het uitschakelen van Strava-plug-in",
   "error-during-login": "Het inloggen is mislukt",
