@@ -204,6 +204,7 @@
   "entry": "Pozycja",
   "error-copying-trail": "Error copying trail",
   "error-creating-user": "Błąd tworzenia użytkownika",
+  "error-deleting-account": "Error deleting account",
   "error-deleting-token": "Error deleting token",
   "error-disabling-strava-plugin": "Błąd przy wyłączaniu wtyczki strava",
   "error-during-login": "Błąd podczas logowania",
