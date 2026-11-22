@@ -204,6 +204,7 @@
   "entry": "Záznam",
   "error-copying-trail": "Chyba při kopírování trasy",
   "error-creating-user": "Chyba při vytváření uživatele",
+  "error-deleting-account": "Error deleting account",
   "error-deleting-token": "Chyba při odstraňování tokenu",
   "error-disabling-strava-plugin": "Chyba při deaktivaci pluginu strava",
   "error-during-login": "Během přihlašování došlo k chybě",
