@@ -204,6 +204,7 @@
   "entry": "Запись",
   "error-copying-trail": "Ошибка копирования трека",
   "error-creating-user": "Ошибка создания пользователя",
+  "error-deleting-account": "Error deleting account",
   "error-deleting-token": "Ошибка при удалении токена",
   "error-disabling-strava-plugin": "Ошибка отключения Strava",
   "error-during-login": "Ошибка входа",
