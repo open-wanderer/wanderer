@@ -32,7 +32,7 @@ import { ClientResponseError } from "pocketbase";
  *               ignoreDuplicates:
  *                 type: boolean
  *     responses:
- *       201:
+ *       200:
  *         description: Trail created from GPX
  *         content:
  *           application/json:
