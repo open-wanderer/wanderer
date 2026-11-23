@@ -18,8 +18,11 @@ const mergeErrorCodes = new Set([
 ]);
 
 export function translateTrailMergeError(message: string): string {
-    if (mergeErrorCodes.has(message)) {
-        return get(_)(message);
+    // PocketBase renders API messages as sentences, including a capital
+    // letter and a trailing full stop. Resolve only known error codes.
+    const code = message.trim().replace(/[.!]$/, "").toLowerCase();
+    if (mergeErrorCodes.has(code)) {
+        return get(_)(code);
     }
 
     return message;
