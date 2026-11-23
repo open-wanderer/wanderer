@@ -122,6 +122,7 @@ func (r WorkerRuntime) OpenSession(ctx context.Context, plugin LocalPlugin, poli
 		responseMaxBytes: envInt("WANDERER_PLUGIN_WORKER_RESPONSE_BYTES", defaultWorkerResponseMaxBytes),
 		sessionTimeout:   envDuration("WANDERER_PLUGIN_WORKER_SESSION_TIMEOUT", defaultWorkerSessionTimeout),
 		exportTimeout:    envDuration("WANDERER_PLUGIN_WORKER_EXPORT_TIMEOUT", defaultWorkerExportTimeout),
+		openedAt:         time.Now(),
 		slot:             slot,
 	}
 	session.resetSessionTimerLocked()
@@ -142,22 +143,24 @@ type workerRuntimeSession struct {
 	responseMaxBytes int
 	exportTimeout    time.Duration
 	sessionTimeout   time.Duration
+	openedAt         time.Time
 	timerGeneration  uint64
 	sessionTimer     *time.Timer
 	slot             *semaphore.Weighted
 
-	mu       sync.Mutex
-	callMu   sync.Mutex
-	waitMu   sync.Mutex
-	waited   bool
-	waitErr  error
-	closed   bool
-	fatal    bool
-	fatalMsg string
+	mu         sync.Mutex
+	callMu     sync.Mutex
+	waitMu     sync.Mutex
+	waited     bool
+	waitErr    error
+	closed     bool
+	fatal      bool
+	fatalMsg   string
+	activeCall bool
 }
 
-// Renew keeps an active sync session alive between exports. An expired session
-// stays fatal so its caller can release it and open a fresh worker.
+// Renew refreshes the idle timeout, but never the worker's age. Once the soft
+// age limit is reached, the caller must recycle the worker between exports.
 func (s *workerRuntimeSession) Renew(ctx context.Context) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -170,27 +173,46 @@ func (s *workerRuntimeSession) Renew(ctx context.Context) error {
 	if s.fatal {
 		return RuntimeSessionFatalError{Err: fmt.Errorf("worker session is invalid: %s", s.fatalMsg)}
 	}
+	if s.activeCall {
+		return nil
+	}
+	if time.Since(s.openedAt) >= s.sessionTimeout {
+		return ErrRuntimeSessionRecycleRequired
+	}
 	s.resetSessionTimerLocked()
 	return nil
 }
 
-func (s *workerRuntimeSession) resetSessionTimerLocked() {
+func (s *workerRuntimeSession) stopSessionTimerLocked() {
 	if s.sessionTimer != nil {
 		s.sessionTimer.Stop()
+		s.sessionTimer = nil
 	}
 	s.timerGeneration++
+}
+
+func (s *workerRuntimeSession) resetSessionTimerLocked() {
+	s.stopSessionTimerLocked()
+	if s.closed || s.fatal || s.activeCall {
+		return
+	}
 	generation := s.timerGeneration
 	s.sessionTimer = time.AfterFunc(s.sessionTimeout, func() {
-		s.mu.Lock()
-		// A previous timer may already be firing when renewal stops it.
-		if s.closed || s.fatal || generation != s.timerGeneration {
-			s.mu.Unlock()
-			return
-		}
-		s.fatal, s.fatalMsg = true, "worker session timeout"
-		s.mu.Unlock()
-		s.kill()
+		s.expireSession(generation)
 	})
+}
+
+func (s *workerRuntimeSession) expireSession(generation uint64) {
+	s.mu.Lock()
+	// Stop cannot cancel a callback already waiting for mu. Renewal, an active
+	// export and Close must all invalidate that callback before releasing mu.
+	if s.closed || s.fatal || s.activeCall || generation != s.timerGeneration {
+		s.mu.Unlock()
+		return
+	}
+	s.fatal, s.fatalMsg = true, "worker session timeout"
+	s.mu.Unlock()
+	s.kill()
 }
 
 func (s *workerRuntimeSession) Call(ctx context.Context, export string, input []byte, options RuntimeCallOptions) ([]byte, error) {
@@ -207,7 +229,16 @@ func (s *workerRuntimeSession) Call(ctx context.Context, export string, input []
 		s.mu.Unlock()
 		return nil, RuntimeSessionFatalError{Err: fmt.Errorf("worker session is invalid: %s", msg)}
 	}
+	s.activeCall = true
+	s.stopSessionTimerLocked()
 	s.mu.Unlock()
+	defer func() {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		s.activeCall = false
+		// The export timeout/context, not the idle timer, bounds a running call.
+		s.resetSessionTimerLocked()
+	}()
 
 	callCtx, cancel := context.WithTimeout(ctx, s.exportTimeout)
 	defer cancel()
@@ -394,9 +425,7 @@ func (s *workerRuntimeSession) Close(ctx context.Context) error {
 	}
 	s.closed = true
 	fatal := s.fatal
-	if s.sessionTimer != nil {
-		s.sessionTimer.Stop()
-	}
+	s.stopSessionTimerLocked()
 	s.mu.Unlock()
 	if !fatal {
 		_ = writeWorkerMessage(s.stdin, s.requestMaxBytes, workerMessage{Type: workerMessageShutdown})

@@ -8,9 +8,18 @@ import (
 
 var ErrRuntimeUnavailable = errors.New("plugin runtime is not available")
 
+// ErrRuntimeSessionRecycleRequired asks a caller to close and reopen a healthy
+// session between exports, without interrupting an export already in progress.
+var ErrRuntimeSessionRecycleRequired = errors.New("plugin runtime session requires recycling")
+
 const (
 	DefaultMaxHostRequestsPerCall  = 64
 	AbsoluteMaxHostRequestsPerCall = 512
+
+	SessionRefreshMaxHostRequestsPerCall = 4
+	ListMaxHostRequestsPerCall           = 8
+	TrailSendMaxHostRequestsPerCall      = 8
+	DetailMaxHostRequestsPerCall         = 32
 )
 
 type RuntimeCallOptions struct {
@@ -27,8 +36,9 @@ type RuntimeSession interface {
 	Close(ctx context.Context) error
 }
 
-// RuntimeSessionRenewal lets a long-lived caller refresh a session between
-// exports without changing the budget of an individual export.
+// RuntimeSessionRenewal lets a long-lived caller refresh an idle session between
+// exports without changing the budget of an individual export. Renew can return
+// ErrRuntimeSessionRecycleRequired when the caller should close and reopen it.
 type RuntimeSessionRenewal interface {
 	Renew(ctx context.Context) error
 }

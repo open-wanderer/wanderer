@@ -261,7 +261,7 @@ func injectSessionAuth(ctx context.Context, input AuthInjectionInput, authContex
 		return err
 	}
 	var output []byte
-	callOptions := RuntimeCallOptions{MaxHostRequests: 4}
+	callOptions := RuntimeCallOptions{MaxHostRequests: SessionRefreshMaxHostRequestsPerCall}
 	if input.Session != nil {
 		output, err = input.Session.Call(ctx, authContext.Refresh.Function, inputBytes, callOptions)
 	} else {

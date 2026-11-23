@@ -152,6 +152,7 @@ func TestSyncStatusSaveKeepsChangesMadeDuringTheSync(t *testing.T) {
 type reopenTestRuntime struct {
 	opened  int
 	session pluginsystem.RuntimeSession
+	onOpen  func()
 }
 
 func (r *reopenTestRuntime) Call(context.Context, pluginsystem.LocalPlugin, string, []byte, pluginsystem.RequestPolicyContext, pluginsystem.RuntimeCallOptions) ([]byte, error) {
@@ -160,7 +161,151 @@ func (r *reopenTestRuntime) Call(context.Context, pluginsystem.LocalPlugin, stri
 
 func (r *reopenTestRuntime) OpenSession(context.Context, pluginsystem.LocalPlugin, pluginsystem.RequestPolicyContext) (pluginsystem.RuntimeSession, error) {
 	r.opened++
+	if r.onOpen != nil {
+		r.onOpen()
+	}
 	return r.session, nil
+}
+
+type recyclingSyncTestSession struct {
+	pluginsystem.RuntimeSession
+	renewals     int
+	recycleAfter int
+}
+
+func (s *recyclingSyncTestSession) Renew(context.Context) error {
+	s.renewals++
+	if s.renewals > s.recycleAfter {
+		return pluginsystem.ErrRuntimeSessionRecycleRequired
+	}
+	return nil
+}
+
+func TestPluginSyncStopsAfterInstanceChangesDuringReopen(t *testing.T) {
+	for _, change := range []string{"disabled", "deleted"} {
+		for _, phase := range []string{"list", "list-retry", "detail", "backfill"} {
+			t.Run(change+"/"+phase, func(t *testing.T) {
+				f := newPluginInstanceFixture(t)
+				instanceID := f.instance(t, true, time.Time{})
+				instance := f.stored(t, instanceID)
+				trails := core.NewBaseCollection("trails")
+				trails.Fields.Add(&core.TextField{Name: "name"})
+				refs := core.NewBaseCollection("trail_external_reference")
+				refs.Fields.Add(&core.TextField{Name: "trail"}, &core.TextField{Name: "user"}, &core.TextField{Name: "provider"},
+					&core.TextField{Name: "external_id"}, &core.TextField{Name: "provider_category"},
+					&core.DateField{Name: "provider_category_checked_at"}, &core.AutodateField{Name: "created", OnCreate: true})
+				for _, collection := range []*core.Collection{trails, refs} {
+					if err := f.app.Save(collection); err != nil {
+						t.Fatal(err)
+					}
+				}
+				var hostConfig map[string]any
+				var ref *core.Record
+				var refBefore []byte
+				wantTrails := 0
+				if phase == "backfill" {
+					wantTrails = 1
+					hostConfig = map[string]any{"categoryMapping": map[string]any{"Ride": "Biking"}}
+					trail := core.NewRecord(trails)
+					trail.Set("name", "Existing trail")
+					if err := f.app.Save(trail); err != nil {
+						t.Fatal(err)
+					}
+					ref = core.NewRecord(refs)
+					ref.Load(map[string]any{"trail": trail.Id, "user": f.ownerID, "provider": "komoot", "external_id": "one"})
+					if err := f.app.Save(ref); err != nil {
+						t.Fatal(err)
+					}
+					var err error
+					refBefore, err = json.Marshal(ref)
+					if err != nil {
+						t.Fatal(err)
+					}
+				}
+				list, err := json.Marshal(pluginSystemListOutput{Items: []pluginsystem.TrailSummary{
+					{Source: pluginsystem.TrailImportSource{Provider: "komoot", ExternalID: "one"}},
+				}})
+				if err != nil {
+					t.Fatal(err)
+				}
+				lists, details, replacementCalls := 0, 0, 0
+				call := func(_ context.Context, export string, _ []byte) ([]byte, error) {
+					if export == "list" {
+						lists++
+						return list, nil
+					}
+					details++
+					// A missing guard must fail on the call count, not panic later
+					// because this test deliberately supplies no import actor.
+					return nil, errors.New("unexpected detail after switch-off")
+				}
+				replacement := syncLimitTestSession{call: func(ctx context.Context, export string, input []byte) ([]byte, error) {
+					replacementCalls++
+					return call(ctx, export, input)
+				}}
+				runtime := &reopenTestRuntime{session: replacement, onOpen: func() {
+					fresh := f.stored(t, instanceID)
+					if change == "deleted" {
+						if err := f.app.Delete(fresh); err != nil {
+							t.Fatal(err)
+						}
+					} else {
+						fresh.Set("enabled", false)
+						fresh.Set("auth", map[string]any{})
+						if err := f.app.Save(fresh); err != nil {
+							t.Fatal(err)
+						}
+					}
+				}}
+				old := &recyclingSyncTestSession{RuntimeSession: syncLimitTestSession{call: call}, recycleAfter: 1}
+				if phase == "list" {
+					old.recycleAfter = 0
+				}
+				if phase == "list-retry" {
+					old.RuntimeSession = syncLimitTestSession{call: func(context.Context, string, []byte) ([]byte, error) {
+						lists++
+						return nil, pluginsystem.RuntimeSessionFatalError{Err: errors.New("worker died")}
+					}}
+				}
+				sessions := &pluginSyncRuntimeSession{runtime: runtime, session: old, openGeneration: 1}
+				defer sessions.close(context.Background())
+				_, err = syncPluginCapability(t.Context(), f.app, nil, sessions, pluginsystem.LocalPlugin{},
+					pluginsystem.CapabilityManifest{Export: "list"}, pluginsystem.CapabilityManifest{Export: "detail"},
+					instance, nil, map[string]any{"password": "stale-credentials"}, nil, hostConfig, false, false)
+				wantLists := 1
+				if phase == "list" {
+					wantLists = 0
+				}
+				if !errors.Is(err, errPluginInstanceSwitchedOff) || runtime.opened != 1 || lists != wantLists || details != 0 || replacementCalls != 0 {
+					t.Fatalf("export after switch-off during reopen: opened=%d list=%d detail=%d replacement=%d err=%v", runtime.opened, lists, details, replacementCalls, err)
+				}
+				saved, err := f.app.FindAllRecords("trails")
+				if err != nil || len(saved) != wantTrails {
+					t.Fatalf("unexpected imports: trails=%d err=%v", len(saved), err)
+				}
+				if ref != nil {
+					fresh, err := f.app.FindRecordById(refs.Id, ref.Id)
+					if err != nil {
+						t.Fatal(err)
+					}
+					after, err := json.Marshal(fresh)
+					if err != nil || string(after) != string(refBefore) {
+						t.Fatalf("category backfill changed after switch-off: before=%s after=%s err=%v", refBefore, after, err)
+					}
+				}
+			})
+		}
+	}
+}
+
+func TestPluginSyncEnabledGuardDoesNotLookUpAnUnchangedSession(t *testing.T) {
+	// This fake contains a func and cannot be compared via interface identity.
+	sessions := &pluginSyncRuntimeSession{session: syncLimitTestSession{call: func(context.Context, string, []byte) ([]byte, error) {
+		panic("no export expected")
+	}}, openGeneration: 1}
+	if err := sessions.ensureOpenWhileEnabled(t.Context(), nil, "no-lookup-expected"); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestSyncCapabilityHandlesSessionAndSwitchOff(t *testing.T) {

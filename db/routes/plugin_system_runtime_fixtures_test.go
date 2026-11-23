@@ -12,6 +12,9 @@ import (
 	"os"
 	"path/filepath"
 	"pocketbase/pluginsystem"
+	"reflect"
+	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -56,6 +59,16 @@ func TestPluginSyncWorkerRPCFixture(t *testing.T) {
 		if err != nil {
 			os.Exit(2)
 		}
+		phase := os.Getenv("WANDERER_SYNC_TTL_PHASE")
+		if strings.HasPrefix(phase, "recycle-") || phase == "slow-detail" {
+			var request struct {
+				Auth    map[string]any `json:"auth"`
+				Options map[string]any `json:"options"`
+			}
+			if err := json.Unmarshal(input, &request); err != nil || request.Auth["password"] != "keep-auth" || request.Options["after"] != "keep-options" {
+				os.Exit(2)
+			}
+		}
 		if path := os.Getenv("WANDERER_SYNC_RPC_LOG"); path != "" {
 			file, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
 			if err != nil {
@@ -71,28 +84,38 @@ func TestPluginSyncWorkerRPCFixture(t *testing.T) {
 		var output any
 		switch message.Data.Export {
 		case "list":
-			if os.Getenv("WANDERER_SYNC_TTL_PHASE") == "list" {
+			if phase == "list" || phase == "recycle-list" {
 				var request pluginSystemListInput
 				_ = json.Unmarshal(input, &request)
 				if request.State["page"] == nil {
 					output = pluginSystemListOutput{Items: []pluginsystem.TrailSummary{{Kind: kind, Source: pluginsystem.TrailImportSource{Provider: "hikes", ExternalID: "first"}}}, State: map[string]any{"page": 2}, HasMore: true}
-				} else {
+				} else if request.State["page"] == float64(2) {
 					output = pluginSystemListOutput{Items: []pluginsystem.TrailSummary{{Kind: kind, Source: pluginsystem.TrailImportSource{Provider: "hikes", ExternalID: "second"}}}}
+				} else {
+					os.Exit(2)
 				}
 				break
 			}
-			output = pluginSystemListOutput{Items: []pluginsystem.TrailSummary{
+			items := []pluginsystem.TrailSummary{
 				{Kind: kind, Source: pluginsystem.TrailImportSource{Provider: "hikes", ExternalID: "first"}},
 				{Kind: kind, Source: pluginsystem.TrailImportSource{Provider: "hikes", ExternalID: "second"}},
-			}}
+			}
+			if phase == "recycle-detail" || phase == "recycle-backfill" {
+				items = append(items, pluginsystem.TrailSummary{Kind: kind, Source: pluginsystem.TrailImportSource{Provider: "hikes", ExternalID: "third"}})
+			}
+			output = pluginSystemListOutput{Items: items}
 		case "detail":
-			if os.Getenv("WANDERER_SYNC_TTL_PHASE") == "renew" {
+			if phase == "renew" || phase == "recycle-detail" || phase == "recycle-backfill" {
 				time.Sleep(225 * time.Millisecond)
+			}
+			if phase == "slow-detail" || phase == "recycle-list" {
+				time.Sleep(600 * time.Millisecond)
 			}
 			var request pluginSystemDetailInput
 			_ = json.Unmarshal(input, &request)
 			output = pluginSystemDetailOutput{Item: pluginsystem.TrailImport{Name: "Imported " + request.Summary.Source.ExternalID, Kind: kind, Source: request.Summary.Source,
-				Track: pluginsystem.Track{Format: "gpx", ContentBase64: base64.StdEncoding.EncodeToString([]byte(syncWorkerTrack))}}}
+				Metadata: map[string]any{"providerCategory": "Ride"},
+				Track:    pluginsystem.Track{Format: "gpx", ContentBase64: base64.StdEncoding.EncodeToString([]byte(syncWorkerTrack))}}}
 		default:
 			os.Exit(2)
 		}
@@ -115,7 +138,10 @@ func syncTestWorker(t *testing.T) string {
 	}
 	path := filepath.Join(t.TempDir(), "worker")
 	quoted := "'" + strings.ReplaceAll(executable, "'", "'\"'\"'") + "'"
-	if err := os.WriteFile(path, []byte("#!/bin/sh\nexport WANDERER_SYNC_TEST_RPC=1\nexec "+quoted+" -test.run='^TestPluginSyncWorkerRPCFixture$'\n"), 0o700); err != nil {
+	fixtureName := runtime.FuncForPC(reflect.ValueOf(TestPluginSyncWorkerRPCFixture).Pointer()).Name()
+	fixtureName = fixtureName[strings.LastIndex(fixtureName, ".")+1:]
+	pattern := "^" + regexp.QuoteMeta(fixtureName) + "$"
+	if err := os.WriteFile(path, []byte("#!/bin/sh\nexport WANDERER_SYNC_TEST_RPC=1\nexec "+quoted+" -test.run='"+pattern+"'\n"), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("WANDERER_PLUGIN_WORKER_BIN", path)

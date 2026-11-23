@@ -267,6 +267,21 @@ func TestEffectiveMaxHostRequestsUsesDefaultAndAbsoluteCeiling(t *testing.T) {
 	}
 }
 
+func TestHostRequestBudgetConstantsMatchDocumentedContract(t *testing.T) {
+	for name, budget := range map[string]struct{ got, want int }{
+		"session refresh": {SessionRefreshMaxHostRequestsPerCall, 4},
+		"list":            {ListMaxHostRequestsPerCall, 8},
+		"trail send":      {TrailSendMaxHostRequestsPerCall, 8},
+		"detail":          {DetailMaxHostRequestsPerCall, 32},
+		"default":         {DefaultMaxHostRequestsPerCall, 64},
+		"absolute":        {AbsoluteMaxHostRequestsPerCall, 512},
+	} {
+		if budget.got != budget.want {
+			t.Errorf("%s budget = %d, want %d", name, budget.got, budget.want)
+		}
+	}
+}
+
 func TestWorkerCallFailsWhenPluginSwallowsHostRequestBudgetError(t *testing.T) {
 	var workerOutput bytes.Buffer
 	writeWorkerHostRequestForTest(t, &workerOutput)

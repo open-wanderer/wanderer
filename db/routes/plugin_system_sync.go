@@ -332,10 +332,11 @@ type capabilitySyncResult struct {
 }
 
 type pluginSyncRuntimeSession struct {
-	runtime pluginsystem.Runtime
-	plugin  pluginsystem.LocalPlugin
-	policy  pluginsystem.RequestPolicyContext
-	session pluginsystem.RuntimeSession
+	runtime        pluginsystem.Runtime
+	plugin         pluginsystem.LocalPlugin
+	policy         pluginsystem.RequestPolicyContext
+	session        pluginsystem.RuntimeSession
+	openGeneration uint64
 }
 
 func (s *pluginSyncRuntimeSession) open(ctx context.Context) error {
@@ -345,6 +346,7 @@ func (s *pluginSyncRuntimeSession) open(ctx context.Context) error {
 		return err
 	}
 	s.session = session
+	s.openGeneration++
 	return nil
 }
 
@@ -354,11 +356,24 @@ func (s *pluginSyncRuntimeSession) ensureOpen(ctx context.Context) error {
 	}
 	if renewable, ok := s.session.(pluginsystem.RuntimeSessionRenewal); ok {
 		if err := renewable.Renew(ctx); err != nil {
-			if pluginsystem.IsRuntimeSessionFatalError(err) {
+			if errors.Is(err, pluginsystem.ErrRuntimeSessionRecycleRequired) || pluginsystem.IsRuntimeSessionFatalError(err) {
 				return s.reopen(ctx)
 			}
 			return err
 		}
+	}
+	return nil
+}
+
+func (s *pluginSyncRuntimeSession) ensureOpenWhileEnabled(ctx context.Context, app core.App, instanceID string) error {
+	generation := s.openGeneration
+	if err := s.ensureOpen(ctx); err != nil {
+		return err
+	}
+	// Re-admission can wait minutes. Recheck only after a successful session
+	// replacement, before exporting with the credentials captured by this sync.
+	if s.openGeneration != generation && pluginInstanceSwitchedOff(app, instanceID) {
+		return errPluginInstanceSwitchedOff
 	}
 	return nil
 }
@@ -391,7 +406,7 @@ func syncPluginCapability(ctx context.Context, app core.App, client meilisearch.
 		providerCategoryBackfillsRemaining = defaultPluginProviderCategoryBackfillLimit
 	}
 	for batch := 0; hasMore && batch < defaultPluginSyncMaxBatches; batch++ {
-		if err := sessions.ensureOpen(ctx); err != nil {
+		if err := sessions.ensureOpenWhileEnabled(ctx, app, instance.Id); err != nil {
 			return nil, err
 		}
 		input := pluginSystemListInput{
@@ -408,14 +423,17 @@ func syncPluginCapability(ctx context.Context, app core.App, client meilisearch.
 		if err != nil {
 			return nil, err
 		}
-		outputBytes, err := sessions.session.Call(ctx, capability.Export, inputBytes, pluginsystem.RuntimeCallOptions{MaxHostRequests: 8})
+		outputBytes, err := sessions.session.Call(ctx, capability.Export, inputBytes, pluginsystem.RuntimeCallOptions{MaxHostRequests: pluginsystem.ListMaxHostRequestsPerCall})
 		if err != nil && pluginsystem.IsRuntimeSessionFatalError(err) && ctx.Err() == nil {
-			// The worker ends a session after WANDERER_PLUGIN_WORKER_SESSION_TIMEOUT,
-			// which a long sync can outlast. Reopen it once, as for detail calls.
+			// An idle timeout or worker failure can still race with ensureOpen.
+			// Retry the list once with the same host-owned page cursor.
 			if reopenErr := sessions.reopen(ctx); reopenErr != nil {
 				return nil, reopenErr
 			}
-			outputBytes, err = sessions.session.Call(ctx, capability.Export, inputBytes, pluginsystem.RuntimeCallOptions{MaxHostRequests: 8})
+			if pluginInstanceSwitchedOff(app, instance.Id) {
+				return nil, errPluginInstanceSwitchedOff
+			}
+			outputBytes, err = sessions.session.Call(ctx, capability.Export, inputBytes, pluginsystem.RuntimeCallOptions{MaxHostRequests: pluginsystem.ListMaxHostRequestsPerCall})
 		}
 		if err != nil {
 			return nil, err
@@ -485,7 +503,7 @@ func syncPluginCapability(ctx context.Context, app core.App, client meilisearch.
 				}
 				continue
 			}
-			if err := sessions.ensureOpen(ctx); err != nil {
+			if err := sessions.ensureOpenWhileEnabled(ctx, app, instance.Id); err != nil {
 				return nil, err
 			}
 			item, err := pluginDetail(ctx, sessions.session, plugin, detailCapability, instance, auth, pluginConfig, summary)
@@ -570,7 +588,7 @@ func backfillProviderCategoryDuringSync(ctx context.Context, app core.App, sessi
 		return false, nil
 	}
 
-	if err := sessions.ensureOpen(ctx); err != nil {
+	if err := sessions.ensureOpenWhileEnabled(ctx, app, instance.Id); err != nil {
 		return false, err
 	}
 	item, err := pluginDetail(ctx, sessions.session, plugin, detailCapability, instance, auth, pluginConfig, summary)
@@ -606,7 +624,7 @@ func pluginDetail(ctx context.Context, session pluginsystem.RuntimeSession, plug
 	if err != nil {
 		return pluginsystem.TrailImport{}, err
 	}
-	outputBytes, err := session.Call(ctx, capability.Export, inputBytes, pluginsystem.RuntimeCallOptions{MaxHostRequests: 32})
+	outputBytes, err := session.Call(ctx, capability.Export, inputBytes, pluginsystem.RuntimeCallOptions{MaxHostRequests: pluginsystem.DetailMaxHostRequestsPerCall})
 	if err != nil {
 		return pluginsystem.TrailImport{}, err
 	}
