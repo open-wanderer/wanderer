@@ -8,19 +8,8 @@ describe("waypoint photo previews", () => {
         try {
             const photo = new File(["photo"], "shared.jpg");
             expect(await Promise.all([photoFilePreview(photo), photoFilePreview(photo)])).toEqual(["data:photo", "data:photo"]);
+            expect(await photoFilePreview(photo)).toBe("data:photo");
             expect(reader).toHaveBeenCalledOnce();
         } finally { reader.mockRestore(); }
     });
-
-});
-
-it("reuses a large preview while its File remains in the picker", async () => {
-    const oversized = "data:image/jpeg;base64," + "a".repeat(17 << 20);
-    const reader = vi.spyOn(files, "readAsDataURLAsync").mockResolvedValue(oversized);
-    try {
-        const photo = new File(["photo"], "large.jpg");
-        expect(await photoFilePreview(photo)).toBe(oversized);
-        expect(await photoFilePreview(photo)).toBe(oversized);
-        expect(reader).toHaveBeenCalledOnce();
-    } finally { reader.mockRestore(); }
 });

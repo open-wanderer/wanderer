@@ -116,7 +116,11 @@
     import { validator } from "#lib/vendor/felte-validator-zod/index.ts";
     import cryptoRandomString from "crypto-random-string";
     import { createForm } from "felte";
-    import { copyTrailEditorValues } from "#lib/util/trail_editor_util.ts";
+    import {
+        completionDateValue,
+        copyTrailEditorValues,
+        initialTrailFormValues,
+    } from "#lib/util/trail_editor_util.ts";
     import * as M from "maplibre-gl";
     import { onMount, untrack } from "svelte";
     import { _, locale } from "svelte-i18n";
@@ -293,23 +297,18 @@
         );
     }
 
-    const getInitialFormValues = () => ({
-        ...copyTrailEditorValues(data.trail),
-        completed_at: completionDateValue(data.trail.completed_at),
-        public: data.trail.id
-            ? data.trail.public
-            : page.data.settings?.privacy?.trails === "public",
-        category: defaultCategoryId(),
-        subcategory: data.trail.subcategory || "",
-    });
-
     const {
         form,
         errors,
         data: formData,
         setFields,
     } = createForm<z.infer<typeof ClientTrailCreateSchema>>({
-        initialValues: getInitialFormValues(),
+        initialValues: untrack(() =>
+            initialTrailFormValues(data.trail, {
+                public: page.data.settings?.privacy?.trails === "public",
+                category: defaultCategoryId(),
+            }),
+        ),
         extend: [
             validator({
                 schema: ClientTrailCreateSchema,
@@ -2207,10 +2206,6 @@
             initRouteAnchors(valhallaStore.route, true);
         }
         updateTrailWithRouteData();
-    }
-
-    function completionDateValue(value?: string): string | undefined {
-        return value?.substring(0, 10) || undefined;
     }
 
     function ensureCompletedAt(defaultDate?: string) {
