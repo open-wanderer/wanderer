@@ -4,6 +4,7 @@ import {
   type TraceRouteShapePoint,
 } from '#lib/models/api/valhalla_trace_route_schema.ts';
 import { getValhallaUrl } from '#lib/server/valhalla.ts';
+import { traceCostingOptions } from '#lib/server/valhalla_trace.ts';
 import { handleError } from '#lib/util/api_util.ts';
 import { decodePolyline } from '#lib/util/polyline_util.ts';
 import { error, json, type RequestEvent } from '@sveltejs/kit';
@@ -85,10 +86,12 @@ export async function POST(event: RequestEvent) {
 
     const body = TraceRouteRequestSchema.parse(await event.request.json());
 
+    const costingOptions = traceCostingOptions(body.costing);
     const valhallaReq = {
       shape: body.shape,
       costing: body.costing,
       shape_match: "map_snap",
+      ...(costingOptions && { costing_options: costingOptions }),
     };
 
     const res = await event.fetch(traceRouteUrl, {
@@ -108,6 +111,10 @@ export async function POST(event: RequestEvent) {
       return json({ message: "valhalla_error", detail: "unexpected response shape" }, { status: 502 });
     }
 
+    // Only the first matched piece: `alternates` holds the pieces after each match
+    // discontinuity, and joining them would bridge every gap with a straight line that
+    // "Follow roads" then saves as the track. The app's snapResultAcceptable rejects a
+    // materially truncated result instead.
     const shape: TraceRouteShapePoint[] = [];
 
     for (const leg of trip.legs) {

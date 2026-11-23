@@ -1,9 +1,8 @@
 import { handleError } from '#lib/util/api_util.ts';
-import { decodePolyline } from '#lib/util/polyline_util.ts';
 import { NavigateRequestSchema } from '#lib/models/api/valhalla_navigate_schema.ts';
 import { error, json, type RequestEvent } from '@sveltejs/kit';
-import type { NavigateManeuver } from '#lib/models/api/valhalla_navigate_schema.ts';
 import { getValhallaUrl } from '#lib/server/valhalla.ts';
+import { stitchNavigateTrips, traceCostingOptions, traceRouteTrips } from '#lib/server/valhalla_trace.ts';
 
 /**
  * @swagger
@@ -92,11 +91,13 @@ export async function POST(event: RequestEvent) {
 
     const body = NavigateRequestSchema.parse(await event.request.json());
 
+    const costingOptions = traceCostingOptions(body.costing);
     const valhallaReq = {
       shape: body.shape,
       costing: body.costing,
       directions_type: "instructions",
       shape_match: "map_snap",
+      ...(costingOptions && { costing_options: costingOptions }),
     };
 
     const res = await event.fetch(navigateUrl, {
@@ -111,33 +112,12 @@ export async function POST(event: RequestEvent) {
     }
 
     const data = await res.json();
-    const trip = data?.trip;
-    if (!trip?.legs) {
+    const trips = traceRouteTrips(data);
+    if (trips.length === 0) {
       return json({ message: "valhalla_error", detail: "unexpected response shape" }, { status: 502 });
     }
 
-    const shape: [number, number][] = [];
-    const maneuvers: NavigateManeuver[] = [];
-
-    for (const leg of trip.legs) {
-      const offset = shape.length;
-
-      for (const [lng, lat] of decodePolyline(leg.shape)) {
-        shape.push([lat, lng]);
-      }
-
-      for (const m of leg.maneuvers ?? []) {
-        maneuvers.push({
-          instruction: m.instruction,
-          length: m.length,
-          begin_shape_index: offset + m.begin_shape_index,
-          bearing: m.bearing_after ?? m.bearing_before ?? 0,
-          type: m.type ?? 0,
-        });
-      }
-    }
-
-    return json({ maneuvers, shape });
+    return json(stitchNavigateTrips(trips));
   } catch (e: any) {
     return handleError(e);
   }
