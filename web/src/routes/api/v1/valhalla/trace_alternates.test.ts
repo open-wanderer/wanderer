@@ -72,13 +72,9 @@ describe('navigate', () => {
 });
 
 describe('trace-route', () => {
-  it('returns only the first matched piece and ignores the alternates', async () => {
+  it('returns the snapped shape when the whole trace matched in one piece', async () => {
     const first = line(3, 0);
-    const second = line(2, 10);
-    const e = event(requestBody, {
-      trip: trip(first, [maneuver(1, 0), maneuver(4, 2)]),
-      alternates: [{ trip: trip(second, [maneuver(2, 0), maneuver(4, 1)]) }],
-    });
+    const e = event(requestBody, { trip: trip(first, [maneuver(1, 0), maneuver(4, 2)]) });
 
     const response = await traceRoute(e);
 
@@ -86,6 +82,18 @@ describe('trace-route', () => {
     expect(await response.json()).toEqual({
       shape: first.map(([lat, lon]) => ({ lat, lon })),
     });
+  });
+
+  it('answers 502 partial_match when the match broke into pieces', async () => {
+    const e = event(requestBody, {
+      trip: trip(line(3, 0), [maneuver(1, 0), maneuver(4, 2)]),
+      alternates: [{ trip: trip(line(2, 10), [maneuver(2, 0), maneuver(4, 1)]) }],
+    });
+
+    const response = await traceRoute(e);
+
+    expect(response.status).toBe(502);
+    expect(await response.json()).toEqual({ message: 'valhalla_error', detail: 'partial_match' });
   });
 
   it('answers 502 when Valhalla returned only alternates', async () => {
