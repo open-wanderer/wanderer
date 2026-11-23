@@ -478,6 +478,7 @@
   "password-updated": "Contraseña actualizada",
   "passwords-must-match": "Las contraseñas tienen que coincidir",
   "photos": "Fotos",
+  "waypoint-photos-skipped-limits": "{n, plural, one {# photo was skipped} other {# photos were skipped}}. Photos must be at most {size} MiB and a waypoint can hold at most {max} photos.",
   "pick-a-trail": "Escoge una ruta",
   "planned-a-trail": "planificada una ruta",
   "planned-tours": "Visitas planificadas",
@@ -777,5 +778,15 @@
   "settings-search-help": "Enable a switch to show that filter under “More filters”; otherwise it appears directly in general search.",
   "settings-search-placement": "Search filter placement",
   "settings-search-error": "Could not save the filter placement. Please try again.",
-  "list-search-placeholder": "Search your lists"
+  "list-search-placeholder": "Search your lists",
+  "background-tasks-summary": "Remaining {remaining} - Processed {processed}/{total}",
+  "background-tasks-uploaded": "Uploaded",
+  "background-tasks-errors": "Error",
+  "background-tasks-duplicates": "Duplicates",
+  "background-tasks-dismiss-completed": "Dismiss completed",
+  "upload-duplicate-detail": "Duplicate:",
+  "upload-cancel": "Cancel upload",
+  "upload-retry": "Re-upload",
+  "upload-force": "Force upload",
+  "minimize": "Minimize"
 }
