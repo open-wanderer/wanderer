@@ -1,4 +1,4 @@
-import type { MergeSettings } from "#lib/components/trail/trail_merge_modal.svelte";
+import type { MergeSettings } from "#lib/components/trail/trail_merge_types.ts";
 import type { Trail } from "#lib/models/trail.ts";
 import { APIError } from "#lib/util/api_util.ts";
 import { get } from "svelte/store";

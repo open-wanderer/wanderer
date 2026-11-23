@@ -3,7 +3,7 @@
     import { trails_upload } from "#lib/stores/trail_store.ts";
     import {
         processUploadQueue,
-        uploadStore,
+        enqueueUpload,
         type Upload,
     } from "#lib/stores/upload_store.svelte.ts";
     import { validator } from "#lib/vendor/felte-validator-zod/index.ts";
@@ -58,7 +58,7 @@
                     status: "enqueued",
                     function: trails_upload,
                 };
-                uploadStore.enqueuedUploads.push(u);
+                enqueueUpload(u);
 
                 await processUploadQueue();
                 modal.closeModal();

@@ -4,7 +4,7 @@
     import { getFileURL, isVideoURL } from "#lib/util/file_util.ts";
     import { formatDistance } from "#lib/util/format_util.ts";
     import { _ } from "svelte-i18n";
-    import PhotoGallery from "../photo_gallery.svelte";
+    import PhotoGallery from "../photo/photo_gallery.svelte";
 
     type Props = {
         trail: Trail;

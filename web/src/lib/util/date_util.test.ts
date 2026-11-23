@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
     calendarMonthForDateRange,
-    convertDateTimeOriginalToDate,
     convertGPSTimestampToDate,
     dateInputValue,
     datePeriodRange,
@@ -98,6 +97,13 @@ describe("date utilities", () => {
 });
 
 describe("convertGPSTimestampToDate", () => {
+    it.each([
+        ["0000:00:00", [0, 0, 0]], ["2026:02:30", [0, 0, 0]],
+        ["2026:13:01", [0, 0, 0]], ["2026:10:03", [24, 0, 0]],
+        ["2026:10:03", [0, 60, 0]], ["2026:10:03", [0, 0, Infinity]],
+    ])("rejects an invalid GPS date or time: %s %j", (date, time) => {
+        expect(convertGPSTimestampToDate(date, time)).toBeUndefined();
+    });
     it("reads the GPS date and time as UTC", () => {
         expect(convertGPSTimestampToDate("2026:10:03", [14, 6, 33])?.toISOString()).toBe("2026-10-03T14:06:33.000Z");
     });
@@ -105,21 +111,5 @@ describe("convertGPSTimestampToDate", () => {
     it("ignores missing tags", () => {
         expect(convertGPSTimestampToDate(undefined, [14, 6, 33])).toBeUndefined();
         expect(convertGPSTimestampToDate("2026:10:03", undefined)).toBeUndefined();
-    });
-});
-
-describe("convertDateTimeOriginalToDate", () => {
-    it("converts local time with its offset to UTC", () => {
-        expect(convertDateTimeOriginalToDate("2026:10:03 10:06:33", "-04:00")?.toISOString()).toBe("2026-10-03T14:06:33.000Z");
-        expect(convertDateTimeOriginalToDate("2026:10:03 01:30:00", "+05:30")?.toISOString()).toBe("2026-10-02T20:00:00.000Z");
-    });
-
-    it("ignores a local time without an offset", () => {
-        expect(convertDateTimeOriginalToDate("2026:10:03 10:06:33", undefined)).toBeUndefined();
-    });
-
-    it("ignores malformed values", () => {
-        expect(convertDateTimeOriginalToDate("    :  :     :  :  ", "-04:00")).toBeUndefined();
-        expect(convertDateTimeOriginalToDate("2026:10:03 10:06:33", "Z")).toBeUndefined();
     });
 });

@@ -1,6 +1,7 @@
 import { RecordListOptionsSchema } from '#lib/models/api/base_schema.ts';
 import { TrailCreateSchema } from '#lib/models/api/trail_schema.ts';
 import type { Trail } from '#lib/models/trail.ts';
+import { completeOwnerExportChildren } from '#lib/server/trail_export_response.ts';
 import { withTrailPreferencePocketBaseFilter } from '#lib/server/category_preference_filter.ts';
 import { Collection, create, handleError } from '#lib/util/api_util.ts';
 import type { RequestEvent } from '@sveltejs/kit';
@@ -34,9 +35,17 @@ import type { RequestEvent } from '@sveltejs/kit';
  *         name: expand
  *         schema:
  *           type: string
+ *       - in: query
+ *         name: export
+ *         description: Export the authenticated owner's trails, including hidden discovery categories. Uses ascending ID order and up to 100 records per page.
+ *         schema:
+ *           type: string
+ *           enum: [owned]
  *     responses:
  *       200:
  *         description: ListResult<Trail>
+ *       401:
+ *         description: Authentication required for an owned export
  *       400:
  *         description: Bad Request
  *       500:
@@ -47,12 +56,20 @@ export async function GET(event: RequestEvent) {
         const searchParams = Object.fromEntries(event.url.searchParams);
         const safeSearchParams = RecordListOptionsSchema.parse(searchParams);
         const { perPage, page, ...opts } = safeSearchParams;
-        const filter = await withTrailPreferencePocketBaseFilter(
+        const ownerExport = searchParams.export === "owned";
+        if (ownerExport && !event.locals.user?.actor) {
+            return Response.json({ message: "Authentication and a local actor are required" }, { status: 401 });
+        }
+        const filter = ownerExport ? event.locals.pb.filter("author = {:actor}", { actor: event.locals.user!.actor }) : await withTrailPreferencePocketBaseFilter(
             event,
             safeSearchParams.filter,
         );
+        if (ownerExport) {
+            opts.sort = "id";
+            opts.expand = "author,category,subcategory,subcategory.category,waypoints_via_trail,summit_logs_via_trail,tags";
+        }
         const listOptions = { ...opts, filter };
-        const r = (perPage ?? 0) < 0
+        const r = ownerExport ? await event.locals.pb.collection(Collection.trails).getList<Trail>(Math.max(1, page ?? 1), Math.max(1, Math.min(100, perPage ?? 100)), listOptions) : (perPage ?? 0) < 0
             ? {
                   items: await event.locals.pb
                       .collection(Collection.trails)
@@ -66,9 +83,11 @@ export async function GET(event: RequestEvent) {
                   .collection(Collection.trails)
                   .getList<Trail>(page, perPage, listOptions);
 
-        if (perPage && perPage < 0) {
+        if (!ownerExport && perPage && perPage < 0) {
             r.totalItems = r.items.length;
         }
+
+        if (ownerExport) await completeOwnerExportChildren(event, r.items);
 
         for (const t of r.items) {
             if (!t.author || !event.locals.pb.authStore.record) {

@@ -38,7 +38,7 @@
         type Merge,
     } from "#lib/stores/trail_merge_store.svelte.ts";
     import TrailMergeModal from "./trail_merge_modal.svelte";
-    import type { MergeSelection, MergeSettings } from "./trail_merge_modal.svelte";
+    import type { MergeSelection, MergeSettings } from "./trail_merge_types.ts";
     import MergeDialog from "#lib/components/trail/trail_merge_dialog.svelte";
     import { trail_merge } from "#lib/stores/trail_merge_api.ts";
     import { hasSendCapablePlugin } from "#lib/stores/plugin_store.ts";

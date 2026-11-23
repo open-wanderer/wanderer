@@ -8,14 +8,39 @@ import (
 
 var ErrRuntimeUnavailable = errors.New("plugin runtime is not available")
 
+// ErrRuntimeSessionRecycleRequired asks a caller to close and reopen a healthy
+// session between exports, without interrupting an export already in progress.
+var ErrRuntimeSessionRecycleRequired = errors.New("plugin runtime session requires recycling")
+
+const (
+	DefaultMaxHostRequestsPerCall  = 64
+	AbsoluteMaxHostRequestsPerCall = 512
+
+	SessionRefreshMaxHostRequestsPerCall = 4
+	ListMaxHostRequestsPerCall           = 8
+	TrailSendMaxHostRequestsPerCall      = 8
+	DetailMaxHostRequestsPerCall         = 32
+)
+
+type RuntimeCallOptions struct {
+	MaxHostRequests int
+}
+
 type Runtime interface {
-	Call(ctx context.Context, plugin LocalPlugin, export string, input []byte, policy RequestPolicyContext) ([]byte, error)
+	Call(ctx context.Context, plugin LocalPlugin, export string, input []byte, policy RequestPolicyContext, options RuntimeCallOptions) ([]byte, error)
 	OpenSession(ctx context.Context, plugin LocalPlugin, policy RequestPolicyContext) (RuntimeSession, error)
 }
 
 type RuntimeSession interface {
-	Call(ctx context.Context, export string, input []byte) ([]byte, error)
+	Call(ctx context.Context, export string, input []byte, options RuntimeCallOptions) ([]byte, error)
 	Close(ctx context.Context) error
+}
+
+// RuntimeSessionRenewal lets a long-lived caller refresh an idle session between
+// exports without changing the budget of an individual export. Renew can return
+// ErrRuntimeSessionRecycleRequired when the caller should close and reopen it.
+type RuntimeSessionRenewal interface {
+	Renew(ctx context.Context) error
 }
 
 type RuntimeRegistry struct {
@@ -42,7 +67,7 @@ func (r *RuntimeRegistry) RuntimeFor(plugin LocalPlugin) (Runtime, error) {
 
 type UnavailableRuntime struct{}
 
-func (UnavailableRuntime) Call(context.Context, LocalPlugin, string, []byte, RequestPolicyContext) ([]byte, error) {
+func (UnavailableRuntime) Call(context.Context, LocalPlugin, string, []byte, RequestPolicyContext, RuntimeCallOptions) ([]byte, error) {
 	return nil, ErrRuntimeUnavailable
 }
 
@@ -54,6 +79,25 @@ type PluginCallError struct {
 	PluginID    string
 	Export      string
 	PluginError PluginError
+}
+
+type HostRequestBudgetError struct {
+	Limit int
+}
+
+func (e HostRequestBudgetError) Error() string {
+	return fmt.Sprintf("plugin host request budget exceeded (limit %d)", e.Limit)
+}
+
+func EffectiveMaxHostRequests(options RuntimeCallOptions) int {
+	limit := options.MaxHostRequests
+	if limit <= 0 {
+		limit = DefaultMaxHostRequestsPerCall
+	}
+	if limit > AbsoluteMaxHostRequestsPerCall {
+		limit = AbsoluteMaxHostRequestsPerCall
+	}
+	return limit
 }
 
 func (e PluginCallError) Error() string {
