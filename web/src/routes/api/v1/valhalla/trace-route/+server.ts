@@ -4,7 +4,7 @@ import {
   type TraceRouteShapePoint,
 } from '#lib/models/api/valhalla_trace_route_schema.ts';
 import { getValhallaUrl } from '#lib/server/valhalla.ts';
-import { traceCostingOptions } from '#lib/server/valhalla_trace.ts';
+import { traceCostingOptions, traceRouteTrips } from '#lib/server/valhalla_trace.ts';
 import { handleError } from '#lib/util/api_util.ts';
 import { decodePolyline } from '#lib/util/polyline_util.ts';
 import { error, json, type RequestEvent } from '@sveltejs/kit';
@@ -68,7 +68,7 @@ import { error, json, type RequestEvent } from '@sveltejs/kit';
  *       401:
  *         description: Unauthorized
  *       502:
- *         description: Valhalla upstream error
+ *         description: Valhalla upstream error, or the trace matched only in pieces (detail `partial_match`)
  */
 export async function POST(event: RequestEvent) {
   if (!event.locals.user) {
@@ -106,18 +106,22 @@ export async function POST(event: RequestEvent) {
     }
 
     const data = await res.json();
-    const trip = data?.trip;
-    if (!trip?.legs) {
+    const trips = traceRouteTrips(data);
+    if (trips.length === 0) {
       return json({ message: "valhalla_error", detail: "unexpected response shape" }, { status: 502 });
     }
 
-    // Only the first matched piece: `alternates` holds the pieces after each match
-    // discontinuity, and joining them would bridge every gap with a straight line that
-    // "Follow roads" then saves as the track. The app's snapResultAcceptable rejects a
-    // materially truncated result instead.
+    // More than one piece means the match broke somewhere (a path missing from OSM, a
+    // turnaround). The first piece alone drops the rest of the track, and joining the pieces
+    // bridges each gap with a straight line; "Follow roads" would save either as the track.
+    // Refusing keeps the recording, since the app falls back to it on any error.
+    if (trips.length > 1) {
+      return json({ message: "valhalla_error", detail: "partial_match" }, { status: 502 });
+    }
+
     const shape: TraceRouteShapePoint[] = [];
 
-    for (const leg of trip.legs) {
+    for (const leg of trips[0].legs) {
       for (const [lng, lat] of decodePolyline(leg.shape)) {
         shape.push({ lat, lon: lng });
       }
