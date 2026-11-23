@@ -478,6 +478,7 @@
   "password-updated": "Passwort aktualisiert",
   "passwords-must-match": "Passwörter müssen übereinstimmen",
   "photos": "Fotos",
+  "waypoint-photos-skipped-limits": "{n, plural, one {# Foto wurde übersprungen} other {# Fotos wurden übersprungen}}. Fotos dürfen höchstens {size} MiB groß sein und ein Wegpunkt kann höchstens {max} Fotos enthalten.",
   "pick-a-trail": "Route auswählen",
   "planned-a-trail": "hat eine Route geplant",
   "planned-tours": "Geplante Touren",
@@ -777,5 +778,15 @@
   "settings-search-help": "Mit aktiviertem Schalter erscheint der Filter unter „Weitere Filter“, sonst direkt in der allgemeinen Suche.",
   "settings-search-placement": "Zuordnung der Suchfilter",
   "settings-search-error": "Die Zuordnung konnte nicht gespeichert werden. Bitte versuche es erneut.",
-  "list-search-placeholder": "Durchsuche deine Listen"
+  "list-search-placeholder": "Durchsuche deine Listen",
+  "background-tasks-summary": "Verbleibend {remaining} - Verarbeitet {processed}/{total}",
+  "background-tasks-uploaded": "Hochgeladen",
+  "background-tasks-errors": "Fehler",
+  "background-tasks-duplicates": "Duplikate",
+  "background-tasks-dismiss-completed": "Abgeschlossene ausblenden",
+  "upload-duplicate-detail": "Duplikat:",
+  "upload-cancel": "Upload abbrechen",
+  "upload-retry": "Erneut hochladen",
+  "upload-force": "Upload erzwingen",
+  "minimize": "Minimieren"
 }
