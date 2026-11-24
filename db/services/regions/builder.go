@@ -120,7 +120,9 @@ func BuildAll(app core.App) {
 // logged and never aborts the whole pass. The Protomaps daily build is
 // resolved once per pass rather than once per region. A pass can run for hours,
 // so each leaf is read again right before its build: one that was disabled or
-// deleted in the meantime is skipped.
+// deleted in the meantime is skipped. When no build answers within the
+// lookback window, the pass stops before touching any region and the next pass
+// tries again.
 //
 // Callers MUST already hold the sync slot (via a successful TryStartSync,
 // released with FinishSync) — this function does not claim it itself, so
@@ -142,7 +144,11 @@ func BuildAllLocked(app core.App) {
 		return
 	}
 
-	date, url := ValidProtomapsDateAndURL()
+	date, url, ok := ValidProtomapsDateAndURL()
+	if !ok {
+		log.Printf("[regions] no Protomaps daily build found in the last %d days, skipping this pass", protomapsLookbackDays)
+		return
+	}
 	for _, snapshot := range leafRecords {
 		path := snapshot.GetString("path")
 		record, err := findEnabledLeaf(app, path)

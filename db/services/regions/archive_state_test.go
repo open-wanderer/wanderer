@@ -399,6 +399,8 @@ func TestBuildPassSkipsARegionDisabledWhileItRuns(t *testing.T) {
 		return e.Next()
 	})
 
+	protomapsBuildServer(t, func(string) bool { return true })
+
 	BuildAllLocked(app)
 
 	archives, err := app.FindAllRecords("region_archives")
@@ -410,6 +412,34 @@ func TestBuildPassSkipsARegionDisabledWhileItRuns(t *testing.T) {
 	}
 	if got := calls(); len(got) != 2 {
 		t.Errorf("extracts = %v, want the vector and DEM of one region", got)
+	}
+}
+
+func TestBuildPassWithoutAProtomapsBuildLeavesRegionsAlone(t *testing.T) {
+	app := newRegionsTestApp(t)
+	calls, _ := fakeExtractor(t)
+	enabledRegion(t, app, "monaco")
+	enabledRegion(t, app, "san_marino")
+	built := newArchiveRecord(t, app, "monaco", nil)
+	writeArchiveFile(t, RegionArchivePath(app, "monaco"))
+	writeArchiveFile(t, RegionDemPath(app, "monaco"))
+	probes := protomapsBuildServer(t, func(string) bool { return false })
+
+	BuildAllLocked(app)
+
+	if got := calls(); len(got) != 0 {
+		t.Errorf("extracts = %v, want none", got)
+	}
+	if _, err := app.FindFirstRecordByFilter("region_archives", "path = 'san_marino'"); err == nil {
+		t.Error("san_marino got a region_archives row")
+	}
+	fresh := reload(t, app, built)
+	if fresh.GetString("status") != "ready" || fresh.GetString("vector_built_date") != "20261001" || fresh.GetString("error_message") != "" {
+		t.Errorf("monaco = status %q, built %q, error %q; want it untouched",
+			fresh.GetString("status"), fresh.GetString("vector_built_date"), fresh.GetString("error_message"))
+	}
+	if got := len(probes()); got != protomapsLookbackDays {
+		t.Errorf("%d probes, want %d", got, protomapsLookbackDays)
 	}
 }
 

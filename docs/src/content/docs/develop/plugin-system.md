@@ -337,6 +337,11 @@ manifest, for example:
 
 The host enforces `limits.maxItems` for each sync response. Returning more items fails the call with `sync_item_limit_exceeded`; the host does not silently truncate the response.
 
+For sync plugins, the hard budgets are 8 for list and trail-send calls, 32 for
+detail calls, and 4 for session refresh. Each call resets its budget even when
+the worker session is reused. Syncs check the session before list, detail and
+category-backfill calls and recycle aged workers as described below.
+
 `auth` contains only values the host is allowed to pass to the plugin. For
 OAuth plugins, refresh tokens and client secrets are not included in normal sync
 capability input. Depending on the auth model, `auth` may contain values such
@@ -464,6 +469,13 @@ Trail photos are attached to the imported trail. Waypoint photos are attached to
 the corresponding waypoint records. Waypoint `distance_from_start` is derived
 by the host from the nearest position on the imported GPX track.
 
+Trail photos with a position move to waypoints before the import. A photo near
+one of the item's waypoints joins it; the others are grouped into new, unnamed
+waypoints using the user's waypoint merge settings. The first photo stays on the
+trail as its cover, and so do photos without a position, photos whose
+`externalId` is already on a waypoint, and photos over the waypoint limits. An
+unnamed waypoint whose photos all fail to download is not saved.
+
 ### Provider difficulty
 
 `item.difficulty` is an optional string containing the provider's coarse
@@ -562,8 +574,12 @@ host owns that mapping.
 
 Plugin manifests may suggest defaults for host-owned settings with
 `hostConfig`. These values are stored in `installed_plugins.config.host` and can
-be overridden per plugin instance with `plugin_instances.config.host`. Host
-config is never passed to plugin exports.
+be overridden per plugin instance with `plugin_instances.config.host` only for
+the explicitly supported user-level fields listed below. Connector targets and
+trust settings under `host.connectors` remain exclusively in the
+administrator-controlled `installed_plugins.config.host` and are ignored if
+submitted through a plugin instance. Host config is never passed to plugin
+exports.
 
 Supported host fields:
 
@@ -575,7 +591,7 @@ Supported host fields:
 | `merge.enabled` | boolean | Trail import | Runs auto-merge after creating imported trails. |
 | `createSummitLogForCompleted` | boolean | Trail import | Creates summit logs for completed imported trails. Defaults to `true`. |
 | `categoryMapping` | object | Trail import | Maps plugin-provided `metadata.providerCategory` values to local category or subcategory targets. |
-| `connectors` | object | Host request/media policy | Concrete settings for configured connectors. |
+| `connectors` | object | Host request/media policy | Administrator-owned concrete settings for configured connectors; never overridable per plugin instance. |
 
 The settings UI lets users edit `categoryMapping` per plugin instance for trail
 import plugins. A mapping value can be a string for broad category-only
@@ -898,9 +914,10 @@ API key and bearer contexts use a configured secret field:
 
 ## Runtime isolation
 
-WASM plugins run in a separate worker process for each sync or trail-upload job.
-All exports within that job share the same worker session and are called
-sequentially. If a plugin calls `wanderer.http_request`, the worker forwards the
+WASM plugins run in separate worker processes. Exports within a sync or
+trail-upload job are called sequentially and can share a worker session, but a
+long sync may use several workers in turn. If a plugin calls
+`wanderer.http_request`, the worker forwards the
 request bytes back to the backend; the backend remains the only process that
 holds connector policy, decrypted host auth, custom CA bundles, and HTTP
 execution logic.
@@ -909,6 +926,34 @@ The worker boundary protects the backend from plugin crashes and hangs and
 enforces request/response frame limits and timeouts. It is not an OS-level
 sandbox for outbound network access; plugin-controlled provider traffic must
 still go through the host request API.
+
+Worker lifetime has three separate limits:
+
+- `WANDERER_PLUGIN_WORKER_SESSION_TIMEOUT` (default `15m`) is both the idle
+  timeout and the soft maximum worker age. Before each list, detail or
+  category-backfill call, a sync renews the idle timeout or, once the worker has
+  reached that age, closes it and opens a fresh worker. Renewal does not reset
+  the worker's age.
+- The idle timer is suspended during an export, even if the configured session
+  timeout is shorter than the export timeout. A healthy return starts a new idle
+  interval. A running detail call may finish after the soft age limit; recycling
+  happens before the next call, not halfway through the current item.
+- `WANDERER_PLUGIN_WORKER_EXPORT_TIMEOUT` (default `2m`) remains a hard per-export
+  deadline. Caller cancellation also ends a running export and invalidates its
+  worker. Fatal detail failures are still skipped, not automatically retried.
+
+The host retains the current page cursor and supplies auth and plugin options
+again after recycling, so imports and category backfills can continue without
+losing their position. Plugin-side globals and cached auth do not survive a
+replacement worker; each export must be able to initialize from its input.
+Closing waits for the old process to exit before releasing its worker slot.
+The sync then competes for admission again, waiting up to `5m` (or its caller's
+earlier deadline); other callers retain the default `30s` admission timeout.
+If the instance is disabled or deleted while a sync waits to reopen its worker,
+the host checks again before starting the next export. This does not cancel an
+already-running detail call or prevent that call's import from finishing.
+Recycling is cooperative, not a hard memory limit or a guarantee that a worker
+exits exactly at its maximum age.
 
 ## Plugin state
 

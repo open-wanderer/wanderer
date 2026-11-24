@@ -45,6 +45,7 @@ export async function POST(event: RequestEvent) {
     try {
         const response = await event.fetch(routeUrl, {
             method: "POST",
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify(data)
         });
         return await proxyJsonResponse(response);

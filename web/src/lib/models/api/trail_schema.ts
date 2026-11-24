@@ -2,6 +2,14 @@ import { z, ZodType } from "zod";
 import type { Trail } from "../trail";
 
 
+// An empty difficulty means "unknown" and is stored on purpose by imports
+// without a rating (#1266). Treat it like a missing value so that such trails
+// can still be validated, e.g. by the web editor (#1521).
+const Difficulty = z.preprocess(
+    (val) => (val === "" ? undefined : val),
+    z.enum(["easy", "moderate", "difficult"]).optional(),
+);
+
 const TrailCreateSchema = z.object({
     id: z.string().length(15).optional(),
     name: z.string().min(1, "required"),
@@ -11,7 +19,7 @@ const TrailCreateSchema = z.object({
     public: z.boolean(),
     completed: z.boolean(),
     completed_at: z.string().optional().refine((val) => !val || !isNaN(Date.parse(val)), "invalid-date"),
-    difficulty: z.enum(["easy", "moderate", "difficult"]).optional(),
+    difficulty: Difficulty,
     lat: z.number().min(-90).max(90).optional(),
     lon: z.number().min(-180).max(180).optional(),
     distance: z.coerce.number().nonnegative().optional(),
@@ -43,7 +51,7 @@ const TrailUpdateSchema = z.object({
     public: z.boolean().optional(),
     completed: z.boolean().optional(),
     completed_at: z.string().optional().refine((val) => !val || !isNaN(Date.parse(val)), "invalid-date"),
-    difficulty: z.enum(["easy", "moderate", "difficult"]).optional(),
+    difficulty: Difficulty,
     lat: z.number().min(-90).max(90).optional(),
     lon: z.number().min(-180).max(180).optional(),
     distance: z.coerce.number().nonnegative().optional(),

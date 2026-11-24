@@ -16,37 +16,56 @@ const protomapsDateFormat = "20060102"
 // pass re-extracts it.
 const defaultRebuildDays = 7
 
+// protomapsBuildBaseURL is the host of the Protomaps daily builds. Tests point
+// it at a local server.
+var protomapsBuildBaseURL = "https://build.protomaps.com"
+
+// protomapsLookbackDays is how many daily builds the lookup probes, today's
+// first. Protomaps publishes with about two days of delay (#1531), so a week
+// leaves room for a skipped build. Each probe is bounded by
+// protomapsHTTPClient's timeout, so a hung host holds the sync slot for at
+// most 7 x 15s.
+const protomapsLookbackDays = 7
+
 // protomapsHTTPClient bounds the daily-build lookup. It runs while the sync
 // slot is held, so a request without a deadline could stall every later sync.
 var protomapsHTTPClient = &http.Client{Timeout: 15 * time.Second}
 
-// ValidProtomapsDateAndURL resolves today's valid Protomaps daily-build date
-// and URL, falling back to yesterday's if today's build isn't live yet.
-//
-// This is a self-contained duplicate of the per-cell tile generator's
-// equivalent daily-build-date resolution logic — the region-archive build
-// path is parallel and independent, so this deliberately does
-// NOT import or reference that sibling package. A ~12-line local copy is
-// the safer choice over reopening its source file.
-//
-// The yesterday fallback is unconditional — it does not re-check urlExists —
-// matching generator.go's existing behavior exactly. A subsequently-failing
-// extract against a stale/missing daily build is handled by the caller's
-// setVectorError path, not here.
-func ValidProtomapsDateAndURL() (date string, url string) {
-	now := time.Now().UTC()
-
-	today := now.Format(protomapsDateFormat)
-	todayURL := fmt.Sprintf("https://build.protomaps.com/%s.pmtiles", today)
-	if urlExists(todayURL) {
-		return today, todayURL
+// SetProtomapsBuildsForTesting points the Protomaps build lookup at another
+// host and HTTP client and returns a func that restores the previous ones. It
+// is a seam for tests outside this package that run a build pass; the regions
+// route tests are the first users.
+func SetProtomapsBuildsForTesting(baseURL string, client *http.Client) (restore func()) {
+	prevURL, prevClient := protomapsBuildBaseURL, protomapsHTTPClient
+	protomapsBuildBaseURL, protomapsHTTPClient = baseURL, client
+	return func() {
+		protomapsBuildBaseURL, protomapsHTTPClient = prevURL, prevClient
 	}
-
-	yesterday := now.AddDate(0, 0, -1).Format(protomapsDateFormat)
-	return yesterday, fmt.Sprintf("https://build.protomaps.com/%s.pmtiles", yesterday)
 }
 
-// urlExists mirrors generator.go's urlExists (HEAD request, 200 check).
+// ValidProtomapsDateAndURL returns the newest Protomaps daily build that
+// answers 200 within protomapsLookbackDays, and ok=false when none does (an
+// outage, or no build in a week).
+func ValidProtomapsDateAndURL() (date string, url string, ok bool) {
+	return newestProtomapsBuild(time.Now().UTC())
+}
+
+// newestProtomapsBuild probes the daily builds newest first, starting with
+// now's date (UTC) and stepping one day back, and returns the first one whose
+// URL answers 200.
+func newestProtomapsBuild(now time.Time) (date, url string, ok bool) {
+	for days := 0; days < protomapsLookbackDays; days++ {
+		date = now.UTC().AddDate(0, 0, -days).Format(protomapsDateFormat)
+		url = fmt.Sprintf("%s/%s.pmtiles", protomapsBuildBaseURL, date)
+		if urlExists(url) {
+			return date, url, true
+		}
+	}
+	return "", "", false
+}
+
+// urlExists sends a HEAD request through protomapsHTTPClient and reports true
+// only when the answer is 200.
 func urlExists(url string) bool {
 	resp, err := protomapsHTTPClient.Head(url)
 	if err != nil {

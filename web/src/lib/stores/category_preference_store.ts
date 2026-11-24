@@ -28,6 +28,7 @@ export async function category_preferences_save(
 ) {
     const r = await fetch("/api/v1/user-category-preference", {
         method: "PUT",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(preference),
     });
     if (!r.ok) {
@@ -47,6 +48,7 @@ export async function category_preferences_save(
 export async function category_preferences_reorder(categories: string[]) {
     const r = await fetch("/api/v1/user-category-preference/reorder", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ categories }),
     });
     if (!r.ok) {

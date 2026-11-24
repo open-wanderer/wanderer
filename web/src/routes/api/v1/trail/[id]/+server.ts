@@ -56,6 +56,49 @@ export async function GET(event: RequestEvent) {
     }
 }
 
+/**
+ * @swagger
+ * /api/v1/trail/{id}:
+ *   post:
+ *     summary: Update a trail
+ *     tags: [Trails]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             allOf:
+ *               - $ref: '#/components/schemas/TrailUpdateInput'
+ *               - type: object
+ *                 required: [name]
+ *     responses:
+ *       200:
+ *         description: Updated trail
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Trail'
+ *       400:
+ *         description: Invalid trail update
+ *       401:
+ *         description: Authentication required
+ *       403:
+ *         description: Trail update is not allowed
+ *       404:
+ *         description: Trail not found
+ *       500:
+ *         description: Trail update failed
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 export async function POST(event: RequestEvent) {
     try {
         const r = await update<Trail>(event, TrailUpdateSchema, Collection.trails)
@@ -66,6 +109,28 @@ export async function POST(event: RequestEvent) {
     }
 }
 
+/**
+ * @swagger
+ * /api/v1/trail/{id}:
+ *   delete:
+ *     summary: Delete a trail
+ *     tags: [Trails]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Deleted trail
+ *       401:
+ *         description: Authentication required
+ *       403:
+ *         description: Trail deletion is not allowed
+ *       404:
+ *         description: Trail not found
+ */
 export async function DELETE(event: RequestEvent) {
     try {
         const r = await remove(event, Collection.trails)

@@ -32,6 +32,7 @@ export async function notifications_index(data: { recipient: string, seen?: bool
 export async function notifications_mark_as_seen(notification: Notification) {
     let r = await fetch('/api/v1/notification/' + notification.id, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ seen: true }),
     })
 

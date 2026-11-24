@@ -97,7 +97,7 @@ func ImportTrail(ctx context.Context, app core.App, item pluginsystem.TrailImpor
 	applyProviderStart(&metrics, trackIndex, item.Metadata)
 	applyProviderMetrics(&metrics, item.Metadata)
 	public := publicFromPrivacy(item.Privacy, opts.DefaultPublic)
-	categoryTarget := categoryTargetForImport(app, item, opts.CategoryMapping)
+	categoryTarget := CategoryTargetForImport(app, item, opts.CategoryMapping)
 	date := dateFromImport(item, metrics)
 	mediaBudget := &pluginMediaBudget{}
 	mediaContext := pluginMediaLogContext{
@@ -316,12 +316,15 @@ func trackDistanceIndexFromGPX(gpxData *gpx.GPX) trackDistanceIndex {
 	if gpxData == nil {
 		return index
 	}
+	// The distance runs on across the gaps between segments and tracks, as the
+	// web's distance from start does, but a gap is no recorded track that a
+	// waypoint could be projected onto.
 	totalDistance := 0.0
+	var previous geoPoint
+	hasPrevious := false
 	for _, track := range gpxData.Tracks {
 		for _, segment := range track.Segments {
-			var previous geoPoint
-			hasPrevious := false
-			for _, point := range segment.Points {
+			for i, point := range segment.Points {
 				current := geoPoint{Lat: point.Latitude, Lon: point.Longitude}
 				if !hasPrevious {
 					index.points = append(index.points, indexedTrackPoint{
@@ -333,15 +336,15 @@ func trackDistanceIndexFromGPX(gpxData *gpx.GPX) trackDistanceIndex {
 					continue
 				}
 				length := util.HaversineDistanceMeters(previous.Lat, previous.Lon, current.Lat, current.Lon)
-				if length > 0 {
+				if length > 0 && i > 0 {
 					index.segments = append(index.segments, indexedTrackSegment{
 						start:         previous,
 						end:           current,
 						startDistance: totalDistance,
 						length:        length,
 					})
-					totalDistance += length
 				}
+				totalDistance += length
 				index.points = append(index.points, indexedTrackPoint{
 					point:    current,
 					distance: totalDistance,
@@ -502,6 +505,10 @@ func createWaypoints(ctx context.Context, app core.App, waypoints []pluginsystem
 		waypointMediaContext := mediaContext
 		waypointMediaContext.WaypointName = waypoint.Name
 		photos := photoFiles(ctx, app, collection, waypoint.Photos, opts, mediaBudget, waypointMediaContext)
+		// An unnamed waypoint is only there for its photos, so skip it without them.
+		if waypoint.Name == "" && waypoint.Description == "" && len(waypoint.Photos) > 0 && len(photos) == 0 {
+			continue
+		}
 		record.Load(map[string]any{
 			"name":                waypoint.Name,
 			"description":         waypoint.Description,
@@ -922,7 +929,7 @@ func createSummitLog(app core.App, trailID string, actorID string, date time.Tim
 	return app.Save(record)
 }
 
-func categoryTargetForImport(app core.App, item pluginsystem.TrailImport, mapping map[string]CategoryMappingValue) CategoryMappingTarget {
+func CategoryTargetForImport(app core.App, item pluginsystem.TrailImport, mapping map[string]CategoryMappingValue) CategoryMappingTarget {
 	if categoryTarget, matched := CategoryTargetFromProviderMapping(app, ProviderCategoryFromImport(item), mapping); matched {
 		return categoryTarget
 	}
@@ -930,7 +937,7 @@ func categoryTargetForImport(app core.App, item pluginsystem.TrailImport, mappin
 }
 
 func categoryIDForImport(app core.App, item pluginsystem.TrailImport, mapping map[string]CategoryMappingValue) string {
-	return categoryTargetForImport(app, item, mapping).CategoryID
+	return CategoryTargetForImport(app, item, mapping).CategoryID
 }
 
 func ProviderCategoryFromImport(item pluginsystem.TrailImport) string {

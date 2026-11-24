@@ -8,7 +8,7 @@
     import SummitLogCard from "#lib/components/summit_log/summit_log_card.svelte";
     import SummitLogModal from "#lib/components/summit_log/summit_log_modal.svelte";
     import MapWithElevationMaplibre from "#lib/components/trail/map_with_elevation_maplibre.svelte";
-    import PhotoPicker from "#lib/components/trail/photo_picker.svelte";
+    import PhotoPicker from "#lib/components/photo/photo_picker.svelte";
     import TrailAnchorList from "#lib/components/trail/trail_anchor_list.svelte";
     import WaypointCard from "#lib/components/waypoint/waypoint_card.svelte";
     import WaypointMergeModal, {
@@ -82,7 +82,6 @@
     } from "#lib/components/base/search.svelte";
     import RouteEditor from "#lib/components/trail/route_editor.svelte";
     import { TagCreateSchema } from "#lib/models/api/tag_schema.ts";
-    import { convertDMSToDD } from "#lib/models/gpx/utils.ts";
     import { Tag } from "#lib/models/tag.ts";
     import {
         searchLocationReverse,
@@ -93,8 +92,6 @@
     import { currentUser } from "#lib/stores/user_store.ts";
     import { designSelectableCategories } from "#lib/util/category_util.ts";
     import {
-        convertDateTimeOriginalToDate,
-        convertGPSTimestampToDate,
         dateInputValue,
     } from "#lib/util/date_util.ts";
     import { getIconForLocation } from "#lib/util/icon_util.ts";
@@ -108,7 +105,8 @@
         renderValhallaAnchorMarker,
         valhallaAnchorTitle,
     } from "#lib/util/valhalla_anchor_util.ts";
-    import EXIF from "#lib/vendor/exif-js/exif.js";
+    import { extractDevicePhotoExif } from "#lib/util/exif_util.ts";
+    import { MAX_PHOTO_SIZE_BYTES, MAX_WAYPOINT_PHOTOS } from "#lib/util/photo_limits.ts";
     import {
         haversineCumulatedDistanceWgs84,
         MIN_STORED_DISTANCE_METERS,
@@ -116,6 +114,11 @@
     import { validator } from "#lib/vendor/felte-validator-zod/index.ts";
     import cryptoRandomString from "crypto-random-string";
     import { createForm } from "felte";
+    import {
+        completionDateValue,
+        copyTrailEditorValues,
+        initialTrailFormValues,
+    } from "#lib/util/trail_editor_util.ts";
     import * as M from "maplibre-gl";
     import { onMount, untrack } from "svelte";
     import { _, locale } from "svelte-i18n";
@@ -292,23 +295,18 @@
         );
     }
 
-    const getInitialFormValues = () => ({
-        ...data.trail,
-        completed_at: completionDateValue(data.trail.completed_at),
-        public: data.trail.id
-            ? data.trail.public
-            : page.data.settings?.privacy?.trails === "public",
-        category: defaultCategoryId(),
-        subcategory: data.trail.subcategory || "",
-    });
-
     const {
         form,
         errors,
         data: formData,
         setFields,
     } = createForm<z.infer<typeof ClientTrailCreateSchema>>({
-        initialValues: getInitialFormValues(),
+        initialValues: untrack(() =>
+            initialTrailFormValues(data.trail, {
+                public: page.data.settings?.privacy?.trails === "public",
+                category: defaultCategoryId(),
+            }),
+        ),
         extend: [
             validator({
                 schema: ClientTrailCreateSchema,
@@ -365,10 +363,10 @@
                         photoFiles,
                         gpxFile,
                     );
-                    createdTrail.completed_at = completionDateValue(
-                        createdTrail.completed_at,
-                    );
-                    setFields(createdTrail);
+                    setFields({
+                        ...copyTrailEditorValues(createdTrail),
+                        completed_at: completionDateValue(createdTrail.completed_at),
+                    });
                     trail.set(createdTrail);
                 } else {
                     const updatedTrail = await trails_update(
@@ -377,10 +375,10 @@
                         photoFiles,
                         gpxFile,
                     );
-                    updatedTrail.completed_at = completionDateValue(
-                        updatedTrail.completed_at,
-                    );
-                    setFields(updatedTrail);
+                    setFields({
+                        ...copyTrailEditorValues(updatedTrail),
+                        completed_at: completionDateValue(updatedTrail.completed_at),
+                    });
                 }
                 photoFiles = [];
 
@@ -512,7 +510,7 @@
                 // updateTrailWithRouteData for why it is 0, not undefined.
                 setFields("moving_duration", 0);
             } else {
-                setFields(parseResult.trail);
+                setFields(copyTrailEditorValues(parseResult.trail));
             }
             $formData.id = prevId ?? cryptoRandomString({ length: 15 });
             $formData.expand!.gpx_data = gpxData;
@@ -2058,40 +2056,35 @@
         }
 
         const photoCoords: GPXCoord[] = [];
+        let skippedPhotos = 0;
+        const reportSkippedPhotos = () => {
+            if (!skippedPhotos) return;
+            show_toast({
+                type: "warning",
+                icon: "warning",
+                text: $_("waypoint-photos-skipped-limits", { values: {
+                    n: skippedPhotos,
+                    size: MAX_PHOTO_SIZE_BYTES / (1024 * 1024),
+                    max: MAX_WAYPOINT_PHOTOS,
+                } }),
+            }, 10000);
+        };
 
         for (const [index, file] of Array.from(files).entries()) {
-            const coords = await new Promise<GPXCoord | undefined>((resolve) => {
-                EXIF.getData(file, function (p) {
-                    const lat = EXIF.getTag(p, "GPSLatitude");
-                    const latDir = EXIF.getTag(p, "GPSLatitudeRef");
-                    const lon = EXIF.getTag(p, "GPSLongitude");
-                    const lonDir = EXIF.getTag(p, "GPSLongitudeRef");
-
-                    if (lat && lon) {
-                        resolve({
-                            id: index.toString(),
-                            latitude: convertDMSToDD(lat, latDir),
-                            longitude: convertDMSToDD(lon, lonDir),
-                            time:
-                                convertGPSTimestampToDate(
-                                    EXIF.getTag(p, "GPSDateStamp"),
-                                    EXIF.getTag(p, "GPSTimeStamp"),
-                                ) ??
-                                convertDateTimeOriginalToDate(
-                                    EXIF.getTag(p, "DateTimeOriginal"),
-                                    // some devices only write the offset of
-                                    // the other timestamps, all in one zone
-                                    EXIF.getTag(p, "OffsetTimeOriginal") ??
-                                        EXIF.getTag(p, "OffsetTime") ??
-                                        EXIF.getTag(p, "OffsetTimeDigitized"),
-                                ),
-                            file,
-                        });
-                    } else {
-                        resolve(undefined);
-                    }
-                });
-            });
+            if (file.size > MAX_PHOTO_SIZE_BYTES) {
+                skippedPhotos++;
+                continue;
+            }
+            const { coordinates, fileType } = await extractDevicePhotoExif(file);
+            // These EXIF-bearing formats are accepted by waypoints.photos.
+            const supported = ["jpeg", "png", "webp"].includes(fileType ?? "");
+            const coords: GPXCoord | undefined = coordinates && supported ? {
+                id: index.toString(),
+                latitude: coordinates.lat,
+                longitude: coordinates.lon,
+                time: coordinates.time,
+                file,
+            } : undefined;
 
             if (!coords) {
                 show_toast(
@@ -2108,6 +2101,11 @@
             photoCoords.push(coords);
         }
 
+        if (!photoCoords.length) {
+            reportSkippedPhotos();
+            return;
+        }
+
         let clusterResponse: WaypointPhotoClusterResponse;
         try {
             clusterResponse = await clusterWaypointPhotos({
@@ -2121,6 +2119,7 @@
                 waypoints: getExistingWaypointClusterInputs(),
             });
         } catch (e) {
+            reportSkippedPhotos();
             show_toast(
                 {
                     type: "error",
@@ -2138,29 +2137,27 @@
             const clusterPhotos = cluster.photos
                 .map((id) => photoMap.get(id))
                 .filter((coords): coords is GPXCoord => coords != null);
-            const photos = clusterPhotos.map((coords) => coords.file);
+            const existingWaypoint = cluster.waypoint
+                ? $formData.expand?.waypoints_via_trail?.find((wp) => wp.id === cluster.waypoint)
+                : undefined;
+            const existingWaypointPhotos = (existingWaypoint as Waypoint | undefined)?._photos ?? [];
+            const remaining = Math.max(0, MAX_WAYPOINT_PHOTOS -
+                (existingWaypoint?.photos?.length ?? 0) - existingWaypointPhotos.length);
+            const assignedPhotos = clusterPhotos.slice(0, remaining);
+            skippedPhotos += clusterPhotos.length - assignedPhotos.length;
+            const photos = assignedPhotos.map((coords) => coords.file);
 
             if (!photos.length) {
                 continue;
             }
 
-            if (cluster.waypoint) {
-                const existingWaypoint =
-                    $formData.expand?.waypoints_via_trail?.find(
-                        (wp) => wp.id === cluster.waypoint,
-                    );
-
-                if (existingWaypoint) {
-                    const existingWaypointPhotos =
-                        (existingWaypoint as Waypoint)._photos ?? [];
-
-                    commitWaypoint({
-                        ...existingWaypoint,
-                        photos: existingWaypoint.photos ?? [],
-                        _photos: [...existingWaypointPhotos, ...photos],
-                    } as Waypoint);
-                    continue;
-                }
+            if (existingWaypoint) {
+                commitWaypoint({
+                    ...existingWaypoint,
+                    photos: existingWaypoint.photos ?? [],
+                    _photos: [...existingWaypointPhotos, ...photos],
+                } as Waypoint);
+                continue;
             }
 
             const wp: Waypoint = new Waypoint(
@@ -2171,9 +2168,10 @@
                 },
             );
             wp._photos = photos;
-            wp._time = clusterPhotos.find((coords) => coords.time)?.time;
+            wp._time = assignedPhotos.find((coords) => coords.time)?.time;
             commitWaypoint(wp);
         }
+        reportSkippedPhotos();
     }
 
     function undoRouteEdit() {
@@ -2206,10 +2204,6 @@
             initRouteAnchors(valhallaStore.route, true);
         }
         updateTrailWithRouteData();
-    }
-
-    function completionDateValue(value?: string): string | undefined {
-        return value?.substring(0, 10) || undefined;
     }
 
     function ensureCompletedAt(defaultDate?: string) {
@@ -2462,6 +2456,7 @@
             <Select
                 name="difficulty"
                 label={$_("difficulty")}
+                error={$errors.difficulty}
                 items={[
                     { text: $_("easy"), value: "easy" },
                     { text: $_("moderate"), value: "moderate" },

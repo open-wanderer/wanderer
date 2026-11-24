@@ -38,6 +38,7 @@ export async function settings_for_user(userId: string): Promise<Settings> {
 export async function settings_create(settings: Settings) {
     const r = await fetch('/api/v1/settings', {
         method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(settings),
     })
 
@@ -53,6 +54,7 @@ export async function settings_create(settings: Settings) {
 export async function settings_update(settings: Settings) {
     const r = await fetch('/api/v1/settings/' + settings.id, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(settings),
     })
     if (!r.ok) {

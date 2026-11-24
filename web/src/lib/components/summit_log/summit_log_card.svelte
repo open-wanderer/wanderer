@@ -9,7 +9,6 @@
     import {
         getFileURL,
         isVideoURL,
-        readAsDataURLAsync,
     } from "#lib/util/file_util.ts";
     import {
         formatDistance,
@@ -18,6 +17,8 @@
         formatTimeHHMM,
     } from "#lib/util/format_util.ts";
     import { handleFromRecordWithIRI } from "#lib/util/activitypub_util.ts";
+
+    import { photoFilePreview } from "#lib/util/photo_preview_util.ts";
 
     let thumbnail: string = $state(
         $theme === "light" ? emptyStateTrailLight : emptyStateTrailDark,
@@ -35,26 +36,20 @@
         { text: $_("edit"), value: "edit" },
         { text: $_("delete"), value: "delete" },
     ];
-    $effect(() => fetchPhotos(log._photos ?? []));
-
-    function fetchPhotos(photos: File[]) {
-        Promise.all(
-            photos.map(async (f) => {
-                return await readAsDataURLAsync(f);
-            }),
-        ).then((v) => {
-            if (log.photos.length) {
-                thumbnail = getFileURL(log, log.photos[0], "600x0");
-            } else if (v.length) {
-                thumbnail = v[0];
-            } else {
-                thumbnail =
-                    $theme === "light"
-                        ? emptyStateTrailLight
-                        : emptyStateTrailDark;
-            }
-        });
-    }
+    $effect(() => {
+        let canceled = false;
+        const firstFile = log._photos?.[0];
+        if (log.photos.length) {
+            thumbnail = getFileURL(log, log.photos[0], "600x0");
+        } else if (firstFile) {
+            photoFilePreview(firstFile).then((preview) => {
+                if (!canceled) thumbnail = preview;
+            }).catch(() => {});
+        } else {
+            thumbnail = $theme === "light" ? emptyStateTrailLight : emptyStateTrailDark;
+        }
+        return () => { canceled = true; };
+    });
 </script>
 
 <div class="p-4 my-2 border border-input-border rounded-xl">

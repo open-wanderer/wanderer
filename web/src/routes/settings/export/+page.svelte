@@ -2,12 +2,11 @@
     import emptyStateUploadDark from "#lib/assets/svgs/empty_states/empty_state_upload_dark.svg";
     import emptyStateUploadLight from "#lib/assets/svgs/empty_states/empty_state_upload_light.svg";
     import Button from "#lib/components/base/button.svelte";
-    import { } from "#lib/components/settings/upload_dialog.svelte";
     import TrailExportModal from "#lib/components/trail/trail_export_modal.svelte";
     import { theme } from "#lib/stores/theme_store.ts";
     import { show_toast } from "#lib/stores/toast_store.svelte.ts";
     import { fetchGPX, trails_upload } from "#lib/stores/trail_store.ts";
-    import { processUploadQueue, uploadStore, type Upload } from "#lib/stores/upload_store.svelte.ts";
+    import { processUploadQueue, enqueueUpload, type Upload } from "#lib/stores/upload_store.svelte.ts";
     import { ownedTrailExportPages } from "#lib/stores/trail_export_store.ts";
     import { currentUser } from "#lib/stores/user_store.ts";
     import { getFileURL, saveAs } from "#lib/util/file_util.ts";
@@ -57,7 +56,7 @@
                 status: "enqueued",
                 function: trails_upload
             };
-            uploadStore.enqueuedUploads.push(u);
+            enqueueUpload(u);
         }
 
         await processUploadQueue();

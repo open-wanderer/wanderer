@@ -11,7 +11,15 @@
 
     let { data } = $props();
 
-    const trail = $state(untrack(() => data.trail));
+    let trail = $state(untrack(() => data.trail));
+
+    // Client-side navigation to another trail reuses this component.
+    $effect.pre(() => {
+        const next = data.trail;
+        if (next.id !== untrack(() => trail.id)) {
+            trail = next;
+        }
+    });
 
     let markers: M.Marker[] = $state([]);
 </script>
@@ -42,19 +50,21 @@
 ></MetaTags>
 
 <main class="grid grid-cols-1 md:grid-cols-[458px_1fr] gap-x-1 gap-y-4">
-    <div id="panel" class="hidden md:block">
-        <TrailInfoPanel handle={page.params.handle!} initTrail={trail} {markers}
-        ></TrailInfoPanel>
-    </div>
-    <div id="trail-details">
-        <MapWithElevationMaplibre
-            trails={[trail]}
-            waypoints={trail.expand?.waypoints_via_trail}
-            activeTrail={0}
-            bind:markers
-            showTerrain={true}
-        ></MapWithElevationMaplibre>
-    </div>
+    {#key trail.id}
+        <div id="panel" class="hidden md:block">
+            <TrailInfoPanel handle={page.params.handle!} initTrail={trail} {markers}
+            ></TrailInfoPanel>
+        </div>
+        <div id="trail-details">
+            <MapWithElevationMaplibre
+                trails={[trail]}
+                waypoints={trail.expand?.waypoints_via_trail}
+                activeTrail={0}
+                bind:markers
+                showTerrain={true}
+            ></MapWithElevationMaplibre>
+        </div>
+    {/key}
 </main>
 
 <style>

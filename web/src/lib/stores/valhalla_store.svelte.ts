@@ -98,7 +98,7 @@ export async function calculateRouteBetween(startLat: number, startLon: number, 
             ...costingBody
         }
 
-        let r = await fetch("/api/v1/valhalla/route", { method: "POST", body: JSON.stringify(requestBody) })
+        let r = await fetch("/api/v1/valhalla/route", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(requestBody) })
 
         if (!r.ok) {
             const response = await r.json();
@@ -113,7 +113,7 @@ export async function calculateRouteBetween(startLat: number, startLon: number, 
         duration = 0;
     }
 
-    const r2 = await fetch("/api/v1/valhalla/height", { method: "POST", body: JSON.stringify({ encoded_polyline: shape }) })
+    const r2 = await fetch("/api/v1/valhalla/height", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ encoded_polyline: shape }) })
 
     if (!r2.ok) {
         const response = await r2.json();

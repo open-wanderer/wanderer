@@ -2,10 +2,8 @@
     import { goto } from "$app/navigation";
     import MergeDialog from "#lib/components/trail/trail_merge_dialog.svelte";
     import TrailListItem from "#lib/components/trail/trail_list_item.svelte";
-    import TrailMergeModal, {
-        type MergeSelection,
-        type MergeSettings,
-    } from "#lib/components/trail/trail_merge_modal.svelte";
+    import TrailMergeModal from "#lib/components/trail/trail_merge_modal.svelte";
+    import type { MergeSelection, MergeSettings } from "#lib/components/trail/trail_merge_types.ts";
     import MapWithElevationMaplibre from "#lib/components/trail/map_with_elevation_maplibre.svelte";
     import type { Trail } from "#lib/models/trail.ts";
     import {

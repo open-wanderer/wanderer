@@ -30,6 +30,7 @@ export async function api_tokens_create(apiToken: APIToken) {
 
     let r = await fetch('/api/v1/api-token', {
         method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(apiToken),
     })
 

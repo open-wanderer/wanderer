@@ -3,7 +3,10 @@ package regions
 import (
 	"net"
 	"net/http"
+	"net/http/httptest"
+	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -112,12 +115,148 @@ func TestBboxChanged(t *testing.T) {
 	})
 }
 
-// TestValidProtomapsDateAndURLFormat asserts only the format contract, which
-// holds regardless of whether the today or yesterday branch runs (network
-// access is not mocked here — see staleness.go's doc comment).
-func TestValidProtomapsDateAndURLFormat(t *testing.T) {
-	date, url := ValidProtomapsDateAndURL()
+// protomapsBuildServer answers the Protomaps build lookup from a local server
+// that publishes the dates published reports as live and answers 404 to the
+// rest. probes returns every request it saw, as "METHOD /path".
+func protomapsBuildServer(t *testing.T, published func(date string) bool) (probes func() []string) {
+	t.Helper()
+	var mu sync.Mutex
+	var seen []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		seen = append(seen, r.Method+" "+r.URL.Path)
+		mu.Unlock()
+		date := strings.TrimSuffix(strings.TrimPrefix(r.URL.Path, "/"), ".pmtiles")
+		if published(date) {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	t.Cleanup(server.Close)
+	t.Cleanup(SetProtomapsBuildsForTesting(server.URL, server.Client()))
+	return func() []string {
+		mu.Lock()
+		defer mu.Unlock()
+		return slices.Clone(seen)
+	}
+}
 
+// TestNewestProtomapsBuildSkipsBuildsNotPublishedYet is GH-1531: Protomaps
+// publishes about two days late, so today's and yesterday's builds answer 404.
+func TestNewestProtomapsBuildSkipsBuildsNotPublishedYet(t *testing.T) {
+	probes := protomapsBuildServer(t, func(date string) bool {
+		return date == "20261118" || date == "20261117"
+	})
+
+	date, url, ok := newestProtomapsBuild(time.Date(2026, 11, 20, 3, 0, 0, 0, time.UTC))
+
+	if !ok || date != "20261118" || url != protomapsBuildBaseURL+"/20261118.pmtiles" {
+		t.Errorf("got (%q, %q, %v), want the 20261118 build", date, url, ok)
+	}
+	want := []string{"HEAD /20261120.pmtiles", "HEAD /20261119.pmtiles", "HEAD /20261118.pmtiles"}
+	if got := probes(); !slices.Equal(got, want) {
+		t.Errorf("probes = %v, want %v", got, want)
+	}
+}
+
+func TestNewestProtomapsBuildLookbackWindow(t *testing.T) {
+	cases := []struct {
+		name      string
+		now       time.Time
+		published func(string) bool
+		wantDate  string
+		wantOK    bool
+		wantProbe []string
+	}{
+		{
+			name:      "today published",
+			now:       time.Date(2026, 11, 20, 3, 0, 0, 0, time.UTC),
+			published: func(string) bool { return true },
+			wantDate:  "20261120", wantOK: true,
+			wantProbe: []string{"HEAD /20261120.pmtiles"},
+		},
+		{
+			name:      "across a year boundary",
+			now:       time.Date(2027, 1, 1, 1, 0, 0, 0, time.UTC),
+			published: func(d string) bool { return d == "20261230" },
+			wantDate:  "20261230", wantOK: true,
+			wantProbe: []string{"HEAD /20270101.pmtiles", "HEAD /20261231.pmtiles", "HEAD /20261230.pmtiles"},
+		},
+		{
+			name:      "nothing published",
+			now:       time.Date(2026, 11, 20, 3, 0, 0, 0, time.UTC),
+			published: func(string) bool { return false },
+			wantOK:    false,
+			wantProbe: []string{
+				"HEAD /20261120.pmtiles", "HEAD /20261119.pmtiles", "HEAD /20261118.pmtiles",
+				"HEAD /20261117.pmtiles", "HEAD /20261116.pmtiles", "HEAD /20261115.pmtiles",
+				"HEAD /20261114.pmtiles",
+			},
+		},
+		{
+			name:      "build just outside the window",
+			now:       time.Date(2026, 11, 20, 3, 0, 0, 0, time.UTC),
+			published: func(d string) bool { return d == "20261113" },
+			wantOK:    false,
+			wantProbe: []string{
+				"HEAD /20261120.pmtiles", "HEAD /20261119.pmtiles", "HEAD /20261118.pmtiles",
+				"HEAD /20261117.pmtiles", "HEAD /20261116.pmtiles", "HEAD /20261115.pmtiles",
+				"HEAD /20261114.pmtiles",
+			},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			probes := protomapsBuildServer(t, c.published)
+
+			date, url, ok := newestProtomapsBuild(c.now)
+
+			if ok != c.wantOK || date != c.wantDate {
+				t.Errorf("got (%q, %v), want (%q, %v)", date, ok, c.wantDate, c.wantOK)
+			}
+			if c.wantOK && url != protomapsBuildBaseURL+"/"+c.wantDate+".pmtiles" {
+				t.Errorf("url = %q", url)
+			}
+			if !c.wantOK && url != "" {
+				t.Errorf("url = %q, want empty", url)
+			}
+			if got := probes(); !slices.Equal(got, c.wantProbe) {
+				t.Errorf("probes = %v, want %v", got, c.wantProbe)
+			}
+			if len(c.wantProbe) > protomapsLookbackDays {
+				t.Errorf("case expects more probes than the lookback window")
+			}
+		})
+	}
+}
+
+func TestNewestProtomapsBuildGivesUpWhenTheHostIsUnreachable(t *testing.T) {
+	server := httptest.NewServer(http.NotFoundHandler())
+	url := server.URL
+	server.Close()
+	t.Cleanup(SetProtomapsBuildsForTesting(url, &http.Client{Timeout: 2 * time.Second}))
+
+	date, buildURL, ok := newestProtomapsBuild(time.Date(2026, 11, 20, 3, 0, 0, 0, time.UTC))
+
+	if ok || date != "" || buildURL != "" {
+		t.Errorf("got (%q, %q, %v), want no build", date, buildURL, ok)
+	}
+}
+
+// TestValidProtomapsDateAndURLFormat asserts the format contract against a
+// local server that publishes every date.
+func TestValidProtomapsDateAndURLFormat(t *testing.T) {
+	if protomapsBuildBaseURL != "https://build.protomaps.com" {
+		t.Fatalf("default base URL = %q", protomapsBuildBaseURL)
+	}
+	protomapsBuildServer(t, func(string) bool { return true })
+
+	date, url, ok := ValidProtomapsDateAndURL()
+
+	if !ok {
+		t.Fatal("no build found on a server that publishes every date")
+	}
 	if len(date) != 8 {
 		t.Fatalf("date %q has length %d, want 8", date, len(date))
 	}
@@ -126,11 +265,7 @@ func TestValidProtomapsDateAndURLFormat(t *testing.T) {
 			t.Fatalf("date %q contains non-digit character %q", date, r)
 		}
 	}
-
-	if !strings.HasPrefix(url, "https://build.protomaps.com/") {
-		t.Fatalf("url %q does not have expected prefix", url)
-	}
-	if !strings.HasSuffix(url, date+".pmtiles") {
-		t.Fatalf("url %q does not have suffix %q", url, date+".pmtiles")
+	if want := protomapsBuildBaseURL + "/" + date + ".pmtiles"; url != want {
+		t.Fatalf("url = %q, want %q", url, want)
 	}
 }

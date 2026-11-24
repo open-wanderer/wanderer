@@ -43,7 +43,7 @@ export async function POST(event: RequestEvent) {
         return json({ message: "VALHALLA_URL not set" }, { status: 400 })
     }
     try {
-        const response = await event.fetch(heightUrl, { method: "POST", body: JSON.stringify(data) });
+        const response = await event.fetch(heightUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
         return await proxyJsonResponse(response);
     } catch (e: any) {
         return Response.json({ message: "Valhalla request failed" }, { status: 502 })

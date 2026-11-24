@@ -1,8 +1,10 @@
 <script lang="ts">
     import { show_toast } from "#lib/stores/toast_store.svelte.ts";
-    import { getFileURL, readAsDataURLAsync } from "#lib/util/file_util.ts";
+    import { getFileURL } from "#lib/util/file_util.ts";
+    import { photoFilePreview } from "#lib/util/photo_preview_util.ts";
+    import { MAX_PHOTO_SIZE_BYTES } from "#lib/util/photo_limits.ts";
     import { _ } from "svelte-i18n";
-    import PhotoCard from "../photo_card.svelte";
+    import PhotoCard from "./photo_card.svelte";
 
     interface Props {
         id: string;
@@ -24,23 +26,19 @@
         thumbnail = $bindable(0),
         showThumbnailControls = true,
         showExifControls = false,
-        maxSizeBytes = 20971520,
+        maxSizeBytes = MAX_PHOTO_SIZE_BYTES,
         onexif,
     }: Props = $props();
 
     let photoPreviews: string[] = $state([]);
 
-    $effect(() => fetchPhotos(photoFiles ?? []));
-
-    function fetchPhotos(photos: File[]) {
-        Promise.all(
-            photos.map(async (f) => {
-                return await readAsDataURLAsync(f);
-            }),
-        ).then((v) => {
-            photoPreviews = v;
-        });
-    }
+    $effect(() => {
+        let cancelled = false;
+        Promise.all((photoFiles ?? []).map(photoFilePreview)).then((v) => {
+            if (!cancelled) photoPreviews = v;
+        }).catch(() => {});
+        return () => { cancelled = true; };
+    });
 
     let offerUpload: boolean = $state(false);
 
@@ -125,13 +123,10 @@
                 photoFiles = [];
             }
             const adjustedIndex = index - photos.length;
-            photoFiles.splice(adjustedIndex, 1);
-            photoPreviews.splice(adjustedIndex, 1);
-
-            photoPreviews = [...photoPreviews];
+            photoFiles = photoFiles.filter((_, i) => i !== adjustedIndex);
+            photoPreviews = photoPreviews.filter((_, i) => i !== adjustedIndex);
         } else {
-            photos.splice(index, 1);
-            photos = [...photos];
+            photos = photos.filter((_, i) => i !== index);
         }
     }
 </script>

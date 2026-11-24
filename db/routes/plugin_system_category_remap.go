@@ -10,6 +10,7 @@ import (
 	"github.com/pocketbase/pocketbase/core"
 
 	"pocketbase/plugins/importer"
+	"pocketbase/services/pluginhost"
 )
 
 type pluginCategoryRemapRequest struct {
@@ -104,11 +105,11 @@ func pluginCategoryRemapInput(e *core.RequestEvent) (*core.Record, map[string]im
 		return nil, nil, apis.NewNotFoundError("plugin instance not found", err)
 	}
 
-	config := effectivePluginConfig(e.App, instance.GetString("plugin_id"), instance)
+	config := pluginhost.EffectiveConfig(e.App, instance.GetString("plugin_id"), instance)
 	if data.Config != nil {
 		config = data.Config
 	}
-	return instance, categoryMapping(pluginHostConfig(config)), nil
+	return instance, categoryMapping(pluginhost.HostConfig(config)), nil
 }
 
 func pluginCategoryRemapCandidates(app core.App, userID string, pluginID string, mapping map[string]importer.CategoryMappingValue) ([]pluginCategoryRemapCandidate, error) {
@@ -173,8 +174,8 @@ func categoryMappingUpdatedAt(app core.App, instance *core.Record) time.Time {
 	if instance == nil {
 		return time.Time{}
 	}
-	config := effectivePluginConfig(app, instance.GetString("plugin_id"), instance)
-	raw, _ := pluginHostConfig(config)["categoryMappingUpdatedAt"].(string)
+	config := pluginhost.EffectiveConfig(app, instance.GetString("plugin_id"), instance)
+	raw, _ := pluginhost.HostConfig(config)["categoryMappingUpdatedAt"].(string)
 	if raw == "" {
 		return time.Time{}
 	}
