@@ -14,7 +14,12 @@ export async function GET(event: RequestEvent) {
 
     try {
         const response = await fetchOverpass(event, params);
-        return await proxyJsonResponse(response);
+        const retryAfter = response.headers.get("Retry-After");
+        const proxied = await proxyJsonResponse(response);
+        if (retryAfter && !proxied.ok) {
+            proxied.headers.set("Retry-After", retryAfter);
+        }
+        return proxied;
     } catch (error) {
         return Response.json({ message: "Overpass request failed" }, { status: 502 });
     }
