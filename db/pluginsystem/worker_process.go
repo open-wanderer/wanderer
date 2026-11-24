@@ -8,6 +8,7 @@ import (
 	"os"
 
 	extism "github.com/extism/go-sdk"
+	"github.com/tetratelabs/wazero"
 )
 
 // RunPluginWorker runs the stdio worker process. It is called by the main
@@ -160,7 +161,8 @@ func (w *pluginWorkerProcess) openPlugin(wasmPath string) error {
 		},
 	}
 	instance, err := extism.NewPlugin(w.ctx, manifest, extism.PluginConfig{
-		EnableWasi: true,
+		EnableWasi:   true,
+		ModuleConfig: wazero.NewModuleConfig().WithSysWalltime().WithSysNanotime(),
 	}, w.hostFunctions())
 	if err != nil {
 		return fmt.Errorf("create wasm plugin: %w", err)
