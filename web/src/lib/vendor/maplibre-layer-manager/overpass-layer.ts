@@ -26,6 +26,15 @@ export class OverpassLayer implements BaseLayer {
     private cachedData: { query: string, id: number, feature: GeoJSON.Feature }[] = []
     private tileSize = 0.1;
 
+    // After a failed request no tile is requested until backoffUntil; the delay
+    // doubles per consecutive failure. Without this, every moveend re-requested
+    // every failed tile in the viewport.
+    private backoffUntil = 0;
+    private backoffMs = 0;
+    private static readonly MIN_BACKOFF_MS = 5_000;
+    private static readonly MAX_BACKOFF_MS = 10 * 60_000;
+    private inFlight = new Set<string>();
+
 
     spec: StyleSpecification = {
         version: 8,
@@ -140,8 +149,20 @@ export class OverpassLayer implements BaseLayer {
                         )
                 );
                 if (missingQueries.length > 0) {
+                    if (Date.now() < this.backoffUntil) {
+                        return result;
+                    }
+                    const key = `${x.toFixed(4)},${y.toFixed(4)},${missingQueries.join(",")}`;
+                    if (this.inFlight.has(key)) {
+                        continue;
+                    }
                     const tileBounds = this.getBoundsForTile(x, y)
-                    await this.fetchTile(x, y, missingQueries, tileBounds)
+                    this.inFlight.add(key);
+                    try {
+                        await this.fetchTile(x, y, missingQueries, tileBounds)
+                    } finally {
+                        this.inFlight.delete(key);
+                    }
                 }
 
             }
@@ -155,12 +176,39 @@ export class OverpassLayer implements BaseLayer {
         if (!q.length) {
             return;
         }
-        const r = await fetch(`${this.overpassApiURL}?data=${encodeURIComponent(q)}`)
-        const response: OverpassResponse = await r.json();
+        let response: OverpassResponse;
+        try {
+            const r = await fetch(`${this.overpassApiURL}?data=${encodeURIComponent(q)}`)
+            if (!r.ok) {
+                this.backOff(r.headers.get("Retry-After"));
+                return;
+            }
+            response = await r.json();
+        } catch {
+            this.backOff(null);
+            return;
+        }
+        if (response.elements === undefined) {
+            this.backOff(null);
+            return;
+        }
+        this.backoffMs = 0;
 
         this.cacheData(x, y, response, activeQueries)
         this.loadIcons(activeQueries)
 
+    }
+
+    private backOff(retryAfter: string | null) {
+        this.backoffMs = Math.min(
+            Math.max(this.backoffMs * 2, OverpassLayer.MIN_BACKOFF_MS),
+            OverpassLayer.MAX_BACKOFF_MS,
+        );
+        const retryAfterSeconds = retryAfter === null ? NaN : Number(retryAfter);
+        const delay = Number.isFinite(retryAfterSeconds)
+            ? Math.max(this.backoffMs, Math.min(retryAfterSeconds * 1000, OverpassLayer.MAX_BACKOFF_MS))
+            : this.backoffMs;
+        this.backoffUntil = Date.now() + delay;
     }
 
     private cacheData(x: number, y: number, data: OverpassResponse, activeQueries: string[]) {
