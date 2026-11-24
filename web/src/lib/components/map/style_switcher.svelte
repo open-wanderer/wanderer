@@ -10,6 +10,7 @@
     }
 
     let { settings }: Props = $props();
+    const uid = $props.id();
 
     let mapState = $state(untrack(() => settings.state));
 
@@ -65,7 +66,7 @@
             ></button>
         </div>
         <RadioGroup
-            name="completed"
+            name="{uid}-map-style"
             items={styleItems}
             selected={selectedStyle}
             onchange={(style) => {
@@ -80,7 +81,7 @@
         {#each Object.keys(defaultMapState.overlays) as overlay}
             <div class="flex items-center mt-2 mb-4">
                 <input
-                    id="{overlay}-layer-checkbox"
+                    id="{uid}-{overlay}-layer-checkbox"
                     type="checkbox"
                     bind:checked={mapState.overlays[overlay]}
                     class="w-4 h-4 bg-input-background accent-primary border-input-border focus:ring-input-ring focus:ring-2"
@@ -89,7 +90,7 @@
                     }}
                 />
 
-                <label for="{overlay}-layer-checkbox" class="ms-2 text-sm"
+                <label for="{uid}-{overlay}-layer-checkbox" class="ms-2 text-sm"
                     >{$_(overlay)}</label
                 >
             </div>
