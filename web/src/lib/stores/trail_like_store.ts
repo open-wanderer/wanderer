@@ -30,6 +30,7 @@ export async function trail_like_index(data: { trail?: string, actor?: string },
 export async function trail_like_create(like: TrailLike) {
     let r = await fetch('/api/v1/trail-like', {
         method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(like),
     })
 
@@ -46,6 +47,7 @@ export async function trail_like_create(like: TrailLike) {
 export async function trail_like_delete(like: TrailLike) {
     const r = await fetch('/api/v1/trail-like/delete', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(like)
     })
 

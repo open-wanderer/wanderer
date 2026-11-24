@@ -30,6 +30,7 @@ export async function profile_show(handle: string, f: (url: RequestInfo | URL, c
 export async function profile_lists_index(handle: string, filter: ListFilter, page: number = 1, perPage: number = 6, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch) {
     let r = await f(`/api/v1/profile/${handle}/lists`, {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
             q: filter.q,
             options: {
@@ -84,6 +85,7 @@ export async function profile_feed_index(handle: string, page: number, perPage: 
 export async function profile_trails_index(handle: string, filter: TrailFilter, page: number = 1, perPage: number = 1, f: (url: RequestInfo | URL, config?: RequestInit) => Promise<Response> = fetch) {
     let r = await f(`/api/v1/profile/${handle}/trails`, {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
             q: filter.q,
             options: {

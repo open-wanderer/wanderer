@@ -16,6 +16,7 @@ export async function waypoints_create(waypoint: Waypoint, f: (url: RequestInfo 
 
     let r = await f('/api/v1/waypoint', {
         method: 'PUT',
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(waypoint),
     })
 
@@ -58,6 +59,7 @@ export async function waypoints_update(oldWaypoint: Waypoint, newWaypoint: Waypo
 
     let r = await fetch('/api/v1/waypoint/' + newWaypoint.id, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newWaypoint),
     })
 

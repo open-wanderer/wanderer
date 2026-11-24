@@ -27,6 +27,7 @@ export async function subcategory_preferences_save(
 ) {
     const r = await fetch("/api/v1/user-subcategory-preference", {
         method: "PUT",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(preference),
     });
     if (!r.ok) {
@@ -49,6 +50,7 @@ export async function subcategory_preferences_reorder(
 ) {
     const r = await fetch("/api/v1/user-subcategory-preference/reorder", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ category, subcategories }),
     });
     if (!r.ok) {

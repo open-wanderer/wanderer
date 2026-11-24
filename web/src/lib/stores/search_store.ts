@@ -84,6 +84,7 @@ type Geometry = {
 export async function searchTrails(q: string, options: SearchParams, f: typeof fetch = fetch): Promise<Hits<TrailSearchResult>> {
     const r = await f("/api/v1/search/trails", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
             q,
             options: {
@@ -106,6 +107,7 @@ export async function searchTrails(q: string, options: SearchParams, f: typeof f
 export async function searchLists(q: string, options: SearchParams, f: FetchFunction = fetch): Promise<Hits<ListSearchResult>> {
     const response = await f("/api/v1/search/lists", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ q, options }),
     });
     if (!response.ok) {
@@ -249,6 +251,7 @@ export async function searchMulti(options: MultiSearchParams): Promise<MultiSear
         : options.queries;
     const r = await fetch("/api/v1/search/multi", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
             ...options,
             queries,
@@ -303,6 +306,7 @@ export async function searchActorById(id: string, f: FetchFunction = fetch, sign
     const response = await f("/api/v1/search/actors", {
         method: "POST",
         signal,
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
             q: "",
             options: { filter: `id = ${JSON.stringify(id)}`, limit: 1 },

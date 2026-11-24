@@ -33,6 +33,7 @@ export async function trail_link_share_index(trail?: string, f: (url: RequestInf
 export async function trail_link_share_create(share: TrailLinkShare) {
     let r = await fetch('/api/v1/trail-link-share', {
         method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(share),
     })
 
@@ -45,6 +46,7 @@ export async function trail_link_share_create(share: TrailLinkShare) {
 export async function trail_link_share_update(share: TrailLinkShare) {
     let r = await fetch('/api/v1/trail-link-share/' + share.id, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(share),
     })
 

@@ -38,6 +38,7 @@
                 loading = true;
                 const r = await fetch("/api/v1/trail/download", {
                     method: "POST",
+                    headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ url: form.url }),
                 });
                 if (!r.ok) {
