@@ -173,6 +173,14 @@ func TestRegionsListReportsAFirstBuildGeometryFailure(t *testing.T) {
 	http.DefaultTransport = failingTransport{}
 	t.Cleanup(func() { http.DefaultTransport = previous })
 
+	// The Protomaps lookup is answered locally: the server's own client has its
+	// own transport, so only the geometry fetch meets the failing one.
+	builds := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(builds.Close)
+	t.Cleanup(regions.SetProtomapsBuildsForTesting(builds.URL, builds.Client()))
+
 	app := newRemoteRealSchemaApp(t)
 	enableRegion(t, app, "monaco", true)
 	if entry := regionListing(t, app, "?enabled=true", "monaco"); entry == nil || entry["status"] != "building" {
