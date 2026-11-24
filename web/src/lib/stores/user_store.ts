@@ -9,6 +9,7 @@ export const currentUser: Writable<User | null> = writable<User | null>()
 export async function users_create(user: User) {
     let r = await fetch('/api/v1/user', {
         method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...user, passwordConfirm: user.password })
     })
 
@@ -43,6 +44,7 @@ export async function login(user: User) {
 
     const r = await fetch('/api/v1/auth/login', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(user),
     })
 
@@ -57,6 +59,7 @@ export async function login(user: User) {
 export async function oauth_login(data: { name: string, code: string, codeVerifier: string }) {
     const r = await fetch('/api/v1/auth/oauth', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
     })
     if (!r.ok) {
@@ -94,6 +97,7 @@ export async function users_update(user: User | { [K in keyof User]?: User[K] },
     const { email: _email, ...payload } = user as any;
     let r = await fetch('/api/v1/user/' + user.id, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
     })
 
@@ -136,6 +140,7 @@ export async function users_update(user: User | { [K in keyof User]?: User[K] },
 export async function users_update_email(userId: string, email: string, currentPassword: string) {
     const r = await fetch(`/api/v1/user/${userId}/email`, {
         method: 'POST',
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, currentPassword }),
     });
 
@@ -164,6 +169,7 @@ export async function users_delete(user: User) {
 export async function users_reset_password(reset: { email: string }) {
     const r = await fetch('/api/v1/auth/reset', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(reset),
     })
     if (!r.ok) {
@@ -178,6 +184,7 @@ export async function users_reset_password(reset: { email: string }) {
 export async function users_confirm_reset(reset: { password: string, passwordConfirm: string, token: string }) {
     const r = await fetch('/api/v1/auth/confirm-reset', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(reset),
     })
     if (!r.ok) {

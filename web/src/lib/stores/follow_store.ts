@@ -48,6 +48,7 @@ export async function follows_a_b(a: string, b: string, f: (url: RequestInfo | U
 export async function follows_create(followee: string) {
     let r = await fetch('/api/v1/follow', {
         method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ followee }),
     })
 
@@ -60,6 +61,7 @@ export async function follows_create(followee: string) {
 export async function follows_update(follow: Follow) {
     let r = await fetch('/api/v1/follow/' + follow.id, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(follow),
     })
 

@@ -40,6 +40,7 @@ describe("sharing a list with an actor", () => {
         expect(request).toHaveBeenCalledTimes(2);
         expect(request.mock.calls[0]).toEqual(["/api/v1/list-share", {
             method: "PUT",
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ actor: actor.iri, list: list.id, permission: "view" }),
         }]);
         expect(String(request.mock.calls[1][0])).toMatch(/^\/api\/v1\/list-share\?/);
@@ -65,6 +66,7 @@ describe("sharing a list with an actor", () => {
             .toBe(`actor.iri='${actor.iri}'`);
         expect(request.mock.calls[2]).toEqual(["/api/v1/trail-share", {
             method: "PUT",
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ actor: actor.iri, trail: "private00000000", permission: "view" }),
         }]);
         expect(String(request.mock.calls[3][0])).toMatch(/^\/api\/v1\/list-share\?/);

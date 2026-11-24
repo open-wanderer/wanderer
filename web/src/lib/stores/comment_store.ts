@@ -40,6 +40,7 @@ export async function comments_create(comment: Comment) {
         expand: "author",
     }), {
         method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(comment),
     })
 
@@ -56,6 +57,7 @@ export async function comments_create(comment: Comment) {
 export async function comments_update(comment: Comment) {
     let r = await fetch('/api/v1/comment/' + comment.id, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(comment),
     })
 

@@ -34,6 +34,7 @@ export async function list_share_index(list: string, f: (url: RequestInfo | URL,
 export async function list_share_create(share: ListShare) {
     let r = await fetch('/api/v1/list-share', {
         method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(share),
     })
 
@@ -70,6 +71,7 @@ export async function list_share_create_for_actor(
 export async function list_share_update(share: ListShare) {
     let r = await fetch('/api/v1/list-share/' + share.id, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(share),
     })
 

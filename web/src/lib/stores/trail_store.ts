@@ -79,6 +79,7 @@ async function searchTrailResults(
     const sort = filter.sort === "relevance" && !filter.q.trim() ? "created" : filter.sort;
     const response = await f("/api/v1/search/trails", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
             q: filter.q,
             options: {
@@ -127,6 +128,7 @@ export async function trails_search_filter_pages(filter: TrailFilter, pages: num
 export async function trails_search_bounds(filter: TrailFilter, f: typeof fetch = fetch): Promise<TrailSearchBounds | undefined> {
     const response = await f("/api/v1/search/trails", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
             q: filter.q,
             options: {
@@ -221,6 +223,7 @@ export async function trails_search_map_data(
     // Fetch server-side clusters and unclustered points for the map.
     let cr = await f("/api/v1/search/trails/cluster", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
             southWest: { lat: southWest.lat, lng: southWest.lng },
             northEast: { lat: northEast.lat, lng: northEast.lng },
@@ -263,6 +266,7 @@ export async function trails_search_map_data(
 
             const dr = await f("/api/v1/search/multi", {
                 method: "POST",
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ queries: [detailBatchQuery] }),
             });
 

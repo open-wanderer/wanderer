@@ -48,6 +48,7 @@ export async function tags_create(tag: Tag) {
 
     let r = await fetch('/api/v1/tag', {
         method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...tag, name }),
     })
 

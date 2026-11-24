@@ -52,6 +52,7 @@ async function searchLists(filter: ListFilter, page: number, perPage: number,
 
     let r = await f("/api/v1/search/lists", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
             q: filter.q,
             options: {
@@ -165,6 +166,7 @@ export async function lists_update(list: List, avatar?: File) {
 export async function lists_add_trail(list: List, trail: Trail) {
     const r = await fetch('/api/v1/list/' + list.id, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
             "trails+": trail.id
         }),
@@ -183,6 +185,7 @@ export async function lists_add_trail(list: List, trail: Trail) {
 export async function lists_remove_trail(list: List, trail: Trail) {
     const r = await fetch('/api/v1/list/' + list.id, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
             "trails-": trail.id
         }),

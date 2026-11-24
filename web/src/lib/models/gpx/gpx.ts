@@ -236,7 +236,7 @@ export default class GPX {
     }
 
     const shape = encodePolyline(coordinates);
-    const r2 = await f("/api/v1/valhalla/height", { method: "POST", body: JSON.stringify({ encoded_polyline: shape }) })
+    const r2 = await f("/api/v1/valhalla/height", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ encoded_polyline: shape }) })
 
     if (!r2.ok) {
       const response = await r2.json();

@@ -34,6 +34,7 @@ export async function plugin_instances_create(
 
     const r = await fetch("/api/v1/plugin-instance", {
         method: "PUT",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
             ...instance,
             user: user.id,
@@ -58,6 +59,7 @@ export async function plugin_instances_update(
 
     const r = await f("/api/v1/plugin-instance/" + instance.id, {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(instance),
     });
 
@@ -80,6 +82,7 @@ export async function plugin_oauth_start(
 ) {
     const r = await f("/api/v1/plugin-system/oauth/start", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
     });
 
@@ -102,6 +105,7 @@ export async function plugin_auth_validate(
 ) {
     const r = await f("/api/v1/plugin-system/auth/validate", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
     });
 
@@ -119,6 +123,7 @@ export async function plugin_oauth_callback(
 ) {
     const r = await f("/api/v1/plugin-system/oauth/callback", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
     });
 
@@ -136,6 +141,7 @@ export async function plugin_oauth_revoke(
 ) {
     const r = await f("/api/v1/plugin-system/oauth/revoke", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ instanceId }),
     });
 
@@ -154,6 +160,7 @@ export async function plugin_category_remap_preview(
 ) {
     const r = await f("/api/v1/plugin-system/category-remap/preview", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ instanceId, config }),
     });
 
@@ -171,6 +178,7 @@ export async function plugin_category_remap_apply(
 ) {
     const r = await f("/api/v1/plugin-system/category-remap/apply", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ instanceId }),
     });
 
