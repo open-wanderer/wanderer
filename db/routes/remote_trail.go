@@ -48,7 +48,6 @@ var remoteTrailSyncCoreExpandPaths = []string{
 	"subcategory",
 	"tags",
 	"waypoints_via_trail",
-	"waypoints_via_trail.author",
 	"summit_logs_via_trail",
 	"summit_logs_via_trail.author",
 }
