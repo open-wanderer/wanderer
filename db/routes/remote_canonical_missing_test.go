@@ -63,7 +63,7 @@ func TestRemoteSyncConfirmsOmittedThirdPartyLogDeletionAtItsOrigin(t *testing.T)
 				t.Fatal(err)
 			}
 			_, err := f.app.FindRecordById(f.children, log.Id)
-			deleted := scenario == "gone" || scenario == "not-found"
+			deleted := scenario == "gone"
 			if (err != nil) != deleted {
 				t.Fatalf("omitted log existence changed without canonical proof: deleted=%t err=%v", deleted, err)
 			}

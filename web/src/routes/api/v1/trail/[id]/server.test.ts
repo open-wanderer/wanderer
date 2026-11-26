@@ -3,16 +3,6 @@ import PocketBase from "pocketbase";
 import { describe, expect, it, vi } from "vitest";
 import { GET } from "./+server";
 
-// PocketBase leaves an empty reverse relation out of the record response.
-function pocketBaseFetch() {
-    return vi.fn(async (_url: RequestInfo | URL, _options?: RequestInit) => {
-        if (/\/api\/collections\/(waypoints|summit_logs)\/records$/.test(new URL(String(_url)).pathname)) {
-            return Response.json({ page: 1, perPage: 1, totalItems: 0, totalPages: 0, items: [] });
-        }
-        return Response.json({ id: "trail0000000001", name: "Trail", date: "2026-10-01 00:00:00.000Z" });
-    });
-}
-
 function trailEvent(query: string, fetch: typeof globalThis.fetch): RequestEvent {
     const url = new URL(`https://a.example/api/v1/trail/trail0000000001${query}`);
     return {
@@ -21,51 +11,55 @@ function trailEvent(query: string, fetch: typeof globalThis.fetch): RequestEvent
     } as unknown as RequestEvent;
 }
 
-describe("trail child completeness", () => {
+describe("backend trail child completeness", () => {
     it.each([
         ["?expand=waypoints_via_trail,summit_logs_via_trail", [], []],
         ["?expand=waypoints_via_trail", [], undefined],
+        ["?expand=waypoints_via_trail.author,summit_logs_via_trail&share=shared-token", undefined, []],
+        ["?expand=waypoints_via_trail,summit_logs_via_trail", undefined, undefined],
         ["", undefined, undefined],
         ["?expand=waypoints_via_trail&fields=id,name", undefined, undefined],
-    ])("marks requested empty children for '%s'", async (query, waypoints, logs) => {
-        const event = trailEvent(query, pocketBaseFetch());
+    ])("passes through backend emptiness/unknown results for '%s' without SDK list proofs", async (query, waypoints, logs) => {
+        const expand = {
+            ...(waypoints === undefined ? {} : { waypoints_via_trail: waypoints }),
+            ...(logs === undefined ? {} : { summit_logs_via_trail: logs }),
+        };
+        const fetch = vi.fn(async () => Response.json({ id: "trail0000000001", name: "Trail", expand }));
+        const event = trailEvent(query, fetch);
+        const waypointsList = vi.spyOn(event.locals.pb.collection("waypoints"), "getList");
+        const logsList = vi.spyOn(event.locals.pb.collection("summit_logs"), "getList");
         const response = await GET(event);
         expect(response.status).toBe(200);
         const trail = await response.json();
         expect(trail.expand?.waypoints_via_trail).toEqual(waypoints);
         expect(trail.expand?.summit_logs_via_trail).toEqual(logs);
+        expect(fetch).toHaveBeenCalledOnce();
+        expect(waypointsList).not.toHaveBeenCalled();
+        expect(logsList).not.toHaveBeenCalled();
     });
 
-    it.each([403, 404, 500, "nonempty"])("preserves an unknown relation when the completeness proof is %s", async (proof) => {
-        const original = pocketBaseFetch();
-        const fetch = vi.fn(async (url: RequestInfo | URL, options?: RequestInit) => {
-            if (new URL(String(url)).pathname === "/api/collections/waypoints/records") {
-                if (proof === "nonempty") return Response.json({ page: 1, perPage: 1, totalItems: 1, totalPages: 1, items: [{ id: "existing-child" }] });
-                return Response.json({ message: "Relation unavailable" }, { status: Number(proof) });
-            }
-            return original(url, options);
-        });
-        const event = trailEvent("?expand=waypoints_via_trail.author,summit_logs_via_trail&share=shared-token", fetch);
+    it("preserves auth/share/handle/projection forwarding, date enrichment and waypoint sorting", async () => {
+        const fetch = vi.fn(async (_url: RequestInfo | URL, _options?: RequestInit) => Response.json({
+            id: "storedtrail00001", date: "2026-10-01 12:00:00.000Z",
+            expand: {
+                waypoints_via_trail: [{ id: "far", distance_from_start: 3 }, { id: "start" }, { id: "near", distance_from_start: 1 }],
+                summit_logs_via_trail: [{ id: "log", date: "2026-09-01 12:00:00.000Z" }],
+            },
+        }));
+        const query = "?expand=waypoints_via_trail,summit_logs_via_trail&share=shared-token&handle=@alice@remote.example&fields=";
+        const event = trailEvent(query, fetch);
+        event.locals.pb.authStore.save("caller-token");
         const response = await GET(event);
         expect(response.status).toBe(200);
         const trail = await response.json();
-        expect(trail.expand?.waypoints_via_trail).toBeUndefined();
-        expect(trail.expand?.summit_logs_via_trail).toEqual([]);
-        const proofURL = fetch.mock.calls.map(([url]) => new URL(String(url))).find((url) => url.pathname === "/api/collections/waypoints/records")!;
-        expect(proofURL.searchParams.get("share")).toBe("shared-token");
-        expect(proofURL.searchParams.get("perPage")).toBe("1");
-        expect(proofURL.searchParams.get("fields")).toBe("id");
-        expect(proofURL.searchParams.get("filter")).toContain("trail0000000001");
+        expect(trail.id).toBe("storedtrail00001");
+        expect(trail.date).toBe("2026-10-01");
+        expect(trail.expand.summit_logs_via_trail[0].date).toBe("2026-09-01");
+        expect(trail.expand.waypoints_via_trail.map((point: { id: string }) => point.id)).toEqual(["start", "near", "far"]);
+        expect(fetch).toHaveBeenCalledOnce();
+        const [input, options] = fetch.mock.calls[0];
+        expect(new URL(String(input)).pathname).toBe("/remote/trail/trail0000000001");
+        expect(new URL(String(input)).searchParams.toString()).toBe(event.url.searchParams.toString());
+        expect(new Headers(options?.headers).get("Authorization")).toBe("caller-token");
     });
-});
-
-it("leaves existing child expands untouched without additional relation queries", async () => {
-    const fetch = vi.fn(async () => Response.json({
-        id: "trail0000000001", name: "Trail",
-        expand: { waypoints_via_trail: [{ id: "waypoint0000001", distance_from_start: 1 }], summit_logs_via_trail: [] },
-    }));
-    const response = await GET(trailEvent("?expand=waypoints_via_trail,summit_logs_via_trail", fetch));
-    expect(response.status).toBe(200);
-    expect((await response.json()).expand.waypoints_via_trail).toHaveLength(1);
-    expect(fetch).toHaveBeenCalledOnce();
 });

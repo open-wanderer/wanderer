@@ -107,6 +107,10 @@ func DeleteSummitLogHandler(client meilisearch.ServiceManager) func(e *core.Reco
 			return err
 		}
 
+		if util.CollectRemoteSummitLogReindex(e.Context, e.Record.GetString("trail"), client) {
+			return e.Next()
+		}
+
 		trail, err := e.App.FindRecordById("trails", e.Record.GetString("trail"))
 		switch {
 		case err == nil:

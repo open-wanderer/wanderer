@@ -58,13 +58,17 @@ func storedRemoteTrailChildIDs(app core.App, trail, origin, collection string) (
 	if err != nil {
 		return nil, err
 	}
-	records, err := app.FindRecordsByFilter(col, "trail={:trail}", "", -1, 0, dbx.Params{"trail": trail})
+	var records []struct {
+		ID  string `db:"id"`
+		IRI string `db:"iri"`
+	}
+	err = app.RecordQuery(col).Select("id", "iri").Where(dbx.HashExp{"trail": trail}).All(&records)
 	if err != nil {
 		return nil, err
 	}
 	for _, record := range records {
-		if remoteSyncIRIMatchesOrigin(record.GetString("iri"), origin) {
-			stored[record.Id] = struct{}{}
+		if remoteSyncIRIMatchesOrigin(record.IRI, origin) {
+			stored[record.ID] = struct{}{}
 		}
 	}
 	return stored, nil
@@ -72,50 +76,90 @@ func storedRemoteTrailChildIDs(app core.App, trail, origin, collection string) (
 
 // A complete child expand describes copies owned by the fetched origin.
 // Local entries and contributions hosted elsewhere remain independent.
-func pruneRemoteTrailChildren(app core.App, trail, origin, collection string, listed, stored map[string]struct{}) error {
+func pruneRemoteTrailChildren(app core.App, trail, origin, collection string, listed, stored map[string]struct{}, cleanup *util.RemoteSummitLogCleanup) error {
 	if listed == nil {
 		return nil
 	}
-	records, err := app.FindRecordsByFilter(collection, "trail={:trail}", "", -1, 0, dbx.Params{"trail": trail})
-	if err != nil {
-		return err
+	ids := make([]any, 0, len(stored))
+	for id := range stored {
+		ids = append(ids, id)
 	}
-	for _, record := range records {
-		if _, existed := stored[record.Id]; !existed {
-			continue
-		}
-		iri := record.GetString("iri")
-		if util.RecordHasLocalIdentity(app, record) || !remoteSyncIRIMatchesOrigin(iri, origin) {
-			continue
-		}
-		if _, exists := listed[iri]; exists {
-			continue
-		}
-		author, err := app.FindRecordById("activitypub_actors", record.GetString("author"))
-		if err != nil || author.GetBool("is_local") {
-			continue
-		}
-		if err := app.Delete(record); err != nil {
+	// The frozen snapshot may be much larger than a fresh expand. Bound PK
+	// reads, not transactions: every chunk still deletes atomically in the
+	// caller's single per-collection cleanup transaction.
+	for start := 0; start < len(ids); start += remoteSyncWriteBatch {
+		end := min(start+remoteSyncWriteBatch, len(ids))
+		records, err := app.FindAllRecords(collection, dbx.In("id", ids[start:end]...))
+		if err != nil {
 			return err
+		}
+		for _, record := range records {
+			iri := record.GetString("iri")
+			if record.GetString("trail") != trail || util.RecordHasLocalIdentity(app, record) || !remoteSyncIRIMatchesOrigin(iri, origin) {
+				continue
+			}
+			if _, exists := listed[iri]; exists {
+				continue
+			}
+			author, err := app.FindRecordById("activitypub_actors", record.GetString("author"))
+			if err != nil || author.GetBool("is_local") {
+				continue
+			}
+			if err := cleanup.Delete(app, record); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
 }
 
-func applyOmittedRemoteSummitLogs(app core.App, trail *core.Record, canonical map[string]canonicalRemoteSummitLog) error {
+func applyOmittedRemoteSummitLogs(app core.App, trail *core.Record, canonical map[string]canonicalRemoteSummitLog, cleanup *util.RemoteSummitLogCleanup) error {
 	for iri, confirmed := range canonical {
-		if !confirmed.omitted {
+		if !confirmed.omitted || confirmed.cacheKey != canonicalLogCacheKey(app, trail, iri) {
+			continue
+		}
+		if confirmed.absenceProbe.entry != nil && confirmed.absenceProbe.key != confirmed.cacheKey {
 			continue
 		}
 		record, _ := app.FindFirstRecordByData("summit_logs", "iri", iri)
 		if record == nil || record.GetString("trail") != trail.Id || record.GetString("author") != confirmed.author || util.RecordHasLocalIdentity(app, record) || remoteRecordHasLocalAuthor(app, record) {
+			canonicalRemoteLogAbsenceCache.reset(confirmed.cacheKey)
 			continue
 		}
 		if confirmed.removed {
-			canonicalRemoteLogCache.invalidateAfterRollback(app, confirmed.cacheKey)
-			if err := app.Delete(record); err != nil {
+			currentTrail, err := app.FindRecordById("trails", trail.Id)
+			if err != nil {
+				canonicalRemoteLogAbsenceCache.reset(confirmed.cacheKey)
+				if errors.Is(err, sql.ErrNoRows) {
+					continue
+				}
 				return err
 			}
+			snapshot := canonicalLogAbsenceSnapshotOf(record, currentTrail)
+			if snapshot != confirmed.storedSnapshot || util.RecordHasLocalIdentity(app, currentTrail) || remoteRecordHasLocalAuthor(app, currentTrail) {
+				canonicalRemoteLogAbsenceCache.reset(confirmed.cacheKey)
+				continue
+			}
+			author, err := app.FindRecordById("activitypub_actors", record.GetString("author"))
+			if err != nil || author.GetBool("is_local") || (author.Id != currentTrail.GetString("author") && !remoteSyncIRIMatchesOrigin(author.GetString("iri"), iri)) {
+				canonicalRemoteLogAbsenceCache.reset(confirmed.cacheKey)
+				continue
+			}
+			if confirmed.absenceProbe.entry != nil {
+				if !currentTrail.GetBool("public") {
+					canonicalRemoteLogAbsenceCache.reset(confirmed.cacheKey)
+					continue
+				}
+				if !canonicalRemoteLogAbsenceCache.ready(confirmed.absenceProbe, snapshot) {
+					continue
+				}
+			}
+			canonicalRemoteLogCache.invalidateAfterRollback(app, confirmed.cacheKey)
+			if err := cleanup.Delete(app, record); err != nil {
+				canonicalRemoteLogCache.invalidate(confirmed.cacheKey)
+				return err
+			}
+			canonicalRemoteLogAbsenceCache.forgetAfterCommit(app, confirmed.absenceProbe)
 		} else {
 			canonicalRemoteLogCache.successAfterCommit(app, confirmed.cacheKey, confirmed.updatedHint, record.GetString("updated"))
 		}
