@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
+	"strings"
 
 	extism "github.com/extism/go-sdk"
 	"github.com/tetratelabs/wazero"
@@ -22,9 +24,9 @@ const (
 // workerWASMMemoryLimitPages always returns a nonzero, supported per-memory
 // limit. Invalid settings fall back to the default, like other worker settings.
 func workerWASMMemoryLimitPages() uint32 {
-	memoryMiB := envInt("WANDERER_PLUGIN_WORKER_WASM_MEMORY_MIB", defaultWorkerWASMMemoryMiB)
-	if memoryMiB < minWorkerWASMMemoryMiB || memoryMiB > maxWorkerWASMMemoryMiB {
-		memoryMiB = defaultWorkerWASMMemoryMiB
+	memoryMiB, err := strconv.ParseInt(strings.TrimSpace(os.Getenv("WANDERER_PLUGIN_WORKER_WASM_MEMORY_MIB")), 10, 16)
+	if err != nil || memoryMiB < minWorkerWASMMemoryMiB || memoryMiB > maxWorkerWASMMemoryMiB {
+		return defaultWorkerWASMMemoryMiB * wasmPagesPerMiB
 	}
 	return uint32(memoryMiB) * wasmPagesPerMiB
 }
