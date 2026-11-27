@@ -934,13 +934,114 @@ func TestSyncDetailSuccessChecksBeforeImport(t *testing.T) {
 type pluginSyncLookupTestApp struct {
 	core.App
 	lookupErr *error
+	lookups   *int
 }
 
 func (app pluginSyncLookupTestApp) FindRecordById(collection any, id string, filters ...func(*dbx.SelectQuery) error) (*core.Record, error) {
-	if collection == "plugin_instances" && *app.lookupErr != nil {
-		return nil, *app.lookupErr
+	if collection == "plugin_instances" {
+		if app.lookups != nil {
+			*app.lookups++
+		}
+		if *app.lookupErr != nil {
+			return nil, *app.lookupErr
+		}
 	}
 	return app.App.FindRecordById(collection, id, filters...)
+}
+
+func TestSyncDetailHealthyRenewalAvoidsDuplicateInstanceLookup(t *testing.T) {
+	f := newDetailRetryFixture(t)
+	var lookupErr error
+	lookups, detailLookups := 0, 0
+	app := pluginSyncLookupTestApp{App: f.app, lookupErr: &lookupErr, lookups: &lookups}
+	actor, err := f.app.FindFirstRecordByData("activitypub_actors", "user", f.ownerID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runtime := &detailRetryRuntime{t: t, call: func(_ context.Context, _ int, export string, input []byte) ([]byte, error) {
+		if export == "list_routes_v1" {
+			return retryTestList(t, "healthy"), nil
+		}
+		detailLookups = lookups
+		_, output := retryTestDetail(t, input)
+		return output, nil
+	}}
+	sessions := &pluginSyncRuntimeSession{runtime: runtime, plugin: f.plugin}
+	if err := sessions.open(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	defer sessions.close(context.Background())
+	result, err := syncPluginCapability(t.Context(), app, nil, sessions, f.plugin,
+		f.plugin.Manifest.Capabilities[0], f.plugin.Manifest.Capabilities[1],
+		f.stored(t, f.instanceID), actor, nil, nil, nil, false, false)
+	// One check after listing and one before the item's calls suffice for an
+	// unchanged session. Keep the distinct strict check before import writes.
+	if err != nil || result == nil || result.Imported != 1 || detailLookups != 2 || lookups != 3 || sessions.openGeneration != 1 {
+		t.Fatalf("redundant healthy lookup or missing write gate: result=%#v detail lookups=%d total=%d generation=%d err=%v", result, detailLookups, lookups, sessions.openGeneration, err)
+	}
+	f.importedIDs(t, "healthy")
+}
+
+func TestSyncDetailRenewalRetainsCancellationAndStrictReadmissionChecks(t *testing.T) {
+	for _, phase := range []string{"healthy-cancel", "reopen-cancel", "reopen-lookup-failure"} {
+		t.Run(phase, func(t *testing.T) {
+			f := newDetailRetryFixture(t)
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+			var lookupErr error
+			app := pluginSyncLookupTestApp{App: f.app, lookupErr: &lookupErr}
+			cause := errors.New("live instance lookup failed")
+			renewals, details := 0, 0
+			runtime := &detailRetryRuntime{t: t}
+			runtime.renew = func(context.Context, int) error {
+				renewals++
+				if renewals == 2 {
+					if phase == "healthy-cancel" {
+						cancel()
+						return nil
+					}
+					return pluginsystem.ErrRuntimeSessionRecycleRequired
+				}
+				return nil
+			}
+			runtime.onOpen = func(_ context.Context, worker int, _ pluginsystem.LocalPlugin, _ pluginsystem.RequestPolicyContext) error {
+				if worker == 2 {
+					if phase == "reopen-cancel" {
+						cancel()
+					} else {
+						lookupErr = cause
+					}
+				}
+				return nil
+			}
+			runtime.call = func(_ context.Context, _ int, export string, _ []byte) ([]byte, error) {
+				if export == "list_routes_v1" {
+					return retryTestList(t, "never"), nil
+				}
+				details++
+				return nil, errors.New("unexpected detail after stop")
+			}
+			sessions := &pluginSyncRuntimeSession{runtime: runtime, plugin: f.plugin}
+			if err := sessions.open(ctx); err != nil {
+				t.Fatal(err)
+			}
+			result, err := syncPluginCapability(ctx, app, nil, sessions, f.plugin,
+				f.plugin.Manifest.Capabilities[0], f.plugin.Manifest.Capabilities[1],
+				f.stored(t, f.instanceID), nil, nil, nil, nil, false, false)
+			_ = sessions.close(context.Background())
+			want, wantOpened := context.Canceled, 2
+			if phase == "healthy-cancel" {
+				wantOpened = 1
+			} else if phase == "reopen-lookup-failure" {
+				want = cause
+			}
+			if result != nil || !errors.Is(err, want) || details != 0 || renewals != 2 ||
+				runtime.opened != wantOpened || runtime.closed != wantOpened || sessions.openGeneration != uint64(wantOpened) {
+				t.Fatalf("lost renewal stop gate: result=%#v details=%d renewals=%d workers=%d/%d generation=%d err=%v", result, details, renewals, runtime.opened, runtime.closed, sessions.openGeneration, err)
+			}
+			f.importedIDs(t)
+		})
+	}
 }
 
 func TestSyncDetailRetryRequiresSuccessfulLiveLookup(t *testing.T) {

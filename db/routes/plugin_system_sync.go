@@ -558,10 +558,17 @@ func syncPluginCapability(ctx context.Context, app core.App, client meilisearch.
 				}
 				continue
 			}
+			generation := sessions.openGeneration
 			if err := sessions.ensureOpenWhileEnabled(ctx, app, instance.Id); err != nil {
 				return nil, err
 			}
-			if err := checkPluginSyncActive(ctx, app, instance.Id); err != nil {
+			// The per-item gate already checked an unchanged session. Only
+			// re-admission needs another strict live-instance lookup.
+			if sessions.openGeneration != generation {
+				if err := checkPluginSyncActive(ctx, app, instance.Id); err != nil {
+					return nil, err
+				}
+			} else if err := ctx.Err(); err != nil {
 				return nil, err
 			}
 			item, err := pluginDetail(ctx, sessions.session, plugin, detailCapability, instance, auth, pluginConfig, summary)
