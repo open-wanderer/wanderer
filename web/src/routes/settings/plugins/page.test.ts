@@ -1,3 +1,4 @@
+import { Parser } from "htmlparser2";
 import { render } from "svelte/server";
 import { addMessages, init, locale } from "svelte-i18n";
 import { beforeAll, describe, expect, it } from "vitest";
@@ -51,7 +52,20 @@ function renderPlugin(
 // Read rendered text separately from attributes: a tooltip alone must not pass
 // the regression for a visible, wrapping explanation.
 function visibleText(body: string) {
-    return body.replace(/<!--[\s\S]*?-->/g, "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+    const text: string[] = [];
+    const parser = new Parser({
+        onopentag() {
+            text.push(" ");
+        },
+        ontext(value) {
+            text.push(value);
+        },
+        onclosetag() {
+            text.push(" ");
+        },
+    }, { decodeEntities: true });
+    parser.end(body);
+    return text.join("").replace(/\s+/g, " ").trim();
 }
 
 function toggleMarkup(body: string) {
@@ -64,6 +78,21 @@ beforeAll(() => {
     addMessages("en", en);
     addMessages("de", de);
     init({ fallbackLocale: "en", initialLocale: "en" });
+});
+
+describe("rendered text assertions", () => {
+    it.each([
+        { language: "en", messages: en, connect: "Save &amp; connect", reconnect: "Save &#38; reconnect" },
+        { language: "de", messages: de, connect: "Speichern &amp; verbinden", reconnect: "Speichern &#x26; neu verbinden" },
+    ])("reads decoded visible text, not attributes or comments, in $language", ({ messages, connect, reconnect }) => {
+        const body = `
+            <div title="Tooltip only">
+                <!-- Comment only -->
+                <span>${connect}</span><span>${reconnect}</span><br>
+            </div>
+        `;
+        expect(visibleText(body)).toBe(`${messages["save-and-connect"]} ${messages["save-and-reconnect"]}`);
+    });
 });
 
 describe("plugin sync status on the settings page", () => {
