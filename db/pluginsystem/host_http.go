@@ -44,18 +44,25 @@ const maxHostLogPayloadBytes = 8 * 1024
 // function must delegate to the same policy-controlled host implementation that
 // backend handlers use.
 func extismHostFunctions(manifest Manifest, policy RequestPolicyContext) []extism.HostFunction {
+	// Wazero converts callback panics into WASM call errors. This legacy
+	// in-process path has no worker fatal-RPC flag, so failed response writes
+	// must trap instead of returning an invalid response handle.
 	httpFn := extism.NewHostFunctionWithStack(
 		"http_request",
 		func(ctx context.Context, plugin *extism.CurrentPlugin, stack []uint64) {
 			requestBytes, err := plugin.ReadBytes(stack[0])
 			if err != nil {
-				writeHostHTTPResponse(ctx, plugin, stack, hostHTTPResponse{
+				if err := writeHostHTTPResponse(ctx, plugin, stack, hostHTTPResponse{
 					Error: &PluginError{Code: "invalid_request", Message: err.Error()},
-				})
+				}); err != nil {
+					panic(err)
+				}
 				return
 			}
 			response := executeHostHTTPRequest(ctx, manifest, policy, requestBytes)
-			writeHostHTTPResponse(ctx, plugin, stack, response)
+			if err := writeHostHTTPResponse(ctx, plugin, stack, response); err != nil {
+				panic(err)
+			}
 		},
 		[]extism.ValueType{extism.ValueTypePTR},
 		[]extism.ValueType{extism.ValueTypePTR},
@@ -166,21 +173,20 @@ func executeHostHTTPRequest(ctx context.Context, manifest Manifest, policy Reque
 	}
 }
 
-func writeHostHTTPResponse(ctx context.Context, plugin *extism.CurrentPlugin, stack []uint64, response hostHTTPResponse) {
+func writeHostHTTPResponse(ctx context.Context, plugin extismHostMemory, stack []uint64, response hostHTTPResponse) error {
 	responseBytes, err := json.Marshal(response)
 	if err != nil {
 		responseBytes, _ = json.Marshal(hostHTTPResponse{
 			Error: &PluginError{Code: "internal_error", Message: err.Error()},
 		})
 	}
-	offset, err := plugin.WriteBytes(responseBytes)
+	offset, err := writeHostMemory(ctx, plugin, responseBytes)
 	if err != nil {
-		plugin.Log(extism.LogLevelError, "write host http response: "+err.Error())
 		stack[0] = 0
-		return
+		return fmt.Errorf("write host http response: %w", err)
 	}
 	stack[0] = offset
-	_ = ctx
+	return nil
 }
 
 // ExecuteHostRequest is the single network chokepoint for plugin-controlled

@@ -45,9 +45,57 @@ Since we use an unmodified installation of meilisearch you can use all variables
 | REGION_ARCHIVE_EXTRACT_TIMEOUT | Maximum duration a single region archive extraction may take, as a Go duration string (e.g. `45m`)                | 30m                   |
 | REGION_ARCHIVE_REBUILD_DAYS    | Age in days at which a region's vector archive is rebuilt from a newer Protomaps build                            | 7                     |
 
-Plugins are not configured through an environment variable. See
+Plugin bundles and per-instance settings are not configured through an environment variable. See
 [Plugin installation](/run/installation/plugins) for installing runtime plugin
 bundles and configuring self-hosted connector trust settings.
+
+### Plugin workers
+
+Set these variables on the `db` service (or in the backend's launch environment).
+With the bundled `docker-compose.yml`, add them to `.env`; the `db` service loads
+that file via `env_file`. For custom Docker setups without `env_file`, pass the
+variables into the container environment explicitly (for example, with Compose's
+`environment` configuration). A `.env` file used only for Compose interpolation
+does not automatically populate the container environment.
+
+| Environment Variable | Description | Default |
+| -------------------- | ----------- | ------- |
+| WANDERER_PLUGIN_WORKER_WASM_MEMORY_MIB | Maximum size of **each WASM linear memory**, in MiB (1 MiB = 1048576 bytes). Accepts integers from `2` to `4096` inclusive; unset, blank, malformed, overflowing, or out-of-range values (including `1`, zero and negatives) fall back to `256`, not unlimited and not clamped to `2`. | `256` |
+| WANDERER_PLUGIN_WORKER_MAX | Maximum concurrent worker sessions in one backend process. Accepts positive integers; invalid values use the default. | Larger of `2` and the backend's logical CPU count |
+
+New worker sessions inherit the backend environment. The memory setting is
+applied when a worker first opens its plugin; restart the backend after changing
+its launch environment. Each 64 KiB WASM page counts toward the limit (16 pages
+per MiB). Memory is not eagerly allocated up to the configured limit.
+
+The limit applies separately to the guest and Extism runtime linear memories.
+A module whose minimum exceeds it cannot open; a growth request beyond it fails
+before wazero allocates a larger backing buffer. A plugin may handle this refusal
+or fail the call. Lower limits may reject otherwise valid plugins or larger jobs;
+the default is not a guarantee that every provider workload fits.
+
+Export input has an additional conservative safety bound: the configured limit
+minus the Extism kernel's observed initial memory size (currently 1 MiB).
+The pinned kernel initially accounts for only one 64 KiB allocator page despite
+starting with 1 MiB of memory. Reserving its whole initial memory size leaves
+metadata and page-rounding headroom after reset, avoiding unchecked input writes
+in the pinned Go SDK. A 2 MiB cap therefore allows up to 1 MiB of decoded export
+input; the 256 MiB default allows up to 255 MiB, still subject to the existing
+smaller RPC frame limit. Empty input remains allowed.
+
+Inputs above this bound are rejected before the SDK input write and end the
+worker session with a generic fatal runtime error, not a guessed memory-exhaustion
+cause. The bound may conservatively reject inputs that would otherwise fit and
+does not reserve capacity for later guest allocations or HTTP responses. The
+2 MiB configuration floor avoids a 1 MiB setting with no nonempty input budget
+under this rule; explicitly choose at least `2`, since `1` falls back to `256`.
+
+This is **not a hard worker RSS, Go heap, or aggregate backend memory limit**.
+Go backing-buffer capacity, temporary allocations, compiled code, host buffers,
+and multiple linear memories add overhead; concurrent workers multiply usage.
+Choose the memory limit and concurrency together for the deployment's memory
+budget. See [Runtime isolation](/develop/plugin-system#runtime-isolation) for
+failure behavior.
 
 ## Frontend
 

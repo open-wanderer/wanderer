@@ -965,7 +965,36 @@ holds connector policy, decrypted host auth, custom CA bundles, and HTTP
 execution logic.
 
 The worker boundary protects the backend from plugin crashes and hangs and
-enforces request/response frame limits and timeouts. It is not an OS-level
+enforces request/response frame limits, timeouts, and a finite maximum for each
+WASM linear memory. The default memory maximum is 256 MiB; configure it with
+[`WANDERER_PLUGIN_WORKER_WASM_MEMORY_MIB`](/run/environment-configuration#plugin-workers).
+The runtime refuses growth beyond the maximum before allocating the larger
+backing buffer, and rejects modules whose initial minimum is too large. Valid
+modules declaring a higher maximum can still open, but their effective maximum
+is capped.
+
+This maximum is per memory, including Extism's runtime memory, not a hard worker
+RSS or aggregate memory ceiling. Go allocation overhead, host buffers, compiled
+code, and concurrent workers consume additional memory. Extism's variable and
+HTTP-response defaults are unchanged. A guest can handle a refused `memory.grow`
+and continue, including returning a structured plugin error. If it instead traps
+or the plugin cannot open, the session ends with the existing generic
+`RuntimeSessionFatalError`; runtime failures are not automatically classified as
+memory exhaustion. The supported runtime API does not provide a distinct
+memory-limit error for all such failures.
+
+The worker also bounds decoded export input before the pinned SDK's unchecked
+input write. It conservatively reserves the kernel's initial memory size
+(currently 1 MiB) for allocator accounting and metadata headroom; the minimum
+configured cap is therefore 2 MiB. See the linked worker configuration for the
+input budget, fallback behavior, and compatibility tradeoffs. Host HTTP response
+writes validate nonempty payloads, nonzero Wasm32 allocation handles and the
+checked memory write, freeing a valid allocation if the write fails. A refused
+or invalid response write ends the session through the generic fatal RPC channel,
+including when writing a structured host error. These guards do not establish
+that an entire job, or every later SDK/guest allocation, fits the cap.
+
+The worker is not an OS-level
 sandbox for outbound network access; plugin-controlled provider traffic must
 still go through the host request API.
 
