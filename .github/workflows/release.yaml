@@ -75,7 +75,7 @@ jobs:
     permissions:
       contents: write
     env:
-      TINYGO_VERSION: '0.41.1'
+      TINYGO_VERSION: '0.44.0'
     steps:
       - uses: actions/checkout@v7
 
