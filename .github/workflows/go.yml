@@ -4,13 +4,13 @@ on:
   push:
     branches: [ main, dev ]
     paths:
-      - '.github/**'
+      - '.github/workflows/go.yml'
       - 'db/**'
       - 'plugins/**'
       - 'Makefile'
   pull_request:
     paths:
-      - '.github/**'
+      - '.github/workflows/go.yml'
       - 'db/**'
       - 'plugins/**'
       - 'Makefile'

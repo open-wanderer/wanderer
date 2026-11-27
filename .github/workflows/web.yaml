@@ -4,11 +4,11 @@ on:
   push:
     branches: [ main, dev ]
     paths:
-      - '.github/**'
+      - '.github/workflows/web.yaml'
       - 'web/**'
   pull_request:
     paths:
-      - '.github/**'
+      - '.github/workflows/web.yaml'
       - 'web/**'
 
 jobs:
