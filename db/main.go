@@ -17,6 +17,7 @@ import (
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/plugins/migratecmd"
 	"github.com/pocketbase/pocketbase/tools/auth"
+	"github.com/pocketbase/pocketbase/tools/hook"
 
 	"pocketbase/commands"
 	"pocketbase/federation"
@@ -191,6 +192,24 @@ func registerMigrations(app *pocketbase.PocketBase) {
 func setupEventHandlers(app *pocketbase.PocketBase, client meilisearch.ServiceManager) {
 	registerSearchBackupHooks(app)
 	trustedOIDC := oidcTrustedProviders()
+	app.OnFileDownloadRequest("assets").BindFunc(hooks.AuthorizeAssetFileDownload())
+	app.OnRecordEnrich("assets").BindFunc(hooks.HideAssetSourceMetadata())
+	app.OnServe().BindFunc(func(event *core.ServeEvent) error {
+		event.Router.BindFunc(hooks.PrepareAssetFileResponse)
+		return event.Next()
+	})
+	app.OnRecordCreateRequest("assets").BindFunc(hooks.PreserveAssetSourceMetadata())
+	app.OnRecordUpdateRequest("assets").BindFunc(hooks.PreventAssetFileReplacement())
+	app.OnRecordUpdateRequest("assets").BindFunc(hooks.PreserveAssetSourceMetadata())
+	app.OnRecordCreate("assets").BindFunc(hooks.StoreAssetSourceMetadata())
+	app.OnRecordUpdate("assets").BindFunc(hooks.StoreAssetSourceMetadata())
+	app.OnRecordUpdate("assets").BindFunc(hooks.InvalidateAssetContentHashOnFileChange())
+	app.OnRecordCreate("assets").BindFunc(hooks.HashAssetPhotoOnWrite())
+	app.OnRecordUpdate("assets").BindFunc(hooks.HashAssetPhotoOnWrite())
+	app.OnRecordDeleteExecute("trails", "waypoints", "summit_logs", "activitypub_actors").Bind(&hook.Handler[*core.RecordEvent]{Func: hooks.CollectDeletedRecordAssetsHandler(), Priority: 100})
+	app.OnRecordAfterDeleteSuccess("trails", "waypoints", "summit_logs", "activitypub_actors").BindFunc(hooks.DeleteOrphanedAssetsHandler())
+	app.OnRecordAfterDeleteError("trails", "waypoints", "summit_logs", "activitypub_actors").BindFunc(hooks.DeleteOrphanedAssetsAfterErrorHandler())
+
 	app.OnRecordAuthWithOAuth2Request().BindFunc(hooks.OAuth2UsernameHandler(trustedOIDC))
 	app.OnRecordAuthWithOAuth2Request().BindFunc(hooks.OAuth2EmailHandler(trustedOIDC))
 	app.OnRecordCreateRequest("users").BindFunc(hooks.GenerateUserRecordIdentity())
@@ -200,6 +219,7 @@ func setupEventHandlers(app *pocketbase.PocketBase, client meilisearch.ServiceMa
 
 	app.OnRecordAfterCreateSuccess("activitypub_actors").BindFunc(hooks.CreateActorHandler(client))
 	app.OnRecordAfterUpdateSuccess("activitypub_actors").BindFunc(hooks.UpdateActorHandler(client))
+	app.OnRecordDelete("activitypub_actors").BindFunc(hooks.HandOverContributedAssetsOnActorDelete())
 	app.OnRecordDelete("activitypub_actors").BindFunc(hooks.CollectActorDeleteRecipientsHandler())
 	app.OnRecordAfterDeleteSuccess("activitypub_actors").BindFunc(hooks.AnnounceActorDeleteHandler())
 	app.OnRecordAfterDeleteSuccess("activitypub_actors").BindFunc(hooks.DeleteActorHandler(client))

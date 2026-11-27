@@ -1,3 +1,4 @@
+import type { Asset, AssetLink } from "./asset";
 import type { icons } from "#lib/util/icon_util.ts";
 import * as M from "maplibre-gl";
 
@@ -15,6 +16,10 @@ class Waypoint {
     _time?: Date;
     author: string;
     trail?: string;
+    expand?: {
+        assets_via_waypoint?: Asset[];
+        waypoint_assets_via_waypoint?: AssetLink[];
+    }
 
     constructor(lat: number, lon: number, params?: {
         id?: string, name?: string, description?: string, icon?: typeof icons[number], marker?: M.Marker, photos?: string[], trail?: string

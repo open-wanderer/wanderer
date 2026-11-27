@@ -65,3 +65,32 @@ func (f *recordHooksFixture) localActor(name string) *core.Record {
 	return f.save("activitypub_actors", map[string]any{"user": user.Id, "preferred_username": name,
 		"iri": "https://example.com/api/v1/activitypub/user/" + name, "is_local": true})
 }
+
+func (f *recordHooksFixture) photo(author *core.Record) *core.Record {
+	return f.save("assets", map[string]any{"type": "photo", "storage_mode": "copy", "author": author.Id})
+}
+func (f *recordHooksFixture) exists(record *core.Record) bool {
+	_, err := f.app.FindRecordById(record.Collection(), record.Id)
+	return err == nil
+}
+
+func (f *recordHooksFixture) federatedPhoto(author *core.Record, name string) *core.Record {
+	return f.save("assets", map[string]any{"type": "photo", "storage_mode": "copy", "author": author.Id, "external_provider": "federation", "external_id": "https://b.example/api/v1/assets/" + name})
+}
+
+// Read access is supplied by this fixture so metadata hook tests do not depend
+// on the later migration that opens the asset records API.
+func (f *recordHooksFixture) allowAssetReads() {
+	f.t.Helper()
+	rule := ""
+	for _, name := range []string{"assets", "trail_assets", "waypoint_assets", "summit_log_assets"} {
+		collection, err := f.app.FindCollectionByNameOrId(name)
+		if err != nil {
+			f.t.Fatal(err)
+		}
+		collection.ListRule, collection.ViewRule = &rule, &rule
+		if err := f.app.Save(collection); err != nil {
+			f.t.Fatal(err)
+		}
+	}
+}

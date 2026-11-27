@@ -1,3 +1,4 @@
+import type { Asset, AssetLink } from "./asset";
 import type { Actor } from "./activitypub/actor";
 import type { Trail } from "./trail";
 
@@ -19,6 +20,8 @@ class SummitLog {
   created?: string;
 
   expand?: {
+    assets_via_summit_log?: Asset[];
+    summit_log_assets_via_summit_log?: AssetLink[];
     gpx_data?: string;
     trail?: Trail;
     author?: Actor
