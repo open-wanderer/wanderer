@@ -8,7 +8,26 @@ import (
 	"os"
 
 	extism "github.com/extism/go-sdk"
+	"github.com/tetratelabs/wazero"
 )
+
+const (
+	defaultWorkerWASMMemoryMiB = 256
+	minWorkerWASMMemoryMiB     = 2
+	maxWorkerWASMMemoryMiB     = 4096 // wazero's Wasm32 maximum: 65536 pages.
+	wasmPagesPerMiB            = 16   // A WebAssembly page is 64 KiB.
+	wasmPageBytes              = 64 * 1024
+)
+
+// workerWASMMemoryLimitPages always returns a nonzero, supported per-memory
+// limit. Invalid settings fall back to the default, like other worker settings.
+func workerWASMMemoryLimitPages() uint32 {
+	memoryMiB := envInt("WANDERER_PLUGIN_WORKER_WASM_MEMORY_MIB", defaultWorkerWASMMemoryMiB)
+	if memoryMiB < minWorkerWASMMemoryMiB || memoryMiB > maxWorkerWASMMemoryMiB {
+		memoryMiB = defaultWorkerWASMMemoryMiB
+	}
+	return uint32(memoryMiB) * wasmPagesPerMiB
+}
 
 // RunPluginWorker runs the stdio worker process. It is called by the main
 // binary's plugin-worker subcommand before PocketBase is initialized.
@@ -40,6 +59,7 @@ type pluginWorkerProcess struct {
 	wasmPath         string
 	sessionID        string
 	instance         *extism.Plugin
+	inputMaxBytes    uint64
 	fatalErr         error
 }
 
@@ -104,6 +124,11 @@ func (w *pluginWorkerProcess) handleCallExport(msg workerMessage) error {
 	if err != nil {
 		return w.errCtx(call.Export, fmt.Errorf("decode call input: %w", err))
 	}
+	// go-sdk v1.7.1 SetInput ignores null allocation handles and failed writes.
+	// Reject unsafe sizes before it resets/allocates/writes kernel memory.
+	if uint64(len(input)) > w.inputMaxBytes {
+		return w.errCtx(call.Export, fmt.Errorf("call input is %d bytes; safe worker input limit is %d bytes", len(input), w.inputMaxBytes))
+	}
 	w.fatalErr = nil
 	code, output, err := w.instance.CallWithContext(w.ctx, call.Export, input)
 	if w.fatalErr != nil {
@@ -154,6 +179,7 @@ func pluginErrorForCode(export string, code uint32, rawErr string) PluginError {
 }
 
 func (w *pluginWorkerProcess) openPlugin(wasmPath string) error {
+	memoryLimitPages := workerWASMMemoryLimitPages()
 	manifest := extism.Manifest{
 		Wasm: []extism.Wasm{
 			extism.WasmFile{Path: wasmPath},
@@ -161,22 +187,48 @@ func (w *pluginWorkerProcess) openPlugin(wasmPath string) error {
 	}
 	instance, err := extism.NewPlugin(w.ctx, manifest, extism.PluginConfig{
 		EnableWasi: true,
+		// Keep Manifest.Memory nil: its zero-valued fields disable Extism
+		// variables and change HTTP defaults. This cap is per linear memory,
+		// not a hard limit on the worker's RSS or Go backing-buffer capacity.
+		RuntimeConfig: wazero.NewRuntimeConfig().WithMemoryLimitPages(memoryLimitPages),
 	}, w.hostFunctions())
 	if err != nil {
-		return fmt.Errorf("create wasm plugin: %w", err)
+		return fmt.Errorf("create wasm plugin (per-memory limit %d MiB): %w", memoryLimitPages/wasmPagesPerMiB, err)
 	}
 	w.wasmPath = wasmPath
 	w.instance = instance
+	w.inputMaxBytes = workerInputLimitBytes(memoryLimitPages, uint64(instance.Memory().Size()))
 	return nil
+}
+
+// workerInputLimitBytes bounds the fresh allocation made after Extism's reset.
+// The pinned v1.7.0 kernel initially accounts for only one 64 KiB page despite
+// starting with 1 MiB of memory; subsequent growth updates both sizes equally.
+// Reserving its entire observed initial memory leaves one extra page for root,
+// block metadata and boundary rounding, rather than depending on exact struct
+// sizes. This is a conservative size check, not a promise that allocation can
+// never fail for other reasons or that later guest/host allocations will fit.
+func workerInputLimitBytes(memoryLimitPages uint32, kernelInitialBytes uint64) uint64 {
+	limitBytes := uint64(memoryLimitPages) * wasmPageBytes
+	if kernelInitialBytes < wasmPageBytes || kernelInitialBytes >= limitBytes {
+		return 0
+	}
+	return limitBytes - kernelInitialBytes
 }
 
 func (w *pluginWorkerProcess) hostFunctions() []extism.HostFunction {
 	httpFn := extism.NewHostFunctionWithStack(
 		"http_request",
 		func(ctx context.Context, plugin *extism.CurrentPlugin, stack []uint64) {
+			// A guest may try fallback requests after a fatal host response
+			// failure while stdio is still healthy. Do no more work for it.
+			if w.fatalErr != nil {
+				stack[0] = 0
+				return
+			}
 			requestBytes, err := plugin.ReadBytes(stack[0])
 			if err != nil {
-				writeHostHTTPResponse(ctx, plugin, stack, hostHTTPResponse{
+				w.writeHostHTTPResponse(ctx, plugin, stack, hostHTTPResponse{
 					Error: &PluginError{Code: "invalid_request", Message: err.Error()},
 				})
 				return
@@ -185,7 +237,7 @@ func (w *pluginWorkerProcess) hostFunctions() []extism.HostFunction {
 				RequestBase64: encodeWorkerBytes(requestBytes),
 			})
 			if err != nil {
-				writeHostHTTPResponse(ctx, plugin, stack, hostHTTPResponse{
+				w.writeHostHTTPResponse(ctx, plugin, stack, hostHTTPResponse{
 					Error: &PluginError{Code: "internal_error", Message: err.Error()},
 				})
 				return
@@ -213,13 +265,7 @@ func (w *pluginWorkerProcess) hostFunctions() []extism.HostFunction {
 				w.failHostRPC(stack, fmt.Errorf("decode host http response bytes: %w", err))
 				return
 			}
-			offset, err := plugin.WriteBytes(responseBytes)
-			if err != nil {
-				plugin.Log(extism.LogLevelError, "write host http response: "+err.Error())
-				stack[0] = 0
-				return
-			}
-			stack[0] = offset
+			w.writeHostHTTPResponseBytes(ctx, plugin, stack, responseBytes)
 		},
 		[]extism.ValueType{extism.ValueTypePTR},
 		[]extism.ValueType{extism.ValueTypePTR},
@@ -261,8 +307,25 @@ func (w *pluginWorkerProcess) hostFunctions() []extism.HostFunction {
 	return []extism.HostFunction{httpFn, logFn}
 }
 
+func (w *pluginWorkerProcess) writeHostHTTPResponse(ctx context.Context, plugin extismHostMemory, stack []uint64, response hostHTTPResponse) {
+	if err := writeHostHTTPResponse(ctx, plugin, stack, response); err != nil {
+		w.failHostRPC(stack, err)
+	}
+}
+
+func (w *pluginWorkerProcess) writeHostHTTPResponseBytes(ctx context.Context, plugin extismHostMemory, stack []uint64, responseBytes []byte) {
+	offset, err := writeHostMemory(ctx, plugin, responseBytes)
+	if err != nil {
+		w.failHostRPC(stack, fmt.Errorf("write host http response: %w", err))
+		return
+	}
+	stack[0] = offset
+}
+
 func (w *pluginWorkerProcess) failHostRPC(stack []uint64, err error) {
-	w.fatalErr = err
+	if w.fatalErr == nil {
+		w.fatalErr = err
+	}
 	stack[0] = 0
 }
 

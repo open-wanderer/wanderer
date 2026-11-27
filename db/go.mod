@@ -10,6 +10,8 @@ require (
 	github.com/meilisearch/meilisearch-go v0.36.2
 	github.com/pocketbase/dbx v1.12.0
 	github.com/pocketbase/pocketbase v0.38.0
+	github.com/tetratelabs/wabin v0.0.0-20230304001439-f6f874872834
+	github.com/tetratelabs/wazero v1.9.0
 	github.com/tkrajina/gpxgo v1.4.0
 )
 
@@ -24,8 +26,6 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.3.1 // indirect
 	github.com/gorilla/css v1.0.1 // indirect
 	github.com/ianlancetaylor/demangle v0.0.0-20240805132620-81f5be970eca // indirect
-	github.com/tetratelabs/wabin v0.0.0-20230304001439-f6f874872834 // indirect
-	github.com/tetratelabs/wazero v1.9.0 // indirect
 	github.com/valyala/fastjson v1.6.10 // indirect
 	go.opentelemetry.io/proto/otlp v1.3.1 // indirect
 	google.golang.org/protobuf v1.34.2 // indirect
