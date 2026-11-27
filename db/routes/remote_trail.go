@@ -42,6 +42,16 @@ var remoteSyncThreshold = func() time.Duration {
 var trailSyncing sync.Map
 var listSyncing sync.Map
 
+var remoteTrailSyncCoreExpandPaths = []string{
+	"author",
+	"category",
+	"subcategory",
+	"tags",
+	"waypoints_via_trail",
+	"summit_logs_via_trail",
+	"summit_logs_via_trail.author",
+}
+
 var errRemoteUnavailable = errors.New("remote instance unavailable")
 
 // cachedRecordFallback returns the locally cached record to serve when a
@@ -282,24 +292,7 @@ func performFullSyncDocument(app core.App, ctx context.Context, reqURL *url.URL,
 
 	client := newRemoteSyncHTTPClient()
 	remoteUrl, _ := url.Parse(iri)
-	query := url.Values{}
-	if reqURL != nil {
-		query = reqURL.Query()
-	}
-	query.Del("handle")
-	expands := strings.Split(query.Get("expand"), ",")
-	hasAuthor := false
-	for _, path := range expands {
-		if strings.TrimSpace(path) == "author" {
-			hasAuthor = true
-			break
-		}
-	}
-	if !hasAuthor {
-		expands = append(expands, "author")
-	}
-	query.Set("expand", strings.Trim(strings.Join(expands, ","), ","))
-	remoteUrl.RawQuery = query.Encode()
+	remoteUrl.RawQuery = remoteTrailSyncQuery(reqURL).Encode()
 	origin := fmt.Sprintf("%s://%s", remoteUrl.Scheme, remoteUrl.Host)
 
 	// A save after this snapshot may contain changes the fetched document lacks.
@@ -394,6 +387,56 @@ func performFullSyncDocument(app core.App, ctx context.Context, reqURL *url.URL,
 		}
 		return finishRemoteTrailSync(app, ctx, localTrail, nil)
 	})
+}
+
+func remoteTrailSyncQuery(reqURL *url.URL) url.Values {
+	query := remoteSyncQueryParameters(reqURL)
+	setMergedExpandQuery(query, remoteTrailSyncCoreExpandPaths)
+	return query
+}
+
+// A sync fetches the full server-defined record shape. Caller projections,
+// extra expands and arbitrary filler must not reach the authoritative origin.
+func remoteSyncQueryParameters(reqURL *url.URL) url.Values {
+	query := url.Values{}
+	if reqURL != nil {
+		share := reqURL.Query().Get("share")
+		if len(share) == 32 && strings.Trim(share, "abcdefghijklmnopqrstuvwxyz0123456789") == "" {
+			query.Set("share", share)
+		}
+	}
+	return query
+}
+
+func setMergedExpandQuery(query url.Values, required []string) {
+	seen := map[string]struct{}{}
+	expands := make([]string, 0, len(required))
+	add := func(value string) {
+		for _, part := range strings.Split(value, ",") {
+			part = strings.TrimSpace(part)
+			if part == "" {
+				continue
+			}
+			if _, ok := seen[part]; ok {
+				continue
+			}
+			seen[part] = struct{}{}
+			expands = append(expands, part)
+		}
+	}
+
+	for _, value := range query["expand"] {
+		add(value)
+	}
+	for _, value := range required {
+		add(value)
+	}
+
+	if len(expands) == 0 {
+		query.Del("expand")
+		return
+	}
+	query.Set("expand", strings.Join(expands, ","))
 }
 
 // --- Sub-Sync Helpers ---
