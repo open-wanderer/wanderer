@@ -134,7 +134,7 @@ func prepareCollectedRemoteTrailMedia(app core.App, ctx context.Context, c remot
 	sort.Strings(keys)
 	for _, iri := range keys {
 		entry := canonical[iri]
-		if entry.removed || entry.data == nil {
+		if entry.removed || entry.omitted || entry.data == nil {
 			continue
 		}
 		c.record(app, "summit_log", entry.remoteID, entry.origin, iri, entry.data)

@@ -39,10 +39,41 @@ func canonicalRotationStart(key string, size, take int) int {
 	return start
 }
 
-// New and changed references lead while a rotating refresh window keeps
-// the remaining known entries current.
-func selectCanonicalLogRequests(key string, priorities [2][]canonicalLogRequest) []canonicalLogRequest {
-	return selectCanonicalRemoteRequests(key, priorities[:])
+// New and changed listed logs lead, reserving progress for both refresh
+// classes. Omitted existence probes get at most a third of the window when
+// enough listed logs are due; either class may use the other's spare capacity.
+func selectCanonicalLogRequests(key string, priorities [3][]canonicalLogRequest) []canonicalLogRequest {
+	reserveOmitted, reserveKnown := min(1, len(priorities[1])), min(1, len(priorities[2]))
+	newTake := min(len(priorities[0]), canonicalRemoteRecordLimit-reserveOmitted-reserveKnown)
+	remaining := canonicalRemoteRecordLimit - newTake
+	omittedTake := min(len(priorities[1]), canonicalRemoteRecordLimit/3, remaining-reserveKnown)
+	knownTake := min(len(priorities[2]), remaining-omittedTake)
+	omittedTake = min(len(priorities[1]), remaining-knownTake)
+
+	windows := [3][]canonicalLogRequest{}
+	for priority, take := range [3]int{newTake, omittedTake, knownTake} {
+		if take == 0 {
+			continue
+		}
+		jobs := priorities[priority]
+		start := canonicalRotationStart(key+string(rune('0'+priority)), len(jobs), take)
+		for offset := 0; offset < take; offset++ {
+			windows[priority] = append(windows[priority], jobs[(start+offset)%len(jobs)])
+		}
+	}
+	selected := make([]canonicalLogRequest, 0, canonicalRemoteRecordLimit)
+	selected = append(selected, windows[0]...)
+	// Queue known listed logs first and interleave the refresh classes so slow
+	// omitted hosts cannot occupy every worker before any listed work starts.
+	for offset := 0; offset < max(knownTake, omittedTake); offset++ {
+		if offset < knownTake {
+			selected = append(selected, windows[2][offset])
+		}
+		if offset < omittedTake {
+			selected = append(selected, windows[1][offset])
+		}
+	}
+	return selected
 }
 
 func selectCanonicalRemoteRequests(key string, priorities [][]canonicalLogRequest) []canonicalLogRequest {

@@ -10,7 +10,7 @@ import { acceptsActivityPub, activityPubObject } from "#lib/server/activitypub_o
  * /api/v1/trail/{id}:
  *   get:
  *     summary: Get trail
- *     description: Retrieves a trail by ID
+ *     description: Retrieves a trail by ID. Requested empty waypoint and summit log relations are explicit only after a successful check.
  *     tags:
  *       - Trails
  *     parameters:
