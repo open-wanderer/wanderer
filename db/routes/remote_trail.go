@@ -492,6 +492,9 @@ func syncWaypoints(txApp core.App, ctx context.Context, trail *core.Record, orig
 			continue
 		}
 		wpID, _ := raw["id"].(string)
+		if strings.TrimSpace(wpID) == "" {
+			continue
+		}
 		iri, _ := raw["iri"].(string)
 		if iri == "" {
 			iri = fmt.Sprintf("%s/api/v1/waypoint/%s", origin, wpID)
@@ -531,6 +534,9 @@ func syncSummitLogs(txApp core.App, ctx context.Context, trail *core.Record, ori
 			continue
 		}
 		slID, _ := raw["id"].(string)
+		if strings.TrimSpace(slID) == "" {
+			continue
+		}
 		iri, _ := raw["iri"].(string)
 		if iri == "" {
 			iri = fmt.Sprintf("%s/api/v1/summit-log/%s", origin, slID)
