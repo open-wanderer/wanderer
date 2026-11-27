@@ -14,6 +14,7 @@
         description?: string;
         lastSyncAt?: string;
         error?: string;
+        syncIncomplete?: boolean;
     }
 
     let {
@@ -28,6 +29,7 @@
         description = "",
         lastSyncAt = "",
         error = "",
+        syncIncomplete = false,
     }: Props = $props();
 
     function formatLastSyncAt(value: string) {
@@ -88,15 +90,24 @@
             </div>
         </div>
         <div class="min-h-5 max-w-56 text-xs text-gray-500">
+            {#if syncIncomplete}
+                <p class="flex items-start gap-2 whitespace-normal break-words text-red-400">
+                    <i
+                        class="fa fa-triangle-exclamation mt-0.5 shrink-0 text-[0.8rem]"
+                        aria-hidden="true"
+                    ></i>
+                    <span class="min-w-0">{$_("plugin-error-sync-incomplete")}</span>
+                </p>
+            {/if}
             {#if lastSyncAt}
                 <span
-                    class:text-red-400={error}
+                    class:text-red-400={error || syncIncomplete}
                     class="inline-flex min-w-0 items-center gap-2"
-                    title={error
+                    title={error && !syncIncomplete
                         ? $_("plugin-setup-error")
                         : `${$_("last-sync")}: ${formatLastSyncAt(lastSyncAt)}`}
                 >
-                    {#if error}
+                    {#if error && !syncIncomplete}
                         <i
                             class="fa fa-triangle-exclamation shrink-0 text-[0.8rem]"
                             aria-hidden="true"
@@ -107,9 +118,11 @@
                             aria-hidden="true"
                         ></i>
                     {/if}
-                    <span class="truncate">{formatLastSyncAt(lastSyncAt)}</span>
+                    <span class:truncate={!syncIncomplete}>
+                        {#if syncIncomplete}{$_("last-sync")}: {/if}{formatLastSyncAt(lastSyncAt)}
+                    </span>
                 </span>
-            {:else if error}
+            {:else if error && !syncIncomplete}
                 <span class="inline-flex items-center gap-2 text-red-400" title={$_("plugin-setup-error")}>
                     <i
                         class="fa fa-triangle-exclamation shrink-0 text-[0.8rem]"
