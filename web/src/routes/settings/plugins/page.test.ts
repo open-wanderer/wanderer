@@ -103,11 +103,13 @@ describe("plugin sync status on the settings page", () => {
         expect(visibleText(body)).not.toContain(en["plugin-error-sync-incomplete"]);
     });
 
-    const staleStates: { name: string; instance: Partial<PluginInstance>; toggleDisabled: boolean }[] = [
-        { name: "disabled instance with error status", instance: { enabled: false }, toggleDisabled: false },
-        { name: "disabled status", instance: { enabled: false, status: "disabled" }, toggleDisabled: true },
-        { name: "needs reauth", instance: { status: "needs_reauth" }, toggleDisabled: true },
-        { name: "configured status", instance: { status: "configured" }, toggleDisabled: false },
+    const staleStates: { name: string; instance: Partial<PluginInstance>; toggleDisabled: boolean; suppressSetupError: boolean }[] = [
+        { name: "disabled instance with error status", instance: { enabled: false }, toggleDisabled: false, suppressSetupError: true },
+        { name: "disabled status", instance: { enabled: false, status: "disabled" }, toggleDisabled: true, suppressSetupError: true },
+        { name: "needs auth", instance: { status: "needs_auth" }, toggleDisabled: true, suppressSetupError: false },
+        { name: "needs reauth", instance: { status: "needs_reauth" }, toggleDisabled: true, suppressSetupError: false },
+        { name: "configured status", instance: { status: "configured" }, toggleDisabled: false, suppressSetupError: true },
+        { name: "syncing status", instance: { status: "syncing" }, toggleDisabled: false, suppressSetupError: true },
     ];
     for (const state of staleStates) {
         it.each([undefined, lastSyncAt])(`does not promise a scheduled sync for ${state.name} with a stale error, date=%s`, (date) => {
@@ -122,13 +124,33 @@ describe("plugin sync status on the settings page", () => {
             expect(body).not.toContain(en["plugin-error-sync-incomplete"]);
             expect(body).not.toContain(rawMessage);
             expect(visibleText(body)).toContain("Fixture provider");
-            if (date) {
+            if (state.suppressSetupError) {
+                expect(body).not.toContain(en["plugin-setup-error"]);
+                if (date) {
+                    expect(visibleText(body)).toContain(new Date(date).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" }));
+                }
+            } else if (date) {
                 expect(body).toContain(`title="${en["plugin-setup-error"]}"`);
             } else {
                 expect(visibleText(body)).toContain(en["plugin-setup-error"]);
             }
             expect(/\sdisabled(?:[=>\s])/.test(toggleMarkup(body))).toBe(state.toggleDisabled);
             expect(changes).toEqual(before);
+        });
+    }
+
+    for (const status of ["configured", "disabled"] as const) {
+        it.each([undefined, lastSyncAt])(`suppresses stale partial errors for a ${status} session instance, date=%s`, (date) => {
+            locale.set("en");
+            const body = renderPlugin({
+                status,
+                enabled: status === "configured",
+                last_sync_at: date,
+            }, { auth: { type: "session" } });
+            expect(body).not.toContain(en["plugin-error-sync-incomplete"]);
+            expect(body).not.toContain(en["plugin-setup-error"]);
+            expect(body).not.toContain(rawMessage);
+            expect(toggleMarkup(body)).not.toMatch(/\sdisabled(?:[=>\s])/);
         });
     }
 
@@ -143,13 +165,13 @@ describe("plugin sync status on the settings page", () => {
         expect(toggleMarkup(body)).toMatch(/\sdisabled(?:[=>\s])/);
     });
 
-    for (const presentation of ["setup", "auth"] as const) {
+    for (const presentation of ["setup", "availability", "needs_auth", "needs_reauth"] as const) {
         it.each([undefined, lastSyncAt])(`preserves the ${presentation} error presentation, date=%s`, (date) => {
             locale.set("en");
-            const body = presentation === "setup"
-                ? renderPlugin({ last_sync_at: date }, { status: "error", error: rawMessage })
+            const body = presentation === "setup" || presentation === "availability"
+                ? renderPlugin({ status: "configured", last_sync_at: date }, { status: presentation === "setup" ? "error" : "disabled", error: rawMessage })
                 : renderPlugin({
-                    status: "needs_reauth",
+                    status: presentation,
                     last_sync_at: date,
                     last_error: { code: "auth_failed", message: rawMessage },
                 });
@@ -165,6 +187,18 @@ describe("plugin sync status on the settings page", () => {
             expect(toggleMarkup(body)).toMatch(/\sdisabled(?:[=>\s])/);
         });
     }
+
+    it.each([undefined, lastSyncAt])("keeps genuine provider errors even on a configured instance, date=%s", (date) => {
+        locale.set("en");
+        const body = renderPlugin({
+            status: "configured",
+            last_sync_at: date,
+            last_error: { code: "provider_unavailable", message: rawMessage },
+        });
+        expect(body).toContain(en["plugin-setup-error"]);
+        expect(body).not.toContain(en["plugin-error-sync-incomplete"]);
+        expect(body).not.toContain(rawMessage);
+    });
 });
 
 describe("incomplete sync settings connection", () => {

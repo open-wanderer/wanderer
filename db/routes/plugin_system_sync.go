@@ -503,8 +503,11 @@ func syncPluginCapability(ctx context.Context, app core.App, client meilisearch.
 		if len(output.Items) > limits.MaxItems {
 			return nil, pluginsystem.SyncItemLimitError{Returned: len(output.Items), MaxItems: limits.MaxItems}
 		}
-		if err := checkPluginSyncActive(ctx, app, instance.Id); err != nil {
+		if err := ctx.Err(); err != nil {
 			return nil, err
+		}
+		if pluginInstanceSwitchedOff(app, instance.Id) {
+			return nil, errPluginInstanceSwitchedOff
 		}
 		app.Logger().Info("plugin capability batch returned items", "plugin", plugin.Manifest.ID, "instance", instance.Id, "capability", capability.Name, "batch", batch, "items", len(output.Items), "has_more", output.HasMore)
 
@@ -541,8 +544,11 @@ func syncPluginCapability(ctx context.Context, app core.App, client meilisearch.
 				continue
 			}
 			// A batch can take minutes, so check again before each item's calls.
-			if err := checkPluginSyncActive(ctx, app, instance.Id); err != nil {
+			if err := ctx.Err(); err != nil {
 				return nil, err
+			}
+			if pluginInstanceSwitchedOff(app, instance.Id) {
+				return nil, errPluginInstanceSwitchedOff
 			}
 			if existingIDsByProvider[summary.Source.Provider][summary.Source.ExternalID] {
 				result.Skipped++

@@ -477,6 +477,16 @@
         if (plugin.status !== "available") {
             return plugin.error ?? "";
         }
+        // Saving or toggling can leave the previous sync error on a normal/off instance.
+        if (
+            instance?.last_error?.code === "sync_incomplete" &&
+            (instance.status === "configured" ||
+                instance.status === "disabled" ||
+                instance.status === "syncing" ||
+                (instance.status === "error" && instance.enabled === false))
+        ) {
+            return "";
+        }
         return instanceError(instance);
     }
 

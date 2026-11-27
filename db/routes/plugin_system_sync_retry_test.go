@@ -933,8 +933,9 @@ func TestSyncDetailSuccessChecksBeforeImport(t *testing.T) {
 
 type pluginSyncLookupTestApp struct {
 	core.App
-	lookupErr *error
-	lookups   *int
+	lookupErr   *error
+	lookups     *int
+	lookupErrAt int
 }
 
 func (app pluginSyncLookupTestApp) FindRecordById(collection any, id string, filters ...func(*dbx.SelectQuery) error) (*core.Record, error) {
@@ -942,7 +943,7 @@ func (app pluginSyncLookupTestApp) FindRecordById(collection any, id string, fil
 		if app.lookups != nil {
 			*app.lookups++
 		}
-		if *app.lookupErr != nil {
+		if *app.lookupErr != nil && (app.lookupErrAt == 0 || (app.lookups != nil && *app.lookups == app.lookupErrAt)) {
 			return nil, *app.lookupErr
 		}
 	}
@@ -950,36 +951,53 @@ func (app pluginSyncLookupTestApp) FindRecordById(collection any, id string, fil
 }
 
 func TestSyncDetailHealthyRenewalAvoidsDuplicateInstanceLookup(t *testing.T) {
-	f := newDetailRetryFixture(t)
-	var lookupErr error
-	lookups, detailLookups := 0, 0
-	app := pluginSyncLookupTestApp{App: f.app, lookupErr: &lookupErr, lookups: &lookups}
-	actor, err := f.app.FindFirstRecordByData("activitypub_actors", "user", f.ownerID)
-	if err != nil {
-		t.Fatal(err)
+	for lookupErrAt, phase := range []string{"healthy", "post-list-read-failure", "pre-item-read-failure", "pre-import-read-failure"} {
+		t.Run(phase, func(t *testing.T) {
+			f := newDetailRetryFixture(t)
+			var lookupErr error
+			if lookupErrAt > 0 {
+				lookupErr = errors.New("one-shot live instance lookup failed")
+			}
+			lookups, detailLookups := 0, 0
+			app := pluginSyncLookupTestApp{App: f.app, lookupErr: &lookupErr, lookups: &lookups, lookupErrAt: lookupErrAt}
+			actor, err := f.app.FindFirstRecordByData("activitypub_actors", "user", f.ownerID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			runtime := &detailRetryRuntime{t: t, call: func(_ context.Context, _ int, export string, input []byte) ([]byte, error) {
+				if export == "list_routes_v1" {
+					return retryTestList(t, "healthy"), nil
+				}
+				detailLookups = lookups
+				_, output := retryTestDetail(t, input)
+				return output, nil
+			}}
+			sessions := &pluginSyncRuntimeSession{runtime: runtime, plugin: f.plugin}
+			if err := sessions.open(t.Context()); err != nil {
+				t.Fatal(err)
+			}
+			defer sessions.close(context.Background())
+			result, err := syncPluginCapability(t.Context(), app, nil, sessions, f.plugin,
+				f.plugin.Manifest.Capabilities[0], f.plugin.Manifest.Capabilities[1],
+				f.stored(t, f.instanceID), actor, nil, nil, nil, false, false)
+			// Ordinary checkpoints retain upstream best-effort read behavior.
+			// The distinct pre-import gate must still fail closed on any error.
+			if lookupErrAt == 3 {
+				if result != nil || !errors.Is(err, lookupErr) {
+					t.Fatalf("pre-import read failure authorized a write: result=%#v err=%v", result, err)
+				}
+				f.importedIDs(t)
+			} else {
+				if err != nil || result == nil || result.Imported != 1 {
+					t.Fatalf("healthy sync lost upstream best-effort behavior: result=%#v err=%v", result, err)
+				}
+				f.importedIDs(t, "healthy")
+			}
+			if detailLookups != 2 || lookups != 3 || sessions.openGeneration != 1 {
+				t.Fatalf("redundant healthy lookup or missing write gate: detail lookups=%d total=%d generation=%d", detailLookups, lookups, sessions.openGeneration)
+			}
+		})
 	}
-	runtime := &detailRetryRuntime{t: t, call: func(_ context.Context, _ int, export string, input []byte) ([]byte, error) {
-		if export == "list_routes_v1" {
-			return retryTestList(t, "healthy"), nil
-		}
-		detailLookups = lookups
-		_, output := retryTestDetail(t, input)
-		return output, nil
-	}}
-	sessions := &pluginSyncRuntimeSession{runtime: runtime, plugin: f.plugin}
-	if err := sessions.open(t.Context()); err != nil {
-		t.Fatal(err)
-	}
-	defer sessions.close(context.Background())
-	result, err := syncPluginCapability(t.Context(), app, nil, sessions, f.plugin,
-		f.plugin.Manifest.Capabilities[0], f.plugin.Manifest.Capabilities[1],
-		f.stored(t, f.instanceID), actor, nil, nil, nil, false, false)
-	// One check after listing and one before the item's calls suffice for an
-	// unchanged session. Keep the distinct strict check before import writes.
-	if err != nil || result == nil || result.Imported != 1 || detailLookups != 2 || lookups != 3 || sessions.openGeneration != 1 {
-		t.Fatalf("redundant healthy lookup or missing write gate: result=%#v detail lookups=%d total=%d generation=%d err=%v", result, detailLookups, lookups, sessions.openGeneration, err)
-	}
-	f.importedIDs(t, "healthy")
 }
 
 func TestSyncDetailRenewalRetainsCancellationAndStrictReadmissionChecks(t *testing.T) {
