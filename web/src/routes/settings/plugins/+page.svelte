@@ -23,6 +23,7 @@
         pluginSetupErrorKey,
         translatePluginError,
     } from "#lib/util/plugin_error_i18n.ts";
+    import { isPluginInstanceConnected } from "#lib/util/plugin_instance_status.ts";
     import { onMount, tick, untrack } from "svelte";
     import { _, locale } from "svelte-i18n";
     import { theme } from "#lib/stores/theme_store.ts";
@@ -483,7 +484,7 @@
         plugin: PluginProvider,
         instance: PluginInstance | undefined,
     ) {
-        return plugin.auth.type === "oauth2" && instance?.status !== "configured" && instance?.status !== "syncing";
+        return plugin.auth.type === "oauth2" && !isPluginInstanceConnected(instance);
     }
 
     function pluginSettingsModalKey(plugin: PluginProvider) {
@@ -547,6 +548,7 @@
                         active={instance?.enabled ?? false}
                         lastSyncAt={instance?.last_sync_at}
                         error={pluginCardError(plugin, instance)}
+                        syncIncomplete={plugin.status === "available" && instance?.enabled === true && instance.status === "error" && instance.last_error?.code === "sync_incomplete"}
                         oninfo={() => openPluginInfo(plugin)}
                         onclick={() => openPluginSettings(plugin)}
                         ontoggle={(value) => onPluginToggle(plugin, instance, value)}

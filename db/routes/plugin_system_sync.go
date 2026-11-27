@@ -24,6 +24,9 @@ const (
 	defaultPluginSyncBatchLimit                = 50
 	defaultPluginSyncMaxBatches                = 100
 	defaultPluginProviderCategoryBackfillLimit = 10
+	// Bound unsuccessful extra retry attempts across all capabilities. Once
+	// exhausted, continue the baseline one attempt per item, without retries.
+	defaultPluginSyncFailedDetailRetryLimit = 3
 )
 
 var syncCapabilityDescriptors = []syncCapabilityDescriptor{
@@ -265,6 +268,9 @@ func syncPluginInstance(ctx context.Context, app core.App, client meilisearch.Se
 	}
 	defer func() {
 		_ = sessions.close(context.Background())
+		if sessions.successfulDetailRetries > 0 {
+			app.Logger().Info("plugin sync detail retry summary", "plugin", plugin.Manifest.ID, "instance", instance.Id, "successful_detail_retries", sessions.successfulDetailRetries)
+		}
 	}()
 
 	if err := savePluginInstanceSyncState(app, instance, map[string]any{"status": "syncing"}); err != nil {
@@ -300,6 +306,9 @@ func syncPluginInstance(ctx context.Context, app core.App, client meilisearch.Se
 			return nil, err
 		}
 		if err != nil {
+			if sessions.detailFailure != nil {
+				err = pluginsystem.SyncIncompleteError{Err: err}
+			}
 			setPluginInstanceStatusForError(app, instance, err)
 			return nil, err
 		}
@@ -308,16 +317,32 @@ func syncPluginInstance(ctx context.Context, app core.App, client meilisearch.Se
 		result.Skipped += capResult.Skipped
 	}
 
-	if err := savePluginInstanceSyncState(app, instance, map[string]any{
+	if err := ctx.Err(); err != nil {
+		if sessions.detailFailure != nil {
+			err = pluginsystem.SyncIncompleteError{Err: err}
+		}
+		setPluginInstanceStatusForError(app, instance, err)
+		return nil, err
+	}
+
+	fields := map[string]any{
 		"state":            map[string]any{},
 		"last_sync_at":     time.Now(),
 		"last_error":       map[string]any{},
 		"retry_not_before": "",
 		"status":           "configured",
-	}); err != nil {
+	}
+	var syncErr error
+	if sessions.detailFailure != nil {
+		syncErr = pluginsystem.SyncIncompleteError{Err: sessions.detailFailure}
+		update := pluginsystem.InstanceStatusForError(syncErr, time.Now())
+		fields["status"] = update.Status
+		fields["last_error"] = map[string]any{"code": update.Code, "message": update.Message}
+	}
+	if err := savePluginInstanceSyncState(app, instance, fields); err != nil {
 		return nil, err
 	}
-	return result, nil
+	return result, syncErr
 }
 
 // shouldSkipPluginInstance applies retry delay from the last sync error.
@@ -337,6 +362,11 @@ type pluginSyncRuntimeSession struct {
 	policy         pluginsystem.RequestPolicyContext
 	session        pluginsystem.RuntimeSession
 	openGeneration uint64
+
+	failedDetailRetries     int
+	successfulDetailRetries int
+	// Retain only the most recent unrecovered cause, not every item's stderr.
+	detailFailure error
 }
 
 func (s *pluginSyncRuntimeSession) open(ctx context.Context) error {
@@ -378,6 +408,26 @@ func (s *pluginSyncRuntimeSession) ensureOpenWhileEnabled(ctx context.Context, a
 	return nil
 }
 
+// A fatal call closes its dead session before recovery. Re-admission can wait
+// minutes, so require a live context and enabled instance both before and after
+// it, without changing healthy-session renewal or its no-lookup fast path.
+func (s *pluginSyncRuntimeSession) ensureOpenForRetry(ctx context.Context, app core.App, instanceID string) error {
+	if err := checkPluginSyncActive(ctx, app, instanceID); err != nil {
+		return err
+	}
+	if err := s.ensureOpen(ctx); err != nil {
+		if activeErr := checkPluginSyncActive(ctx, app, instanceID); activeErr != nil {
+			return activeErr
+		}
+		return err
+	}
+	if err := checkPluginSyncActive(ctx, app, instanceID); err != nil {
+		_ = s.close(context.Background())
+		return err
+	}
+	return nil
+}
+
 func (s *pluginSyncRuntimeSession) reopen(ctx context.Context) error {
 	_ = s.close(context.Background())
 	return s.open(ctx)
@@ -406,7 +456,14 @@ func syncPluginCapability(ctx context.Context, app core.App, client meilisearch.
 		providerCategoryBackfillsRemaining = defaultPluginProviderCategoryBackfillLimit
 	}
 	for batch := 0; hasMore && batch < defaultPluginSyncMaxBatches; batch++ {
-		if err := sessions.ensureOpenWhileEnabled(ctx, app, instance.Id); err != nil {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		if sessions.session == nil {
+			if err := sessions.ensureOpenForRetry(ctx, app, instance.Id); err != nil {
+				return nil, err
+			}
+		} else if err := sessions.ensureOpenWhileEnabled(ctx, app, instance.Id); err != nil {
 			return nil, err
 		}
 		input := pluginSystemListInput{
@@ -427,11 +484,9 @@ func syncPluginCapability(ctx context.Context, app core.App, client meilisearch.
 		if err != nil && pluginsystem.IsRuntimeSessionFatalError(err) && ctx.Err() == nil {
 			// An idle timeout or worker failure can still race with ensureOpen.
 			// Retry the list once with the same host-owned page cursor.
-			if reopenErr := sessions.reopen(ctx); reopenErr != nil {
+			_ = sessions.close(context.Background())
+			if reopenErr := sessions.ensureOpenForRetry(ctx, app, instance.Id); reopenErr != nil {
 				return nil, reopenErr
-			}
-			if pluginInstanceSwitchedOff(app, instance.Id) {
-				return nil, errPluginInstanceSwitchedOff
 			}
 			outputBytes, err = sessions.session.Call(ctx, capability.Export, inputBytes, pluginsystem.RuntimeCallOptions{MaxHostRequests: pluginsystem.ListMaxHostRequestsPerCall})
 		}
@@ -448,8 +503,8 @@ func syncPluginCapability(ctx context.Context, app core.App, client meilisearch.
 		if len(output.Items) > limits.MaxItems {
 			return nil, pluginsystem.SyncItemLimitError{Returned: len(output.Items), MaxItems: limits.MaxItems}
 		}
-		if pluginInstanceSwitchedOff(app, instance.Id) {
-			return nil, errPluginInstanceSwitchedOff
+		if err := checkPluginSyncActive(ctx, app, instance.Id); err != nil {
+			return nil, err
 		}
 		app.Logger().Info("plugin capability batch returned items", "plugin", plugin.Manifest.ID, "instance", instance.Id, "capability", capability.Name, "batch", batch, "items", len(output.Items), "has_more", output.HasMore)
 
@@ -486,8 +541,8 @@ func syncPluginCapability(ctx context.Context, app core.App, client meilisearch.
 				continue
 			}
 			// A batch can take minutes, so check again before each item's calls.
-			if pluginInstanceSwitchedOff(app, instance.Id) {
-				return nil, errPluginInstanceSwitchedOff
+			if err := checkPluginSyncActive(ctx, app, instance.Id); err != nil {
+				return nil, err
 			}
 			if existingIDsByProvider[summary.Source.Provider][summary.Source.ExternalID] {
 				result.Skipped++
@@ -506,19 +561,61 @@ func syncPluginCapability(ctx context.Context, app core.App, client meilisearch.
 			if err := sessions.ensureOpenWhileEnabled(ctx, app, instance.Id); err != nil {
 				return nil, err
 			}
+			if err := checkPluginSyncActive(ctx, app, instance.Id); err != nil {
+				return nil, err
+			}
 			item, err := pluginDetail(ctx, sessions.session, plugin, detailCapability, instance, auth, pluginConfig, summary)
-			if err != nil {
-				result.Skipped++
-				app.Logger().Warn("skipping plugin item after detail fetch failed", "plugin", plugin.Manifest.ID, "instance", instance.Id, "capability", capability.Name, "provider", summary.Source.Provider, "external_id", summary.Source.ExternalID, "error", err)
-				if pluginsystem.IsRuntimeSessionFatalError(err) {
-					if reopenErr := sessions.reopen(ctx); reopenErr != nil {
-						return nil, reopenErr
+			fatalDetail := pluginsystem.IsRuntimeSessionFatalError(err)
+			retriedDetail := false
+			if fatalDetail {
+				_ = sessions.close(context.Background())
+				if sessions.failedDetailRetries < defaultPluginSyncFailedDetailRetryLimit {
+					if reopenErr := sessions.ensureOpenForRetry(ctx, app, instance.Id); reopenErr != nil {
+						return nil, pluginsystem.SyncIncompleteError{Err: reopenErr}
+					}
+					// These get_*_detail capabilities return import data. Retry
+					// the same input, auth, policy and per-call request budget
+					// once before any import writes. Successful recoveries do
+					// not consume the unsuccessful-retry budget.
+					retriedDetail = true
+					item, err = pluginDetail(ctx, sessions.session, plugin, detailCapability, instance, auth, pluginConfig, summary)
+					if pluginsystem.IsRuntimeSessionFatalError(err) {
+						_ = sessions.close(context.Background())
+					}
+					if err != nil {
+						sessions.failedDetailRetries++
+					} else {
+						// Count the successful detail response, not an import:
+						// cancellation or an import failure can still follow.
+						sessions.successfulDetailRetries++
 					}
 				}
+				if activeErr := checkPluginSyncActive(ctx, app, instance.Id); activeErr != nil {
+					// Keep a returned auth/backoff cause as well as the stop
+					// signal. No further call or import is allowed either way.
+					return nil, pluginsystem.SyncIncompleteError{Err: errors.Join(err, activeErr)}
+				}
+				if err != nil {
+					sessions.detailFailure = err
+				}
+			}
+			if err != nil {
+				if pluginsystem.IsActionableSyncError(err) {
+					return nil, pluginsystem.SyncIncompleteError{Err: err}
+				}
+				result.Skipped++
+				logErr := err
+				if fatalDetail {
+					logErr = pluginsystem.SyncIncompleteError{Err: err}
+				}
+				app.Logger().Warn("skipping plugin item after detail fetch failed", "plugin", plugin.Manifest.ID, "instance", instance.Id, "capability", capability.Name, "provider", summary.Source.Provider, "external_id", summary.Source.ExternalID, "error", logErr)
 				continue
 			}
 			applyHostPolicy(&item, hostConfig)
 			movePhotosToWaypoints(app, &item, categoryMapping(hostConfig))
+			if err := checkPluginSyncActive(ctx, app, instance.Id); err != nil {
+				return nil, err
+			}
 			imported, err := importer.ImportTrail(ctx, app, item, importer.Options{
 				UserID:                      instance.GetString("user"),
 				ActorID:                     actor.Id,
@@ -530,6 +627,9 @@ func syncPluginCapability(ctx context.Context, app core.App, client meilisearch.
 				Auth:                        auth,
 			})
 			if err != nil {
+				if retriedDetail {
+					return nil, pluginsystem.SyncIncompleteError{Err: err}
+				}
 				return nil, err
 			}
 			if imported.Created {
@@ -595,9 +695,9 @@ func backfillProviderCategoryDuringSync(ctx context.Context, app core.App, sessi
 	if err != nil {
 		app.Logger().Warn("skipping provider category backfill after detail fetch failed", "plugin", plugin.Manifest.ID, "instance", instance.Id, "provider", summary.Source.Provider, "external_id", summary.Source.ExternalID, "error", err)
 		if pluginsystem.IsRuntimeSessionFatalError(err) {
-			if reopenErr := sessions.reopen(ctx); reopenErr != nil {
-				return true, reopenErr
-			}
+			// Backfills retain their single-attempt skip behavior and do not
+			// consume the new-import retry budget. Reopen only for a later call.
+			_ = sessions.close(context.Background())
 		}
 		return true, nil
 	}
@@ -657,6 +757,19 @@ func pluginHasAnySyncCapability(plugin pluginsystem.LocalPlugin) bool {
 }
 
 var errPluginInstanceSwitchedOff = errors.New("plugin instance was switched off or deleted during the sync")
+
+// Unlike a best-effort switch-off check, a failed lookup cannot authorize a
+// retry or import write: the instance must still exist and be enabled.
+func checkPluginSyncActive(ctx context.Context, app core.App, instanceID string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	fresh, err := app.FindRecordById("plugin_instances", instanceID)
+	if errors.Is(err, sql.ErrNoRows) || (err == nil && !fresh.GetBool("enabled")) {
+		return errPluginInstanceSwitchedOff
+	}
+	return err
+}
 
 // pluginInstanceSwitchedOff reports whether the user switched the instance off
 // or deleted it since the sync started. A failed lookup for any other reason

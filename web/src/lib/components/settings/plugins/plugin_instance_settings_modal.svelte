@@ -19,6 +19,7 @@
         type CategoryMappingTarget,
     } from "#lib/util/category_util.ts";
     import { translatePluginAPIError } from "#lib/util/plugin_error_i18n.ts";
+    import { isPluginInstanceConnected } from "#lib/util/plugin_instance_status.ts";
     import {
         configFieldDescription,
         configFieldLabel,
@@ -61,7 +62,7 @@
     let secretFields = $derived(new Set(plugin.auth.secretFields ?? plugin.auth.fields ?? []));
     let isOAuthPlugin = $derived(plugin.auth.type === "oauth2");
     let isSessionPlugin = $derived(plugin.auth.type === "session");
-    let isConnected = $derived(instance?.status === "configured" || instance?.status === "syncing");
+    let isConnected = $derived(isPluginInstanceConnected(instance));
     let isSaving = $state(false);
     let needsOAuthConnect = $derived(isOAuthPlugin && (!isConnected || authChanged()));
     let plugin_id = $derived(plugin.id);
@@ -496,7 +497,7 @@
         return {
             ...instance,
             plugin_id,
-            enabled: isOAuthPlugin && status !== "configured" && status !== "syncing" ? false : (instance?.enabled ?? false),
+            enabled: isOAuthPlugin && !isPluginInstanceConnected({ status, last_error: instance?.last_error }) ? false : (instance?.enabled ?? false),
             auth: submittedAuth,
             config,
             status,

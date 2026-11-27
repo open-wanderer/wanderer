@@ -514,6 +514,26 @@ func TestCronTreatsASwitchOffDuringTheSyncAsSkipped(t *testing.T) {
 	}
 }
 
+func TestCronReportsIncompleteSyncAndContinuesOtherInstances(t *testing.T) {
+	f := newPluginInstanceFixture(t)
+	first := f.instance(t, true, time.Time{})
+	second := f.instance(t, true, time.Time{})
+	calls := []string{}
+	usePluginInstanceSync(t, func(_ context.Context, _ core.App, _ meilisearch.ServiceManager, _ pluginsystem.LocalPlugin, instance *core.Record) (*pluginSystemSyncResult, error) {
+		calls = append(calls, instance.Id)
+		result := &pluginSystemSyncResult{Imported: 1}
+		if instance.Id == first {
+			return result, pluginsystem.SyncIncompleteError{}
+		}
+		return result, nil
+	})
+	err := syncPluginInstancesOneByOne(t.Context(), f.app, nil, pluginsystem.LocalPlugin{}, []*core.Record{f.stored(t, first), f.stored(t, second)})
+	var incomplete pluginsystem.SyncIncompleteError
+	if !errors.As(err, &incomplete) || len(calls) != 2 || calls[0] != first || calls[1] != second {
+		t.Fatalf("cron cleared incomplete outcome or blocked another instance: calls=%v, err=%v", calls, err)
+	}
+}
+
 type pluginSyncFunc func(context.Context, core.App, meilisearch.ServiceManager, pluginsystem.LocalPlugin, *core.Record) (*pluginSystemSyncResult, error)
 
 func usePluginInstanceSync(t *testing.T, fake pluginSyncFunc) {

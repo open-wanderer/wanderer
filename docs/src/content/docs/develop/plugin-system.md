@@ -416,6 +416,48 @@ by the host:
 }
 ```
 
+For a new import, a fatal worker-session failure during a detail fetch is retried
+once with the same input on a new worker, under the same manifest permissions,
+connector policy, auth and per-export host-request budget. These detail
+capabilities fetch import data; the host does not retry after import writes
+begin. Ordinary per-item errors such as `not_importable` keep their existing
+skip behavior. Cancellation, switch-off or deletion prevents a retry, including
+when it happens while the replacement worker is starting. A failed live-instance
+lookup cannot authorize a retry.
+
+If the retry cannot produce an item, the host keeps committed imports and
+continues with later items and capabilities. After **three unsuccessful extra
+detail retries in total per instance sync**, later items still receive their
+baseline single attempt, but no extra retry. This bounds unsuccessful retry
+overhead during systemic failures without starving healthy later pages or
+capabilities in a stable provider order. Successful recoveries do not consume
+this budget, so it is not a limit of three total retries. Dead sessions are
+closed; replacements open only when another call needs one. There is no
+persistent cursor or failed-item list. Replacement startup failure stops the
+instance run. List calls retain their separate one-retry behavior. Category
+backfills retain their single-attempt skip behavior, without consuming the
+new-import retry budget or marking the sync incomplete.
+
+An incomplete run normally uses the existing `error` status with
+`last_error.code = "sync_incomplete"` and a safe message, not worker diagnostics
+or a guessed resource-limit cause. Structured auth failures, rate limits,
+explicit provider retry delays and typed list-item limits take precedence over
+the generic incomplete status. An actionable main-import detail error stops
+further calls on the initial attempt as well as a retry, preserving its required
+action or backoff regardless of item order; ordinary expected skips are
+unchanged. Wrapped causes remain available to the server, but automatic
+diagnostic logging uses only bounded, allowlisted cause metadata.
+
+Cron reports incomplete runs as errors without disabling the instance or
+inventing a backoff window; real provider retry delays remain honored. The next
+scheduled run starts listing again with a fresh retry budget. Committed external
+references prevent duplicate imports, and failed items remain eligible. A fully
+traversed but incomplete run updates `last_sync_at` without clearing its error.
+The UI displays a localized, wrapping explanation for `sync_incomplete`, with or
+without a previous sync timestamp. It does not treat this code as an OAuth
+disconnect, so the instance can still be switched off or have its settings saved
+without reconnecting.
+
 ## Detail output
 
 Detail capabilities return the full trail import:
@@ -940,7 +982,8 @@ Worker lifetime has three separate limits:
   happens before the next call, not halfway through the current item.
 - `WANDERER_PLUGIN_WORKER_EXPORT_TIMEOUT` (default `2m`) remains a hard per-export
   deadline. Caller cancellation also ends a running export and invalidates its
-  worker. Fatal detail failures are still skipped, not automatically retried.
+  worker. A fatal detail failure for a new import can be retried once as described
+  above; category backfills are not automatically retried.
 
 The host retains the current page cursor and supplies auth and plugin options
 again after recycling, so imports and category backfills can continue without
@@ -951,7 +994,9 @@ The sync then competes for admission again, waiting up to `5m` (or its caller's
 earlier deadline); other callers retain the default `30s` admission timeout.
 If the instance is disabled or deleted while a sync waits to reopen its worker,
 the host checks again before starting the next export. This does not cancel an
-already-running detail call or prevent that call's import from finishing.
+already-running detail call, but the host checks the live context and instance
+again before starting a new import write. Writes already in progress are not
+rolled back by a later switch-off.
 Recycling is cooperative, not a hard memory limit or a guarantee that a worker
 exits exactly at its maximum age.
 

@@ -20,6 +20,30 @@ describe("sync item limit error", () => {
     });
 });
 
+describe("sync incomplete error", () => {
+    beforeAll(() => {
+        addMessages("en", en);
+        addMessages("de", de);
+        init({ fallbackLocale: "en", initialLocale: "en" });
+    });
+
+    it.each(["en", "de"])("translates an incomplete sync safely in %s", (language) => {
+        locale.set(language);
+        const messages = language === "de" ? de : en;
+        expect(translatePluginError(" sync_incomplete ", "private worker stderr and trace")).toBe(
+            messages["plugin-error-sync-incomplete"],
+        );
+    });
+
+    it("uses the English incomplete-sync fallback for other locales", () => {
+        addMessages("fr", {});
+        locale.set("fr");
+        expect(translatePluginError("sync_incomplete")).toBe(
+            en["plugin-error-sync-incomplete"],
+        );
+    });
+});
+
 describe("pluginSetupErrorKey", () => {
     it.each([
         ["manifest_missing", "plugin-setup-error-manifest-missing"],
