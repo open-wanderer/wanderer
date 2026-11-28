@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
@@ -13,28 +14,31 @@ import (
 	"pocketbase/util"
 )
 
+const (
+	// An upstream 401 is sanitized without any upstream headers and never
+	// carries this internal db-to-web marker.
+	geocodingFailureHeader    = "X-Wanderer-Geocoding-Failure"
+	geocodingProxyAuthFailure = "internal_proxy_auth"
+
+	geocodingPrivacyHeader   = "X-Wanderer-Geocoding-Privacy"
+	geocodingPrivateRequired = "private-required"
+)
+
 // RegisterGeocoding installs the internal-only web proxy routes. Use one client
 // for both paths so requests to public Nominatim share its rate limit.
 func RegisterGeocoding(se *core.ServeEvent) {
 	client, usesPublicDefault := configuredGeocodingClient()
 	if client == nil {
-		se.App.Logger().Warn("Geocoding disabled: invalid Nominatim configuration")
+		se.App.Logger().Warn("Geocoding disabled: invalid Nominatim configuration on db",
+			"category", "invalid_nominatim_configuration")
 	} else if usesPublicDefault {
-		se.App.Logger().Info("Geocoding is using public Nominatim by default because no Nominatim URL is configured on db")
+		se.App.Logger().Info("Geocoding default is public Nominatim because no Nominatim URL is configured on db")
 	}
 
 	group := se.Router.Group("/geocoding")
 	// The default activity log records request URLs, including search terms and coordinates.
 	group.Unbind(apis.DefaultActivityLoggerMiddlewareId)
-	group.BindFunc(func(e *core.RequestEvent) error {
-		if err := util.RequireInternalProxy(e.Request); err != nil {
-			return e.UnauthorizedError("Unauthorized", nil)
-		}
-		if client == nil {
-			return geocodingFailure(e, http.StatusBadGateway)
-		}
-		return e.Next()
-	})
+	group.BindFunc(geocodingProxyAccess(client))
 
 	group.GET("/search", func(e *core.RequestEvent) error {
 		params := e.Request.URL.Query()
@@ -56,6 +60,36 @@ func RegisterGeocoding(se *core.ServeEvent) {
 		response, err := client.Reverse(e.Request.Context(), lat, lon)
 		return writeGeocodingResponse(e, response, err)
 	})
+}
+
+func geocodingProxyAccess(client *geocoding.Client) func(*core.RequestEvent) error {
+	var warnPrivateRequired sync.Once
+	return func(e *core.RequestEvent) error {
+		if err := util.RequireInternalProxy(e.Request); err != nil {
+			e.Response.Header().Set(geocodingFailureHeader, geocodingProxyAuthFailure)
+			return e.UnauthorizedError("Unauthorized", nil)
+		}
+		if client == nil {
+			return geocodingFailure(e, http.StatusBadGateway)
+		}
+		// Only check the signal from the authenticated web proxy. Unknown or
+		// ambiguous values must not permit a request to reach any upstream.
+		if values := e.Request.Header.Values(geocodingPrivacyHeader); len(values) != 0 {
+			if len(values) != 1 || (values[0] != "" && values[0] != geocodingPrivateRequired) {
+				e.App.Logger().Warn("Geocoding blocked: invalid privacy signal from web",
+					"category", "invalid_privacy_signal")
+				return geocodingFailure(e, http.StatusBadGateway)
+			}
+			if values[0] == geocodingPrivateRequired && client.UsesPublicService() {
+				warnPrivateRequired.Do(func() {
+					e.App.Logger().Warn("Geocoding blocked: configure a private NOMINATIM_URL on db or remove the obsolete web-only setting to use public Nominatim",
+						"category", "private_nominatim_required")
+				})
+				return geocodingFailure(e, http.StatusBadGateway)
+			}
+		}
+		return e.Next()
+	}
 }
 
 func configuredGeocodingClient() (client *geocoding.Client, usesPublicDefault bool) {
@@ -89,8 +123,11 @@ func writeGeocodingResponse(e *core.RequestEvent, response geocoding.Response, e
 	case status >= 200 && status < 300:
 		// Keep the client's JSON intact and avoid PocketBase's fields projection.
 		return e.Blob(status, "application/json", response.Body)
-	default:
+	case status >= 300 && status < 400:
 		// Upstream redirects are never followed or exposed as redirects to web.
+		e.App.Logger().Warn("Nominatim upstream redirect blocked", "category", "upstream_redirect")
+		return geocodingFailure(e, http.StatusBadGateway)
+	default:
 		return geocodingFailure(e, http.StatusBadGateway)
 	}
 }

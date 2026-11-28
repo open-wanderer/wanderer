@@ -96,8 +96,8 @@ func TestNewClientBaseURL(t *testing.T) {
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			c := newClientForTest(t, tt.base, "")
-			if c.baseURL.Scheme != tt.scheme || c.baseURL.Host != tt.host || (c.queue != nil) != tt.public {
-				t.Errorf("parsed URL = %s, public = %t", c.baseURL, c.queue != nil)
+			if c.baseURL.Scheme != tt.scheme || c.baseURL.Host != tt.host || c.UsesPublicService() != tt.public {
+				t.Errorf("parsed URL = %s, public = %t", c.baseURL, c.UsesPublicService())
 			}
 			if !strings.HasPrefix(c.userAgent, "wanderer/dev ") {
 				t.Errorf("default User-Agent = %q", c.userAgent)

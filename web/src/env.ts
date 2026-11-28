@@ -11,6 +11,9 @@ export const variables = defineEnvVars({
 	POCKETBASE_PROXY_SECRET: { schema: optional },
 	VALHALLA_URL: { schema: optional },
 	OVERPASS_API_URL: { schema: optional },
+	// Legacy migration signals only. Neither is public, despite the old prefix.
+	NOMINATIM_URL: { schema: optional },
+	PUBLIC_NOMINATIM_URL: { schema: optional },
 	TILE_SERVER_URL: { schema: optional },
 	PROTOMAPS_API_KEY: { schema: optional },
 	MAP_ASSETS_URL: { schema: optional },

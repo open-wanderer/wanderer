@@ -114,24 +114,32 @@ Nominatim is called by the `db` service.
 
 When the canonical setting is unset, the service also accepts the
 corresponding legacy `PUBLIC_*_URL` setting. `PUBLIC_NOMINATIM_URL` is a
-compatibility fallback read only by `db`; prefer `NOMINATIM_URL`. A
+server-side compatibility fallback; prefer `NOMINATIM_URL`. A
 Nominatim URL without a scheme uses HTTPS. Use an explicit `http://` for a
 private endpoint that does not use TLS, and use punycode for internationalized
-hostnames. An explicitly empty or invalid setting disables geocoding rather
-than falling back to the public service.
+hostnames. An explicitly empty or invalid setting on `db` disables geocoding
+rather than falling back to the public service.
 
 :::caution[Before upgrading geocoding]
 Upgrade `web` and `db` together. Set `POCKETBASE_PROXY_SECRET` to the **same**
 value on both services. If you don't already have one, generate it once with
 `openssl rand -hex 32` and store it securely.
 
-In a split-environment deployment, a private Nominatim URL configured only on
-`web` is ignored. If neither `NOMINATIM_URL` nor `PUBLIC_NOMINATIM_URL` is set
-on `db`, searches and coordinates go to **public Nominatim** by default. To
-keep geocoding private, set `NOMINATIM_URL` on **`db` before updating**.
+If you customized Nominatim only on `web` (for example in the v0.21.2 Compose
+file), move the setting to `NOMINATIM_URL` on **`db` before updating**.
+The `web` service still checks the old setting for this upgrade: a custom,
+blank or invalid value on `web` blocks search and reverse geocoding if `db`
+would use public Nominatim. This applies even when `db` explicitly selects
+the public service. The request returns a generic HTTP 502 without sending
+search terms or coordinates upstream. The check never sends the old URL to
+`db` and does not prevent a valid private setting on `db` from working.
+
+If you intend to use public Nominatim, remove the obsolete custom setting
+from `web`. With the original public default (or both old settings unset)
+on `web`, leaving both URL settings unset on `db` uses public Nominatim.
 :::
 
-With the sample Compose file, an existing `NOMINATIM_URL` in the shared
+With the new sample Compose file, an existing `NOMINATIM_URL` in the shared
 `.env` already reaches `db` and needs no change. With per-service
 environments, set the private URL (including one previously set as
 `PUBLIC_NOMINATIM_URL`) on `db`, for example:
@@ -147,15 +155,20 @@ Make sure the configured endpoint is reachable **from `db`**. If `db` uses
 an outbound proxy, add the private Nominatim hostname to `NO_PROXY` on `db`
 when it should be reached directly.
 
-Geocoding keeps upstream HTTP 4xx and 5xx statuses but returns a generic
-error instead of forwarding provider details. Redirects and unexpected
-success bodies return a generic 502. Configure the final base URL that
-serves `/search` and `/reverse` without redirects.
+Geocoding keeps upstream HTTP 4xx and 5xx statuses (including an upstream
+401) but returns a generic error instead of forwarding provider details.
+A missing or mismatched `POCKETBASE_PROXY_SECRET`, blocked redirects and
+unexpected success bodies return a generic 502. Configure each hop with
+its final URL; the Nominatim base URL must serve `/search` and `/reverse`
+without redirects.
 Reverse lookups without a matching address keep Nominatim's normal 200
 no-result response.
 
-If neither URL variable is set on `db`, its startup log notes that it is
-using the public default. To diagnose upstream timeouts, oversized responses
+Check the PocketBase logs for a blocked migration (`private_nominatim_required`,
+warned once), invalid Nominatim configuration, or a blocked upstream redirect.
+Check the `web` logs for internal proxy-secret errors and redirects from `db`.
+If neither URL variable is set on `db`, its startup log notes the public
+default. To diagnose upstream timeouts, oversized responses
 or transport/read failures, temporarily set **Logs → Logs settings → Min log
 level** to `-4` (DEBUG) in the PocketBase dashboard with log retention enabled.
 Geocoding diagnostics include only a fixed failure category, not request or

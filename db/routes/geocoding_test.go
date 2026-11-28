@@ -20,6 +20,7 @@ import (
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
 	pbtests "github.com/pocketbase/pocketbase/tests"
+	"github.com/pocketbase/pocketbase/tools/hook"
 	"github.com/pocketbase/pocketbase/tools/router"
 
 	"pocketbase/geocoding"
@@ -54,11 +55,14 @@ func geocodingTestRouter(t *testing.T) http.Handler {
 	return mux
 }
 
-func geocodingRequest(t *testing.T, h http.Handler, path, secret string) *httptest.ResponseRecorder {
+func geocodingRequest(t *testing.T, h http.Handler, path, secret string, privacy ...string) *httptest.ResponseRecorder {
 	t.Helper()
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, path, nil)
 	if secret != "" {
 		req.Header.Set("X-Internal-Secret", secret)
+	}
+	for _, value := range privacy {
+		req.Header.Add(geocodingPrivacyHeader, value)
 	}
 	req.Header.Set("Cookie", "test=caller-cookie")
 	req.Header.Set("X-Forwarded-For", "192.0.2.1")
@@ -86,15 +90,17 @@ func TestGeocodingRequiresInternalProxy(t *testing.T) {
 	handler := geocodingTestRouter(t)
 	for _, path := range []string{"/geocoding/search?q=place", "/geocoding/reverse?lat=1&lon=2"} {
 		for _, secret := range []string{"", "wrong-proxy-secret"} {
-			if res := geocodingRequest(t, handler, path, secret); res.Code != http.StatusUnauthorized {
-				t.Fatalf("%s with no matching secret returned %d", path, res.Code)
+			res := geocodingRequest(t, handler, path, secret, "unknown-privacy-value")
+			if res.Code != http.StatusUnauthorized || res.Header().Get(geocodingFailureHeader) != geocodingProxyAuthFailure {
+				t.Fatalf("%s with no matching secret did not return a marked 401", path)
 			}
 		}
 	}
 	t.Setenv("POCKETBASE_PROXY_SECRET", "")
 	for _, path := range []string{"/geocoding/search", "/geocoding/reverse"} {
-		if res := geocodingRequest(t, handler, path, geocodingTestSecret); res.Code != http.StatusUnauthorized {
-			t.Fatalf("%s with no configured secret returned %d", path, res.Code)
+		res := geocodingRequest(t, handler, path, geocodingTestSecret)
+		if res.Code != http.StatusUnauthorized || res.Header().Get(geocodingFailureHeader) != geocodingProxyAuthFailure {
+			t.Fatalf("%s with no configured secret did not return a marked 401", path)
 		}
 	}
 	if calls.Load() != 0 {
@@ -135,7 +141,7 @@ func TestGeocodingFixedPathsAndQueryWhitelist(t *testing.T) {
 	} {
 		t.Run(tc.path, func(t *testing.T) {
 			path := tc.path + "&format=json&addressdetails=0&url=http://ignored.test/&fields=type"
-			res := geocodingRequest(t, handler, path, geocodingTestSecret)
+			res := geocodingRequest(t, handler, path, geocodingTestSecret, geocodingPrivateRequired)
 			assertGeocodingResponse(t, res, http.StatusCreated, geocodingCollection)
 			var got request
 			select {
@@ -148,7 +154,7 @@ func TestGeocodingFixedPathsAndQueryWhitelist(t *testing.T) {
 			if got.method != http.MethodGet || got.path != tc.target || !reflect.DeepEqual(got.query, tc.params) {
 				t.Fatalf("unexpected upstream request: %s %s %v", got.method, got.path, got.query)
 			}
-			for _, header := range []string{"Cookie", "Authorization", "X-Internal-Secret", "X-Forwarded-For"} {
+			for _, header := range []string{"Cookie", "Authorization", "X-Internal-Secret", "X-Forwarded-For", geocodingPrivacyHeader} {
 				if got.header.Get(header) != "" {
 					t.Errorf("%s was sent to the upstream", header)
 				}
@@ -173,6 +179,13 @@ func TestGeocodingUpstreamStatusAndRedaction(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/redirect-target" {
 			redirectContacts.Add(1)
+			return
+		}
+		if r.URL.Query().Get("q") == "upstream-auth" || r.URL.Query().Get("lat") == "99" {
+			w.Header().Set(geocodingFailureHeader, geocodingProxyAuthFailure)
+			w.Header().Set("WWW-Authenticate", `Basic realm="private upstream auth"`)
+			w.WriteHeader(http.StatusUnauthorized)
+			_, _ = w.Write([]byte("private upstream credential"))
 			return
 		}
 		if r.URL.Path == "/reverse" {
@@ -231,6 +244,13 @@ func TestGeocodingUpstreamStatusAndRedaction(t *testing.T) {
 	if redirectContacts.Load() != 0 {
 		t.Fatal("an upstream redirect was followed")
 	}
+	for _, path := range []string{"/geocoding/search?q=upstream-auth", "/geocoding/reverse?lat=99&lon=1"} {
+		res := geocodingRequest(t, handler, path, geocodingTestSecret)
+		assertGeocodingResponse(t, res, http.StatusUnauthorized, geocodingErrorJSON)
+		if res.Header().Get(geocodingFailureHeader) != "" || res.Header().Get("WWW-Authenticate") != "" {
+			t.Fatal("upstream authentication headers were exposed")
+		}
+	}
 	assertGeocodingResponse(t, geocodingRequest(t, handler, "/geocoding/reverse?lat=0&lon=0", geocodingTestSecret),
 		http.StatusOK, noAddress)
 }
@@ -261,7 +281,8 @@ func TestGeocodingRejectsInvalidExplicitConfigAndAllowsLegacyFallback(t *testing
 		}
 		handler := geocodingTestRouter(t)
 		for _, path := range []string{"/geocoding/search?q=place", "/geocoding/reverse?lat=1&lon=2"} {
-			assertGeocodingResponse(t, geocodingRequest(t, handler, path, geocodingTestSecret), http.StatusBadGateway, geocodingErrorJSON)
+			assertGeocodingResponse(t, geocodingRequest(t, handler, path, geocodingTestSecret, geocodingPrivateRequired),
+				http.StatusBadGateway, geocodingErrorJSON)
 		}
 		assertGeocodingResponse(t, geocodingRequest(t, handler, "/health", ""), http.StatusOK, `{"status":"ok"}`)
 	}
@@ -269,8 +290,10 @@ func TestGeocodingRejectsInvalidExplicitConfigAndAllowsLegacyFallback(t *testing
 		t.Fatal(err)
 	}
 	handler := geocodingTestRouter(t)
-	assertGeocodingResponse(t, geocodingRequest(t, handler, "/geocoding/reverse?lat=1&lon=2", geocodingTestSecret),
-		http.StatusOK, geocodingCollection)
+	for _, path := range []string{"/geocoding/search?q=place", "/geocoding/reverse?lat=1&lon=2"} {
+		assertGeocodingResponse(t, geocodingRequest(t, handler, path, geocodingTestSecret, geocodingPrivateRequired),
+			http.StatusOK, geocodingCollection)
+	}
 }
 
 func TestGeocodingRequestContextCancelsUpstream(t *testing.T) {
@@ -348,6 +371,79 @@ func assertGeocodingLog(t *testing.T, output *bytes.Buffer, want map[string]any)
 	}
 }
 
+func TestGeocodingProxyAccessBeforeUpstream(t *testing.T) {
+	t.Setenv("POCKETBASE_PROXY_SECRET", geocodingTestSecret)
+	t.Setenv("NOMINATIM_URL", "")
+	t.Setenv("PUBLIC_NOMINATIM_URL", "")
+	for _, name := range []string{"NOMINATIM_URL", "PUBLIC_NOMINATIM_URL"} {
+		if err := os.Unsetenv(name); err != nil {
+			t.Fatal(err)
+		}
+	}
+	requiredWarning := map[string]any{
+		slog.LevelKey: "WARN", "category": "private_nominatim_required",
+		slog.MessageKey: "Geocoding blocked: configure a private NOMINATIM_URL on db or remove the obsolete web-only setting to use public Nominatim",
+	}
+	badSignalWarning := map[string]any{
+		slog.LevelKey: "WARN", "category": "invalid_privacy_signal",
+		slog.MessageKey: "Geocoding blocked: invalid privacy signal from web",
+	}
+	for _, tc := range []struct {
+		name, dbURL string
+		privacy     []string
+		warning     map[string]any
+	}{
+		{"implicit public is blocked", "", []string{geocodingPrivateRequired}, requiredWarning},
+		{"explicit public is blocked", "https://NOMINATIM.openstreetmap.org.:8443/path", []string{geocodingPrivateRequired}, requiredWarning},
+		{"private is allowed", "https://nominatim.openstreetmap.org.example", []string{geocodingPrivateRequired}, nil},
+		{"absent signal is allowed", "", nil, nil},
+		{"empty signal is allowed", "", []string{""}, nil},
+		{"unknown signal is blocked even for private", "http://private.test", []string{"visitor-sensitive-value"}, badSignalWarning},
+		{"duplicate signal is blocked", "", []string{"", "visitor-sensitive-value"}, badSignalWarning},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.dbURL != "" {
+				t.Setenv("NOMINATIM_URL", tc.dbURL)
+			}
+			client, _ := configuredGeocodingClient()
+			if client == nil {
+				t.Fatal("expected a configured client")
+			}
+			var output bytes.Buffer
+			app := geocodingLogApp{logger: slog.New(slog.NewJSONHandler(&output, nil))}
+			h := &hook.Hook[*core.RequestEvent]{}
+			h.BindFunc(geocodingProxyAccess(client))
+			for i, path := range []string{"/geocoding/search?q=visitor-place", "/geocoding/reverse?lat=41.2345&lon=51.2345"} {
+				req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, path, nil)
+				req.Header.Set("X-Internal-Secret", geocodingTestSecret)
+				req.Header.Set("X-Forwarded-For", "192.0.2.1")
+				for _, value := range tc.privacy {
+					req.Header.Add(geocodingPrivacyHeader, value)
+				}
+				res := httptest.NewRecorder()
+				event := &core.RequestEvent{App: app, Event: router.Event{Request: req, Response: res}}
+				// A sentinel next handler proves which requests may reach an
+				// upstream, without any attempt to dial public Nominatim.
+				err := h.Trigger(event, func(e *core.RequestEvent) error { return e.NoContent(http.StatusNoContent) })
+				if err != nil {
+					t.Fatal(err)
+				}
+				if tc.warning != nil {
+					assertGeocodingResponse(t, res, http.StatusBadGateway, geocodingErrorJSON)
+				} else {
+					assertGeocodingResponse(t, res, http.StatusNoContent, "")
+				}
+				want := tc.warning
+				if i != 0 && want["category"] == "private_nominatim_required" {
+					want = nil // warn only once across both endpoints
+				}
+				assertGeocodingLog(t, &output, want)
+				output.Reset()
+			}
+		})
+	}
+}
+
 func TestGeocodingStartupNoticeOnlyForImplicitPublicDefault(t *testing.T) {
 	const configured = "https://fixture-user:fixture-password@private.fixture.test/prefix"
 	for _, tc := range []struct {
@@ -357,16 +453,18 @@ func TestGeocodingStartupNoticeOnlyForImplicitPublicDefault(t *testing.T) {
 	}{
 		{"both absent", nil, map[string]any{
 			slog.LevelKey:   "INFO",
-			slog.MessageKey: "Geocoding is using public Nominatim by default because no Nominatim URL is configured on db",
+			slog.MessageKey: "Geocoding default is public Nominatim because no Nominatim URL is configured on db",
 		}},
 		{"canonical configured", map[string]string{"NOMINATIM_URL": configured}, nil},
 		{"legacy configured", map[string]string{"PUBLIC_NOMINATIM_URL": configured}, nil},
 		{"explicit public", map[string]string{"NOMINATIM_URL": geocoding.DefaultBaseURL}, nil},
 		{"explicit blank", map[string]string{"NOMINATIM_URL": "", "PUBLIC_NOMINATIM_URL": configured}, map[string]any{
-			slog.LevelKey: "WARN", slog.MessageKey: "Geocoding disabled: invalid Nominatim configuration",
+			slog.LevelKey: "WARN", slog.MessageKey: "Geocoding disabled: invalid Nominatim configuration on db",
+			"category": "invalid_nominatim_configuration",
 		}},
 		{"invalid legacy", map[string]string{"PUBLIC_NOMINATIM_URL": "ftp://fixture-user:fixture-password@private.fixture.test"}, map[string]any{
-			slog.LevelKey: "WARN", slog.MessageKey: "Geocoding disabled: invalid Nominatim configuration",
+			slog.LevelKey: "WARN", slog.MessageKey: "Geocoding disabled: invalid Nominatim configuration on db",
+			"category": "invalid_nominatim_configuration",
 		}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -385,6 +483,24 @@ func TestGeocodingStartupNoticeOnlyForImplicitPublicDefault(t *testing.T) {
 			assertGeocodingLog(t, &output, tc.want)
 		})
 	}
+}
+
+func TestGeocodingRedirectLogsOnlyFixedCategory(t *testing.T) {
+	var output bytes.Buffer
+	app := geocodingLogApp{logger: slog.New(slog.NewJSONHandler(&output, nil))}
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/geocoding/reverse?lat=41.2345&lon=51.2345", nil)
+	req.Header.Set("X-Internal-Secret", geocodingTestSecret)
+	req.Header.Set("X-Forwarded-For", "192.0.2.1")
+	res := httptest.NewRecorder()
+	event := &core.RequestEvent{App: app, Event: router.Event{Request: req, Response: res}}
+	response := geocoding.Response{StatusCode: http.StatusFound, Body: []byte(`{"secret":"private-redirect-data"}`)}
+	if err := writeGeocodingResponse(event, response, nil); err != nil {
+		t.Fatal(err)
+	}
+	assertGeocodingResponse(t, res, http.StatusBadGateway, geocodingErrorJSON)
+	assertGeocodingLog(t, &output, map[string]any{
+		slog.LevelKey: "WARN", slog.MessageKey: "Nominatim upstream redirect blocked", "category": "upstream_redirect",
+	})
 }
 
 func TestGeocodingFailureLogsOnlyFixedCategoriesAtDebug(t *testing.T) {

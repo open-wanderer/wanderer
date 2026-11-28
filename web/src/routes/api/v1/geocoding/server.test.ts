@@ -3,12 +3,18 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import type { RequestEvent } from "@sveltejs/kit";
 import PocketBase from "pocketbase";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { GET as reverse } from "./reverse/+server";
 import { GET as search } from "./search/+server";
 
 const secret = "configured-test-secret";
-const privateEnv = vi.hoisted(() => ({ POCKETBASE_PROXY_SECRET: undefined as string | undefined }));
+const privacyHeader = "x-wanderer-geocoding-privacy";
+const failureHeader = "x-wanderer-geocoding-failure";
+const privateEnv = vi.hoisted(() => ({
+    POCKETBASE_PROXY_SECRET: undefined as string | undefined,
+    NOMINATIM_URL: undefined as string | undefined,
+    PUBLIC_NOMINATIM_URL: undefined as string | undefined,
+}));
 vi.mock("$app/env/private", () => privateEnv);
 
 const featureCollection = {
@@ -42,6 +48,11 @@ function mockFetch(response = Response.json(featureCollection)) {
     return fetch;
 }
 
+beforeEach(() => {
+    privateEnv.NOMINATIM_URL = undefined;
+    privateEnv.PUBLIC_NOMINATIM_URL = undefined;
+});
+
 afterEach(() => {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
@@ -70,6 +81,8 @@ describe.each([
                 "Accept-Language": "fr",
                 "X-Forwarded-For": "192.0.2.1",
                 "X-Internal-Secret": "visitor-secret",
+                [privacyHeader]: "private-required",
+                [failureHeader]: "internal_proxy_auth",
             } },
             () => "203.0.113.7",
         );
@@ -93,11 +106,50 @@ describe.each([
         expect([...url.searchParams]).toEqual(Object.entries(expected));
         expect(options.method).toBe("GET");
         expect(options.credentials).toBe("omit");
-        expect(options.redirect).toBe("error");
+        expect(options.redirect).toBe("manual");
         expect([...new Headers(options.headers)]).toEqual([
             ["x-forwarded-for", "203.0.113.7"], ["x-internal-secret", secret],
         ]);
         expect(options.signal).toBeInstanceOf(AbortSignal);
+    });
+
+    it.each([
+        ["unset", undefined, undefined, false],
+        ["shipped default", "https://nominatim.openstreetmap.org", undefined, false],
+        ["default with case, trailing dot and omitted scheme", " NOMINATIM.OpenStreetMap.ORG./ ", undefined, false],
+        ["legacy public default", undefined, "https://nominatim.openstreetmap.org/", false],
+        ["canonical takes precedence", "https://nominatim.openstreetmap.org", "https://private.test", false],
+        ["canonical private", "https://operator:private-credential@private.test", "https://nominatim.openstreetmap.org", true],
+        ["legacy private", undefined, "http://private.test/path", true],
+        ["canonical blank takes precedence", "", "https://nominatim.openstreetmap.org", true],
+        ["legacy blank", undefined, " \t", true],
+        ["invalid URL", "https:///nominatim.openstreetmap.org", undefined, true],
+        ["invalid port", "https://nominatim.openstreetmap.org:65536", undefined, true],
+        ["lookalike host", "https://nominatim.openstreetmap.org.private.test", undefined, true],
+        ["hostname in credentials", "https://nominatim.openstreetmap.org@private.test", undefined, true],
+        ["empty credentials on public host", "https://@nominatim.openstreetmap.org", undefined, true],
+        ["custom path on public host", "https://nominatim.openstreetmap.org/private/..", undefined, true],
+        ["custom port on public host", "https://nominatim.openstreetmap.org:8443", undefined, true],
+        ["empty query on public host", "https://nominatim.openstreetmap.org?", undefined, true],
+    ] as const)("derives the private-required signal from %s, not visitor headers", async (
+        _name, canonical, legacy, requiresPrivate,
+    ) => {
+        privateEnv.NOMINATIM_URL = canonical;
+        privateEnv.PUBLIC_NOMINATIM_URL = legacy;
+        const { event } = requestEvent(endpoint, query, {
+            headers: { [privacyHeader]: "visitor-override" },
+        });
+        const fetch = mockFetch();
+
+        expect((await get(event)).status).toBe(200);
+
+        const [url, options] = fetch.mock.calls[0];
+        expect(url.origin).toBe("https://pocketbase.test");
+        expect([...url.searchParams]).toEqual(Object.entries(expected));
+        expect([...new Headers(options.headers)]).toEqual([
+            ["x-internal-secret", secret],
+            ...(requiresPrivate ? [[privacyHeader, "private-required"]] : []),
+        ]);
     });
 
     it("does not forward a caller-supplied address when the adapter cannot resolve one", async () => {
@@ -124,19 +176,41 @@ describe.each([
 
     it.each([
         [400, '{"message":"private query detail", "detail":{"url":"https://private.test"}}'],
-        [401, '{"message":"wrong internal secret", "detail":"private-test-token"}'],
+        [401, '{"message":"upstream auth failed", "detail":"private-test-token"}'],
         [404, '{"error":"private service detail"}'],
         [429, "wait for https://private.test"],
         [503, "private service failure"],
     ])("preserves backend HTTP %s without reflecting its error body or headers", async (status, body) => {
         const { event } = requestEvent(endpoint, query);
-        mockFetch(new Response(body, { status, headers: { Location: "https://private.test" } }));
+        const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+        mockFetch(new Response(body, { status, headers: {
+            Location: "https://private.test",
+            [failureHeader]: "unrecognized-private-detail",
+        } }));
 
         const response = await get(event);
 
         expect(response.status).toBe(status);
         expect(await response.json()).toEqual(failure);
         expect(response.headers.has("location")).toBe(false);
+        expect(response.headers.has(failureHeader)).toBe(false);
+        expect(warn).not.toHaveBeenCalled();
+    });
+
+    it("maps a marked DB authentication failure to a generic 502 with a fixed diagnostic", async () => {
+        const { event } = requestEvent(endpoint, query);
+        const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+        mockFetch(new Response("private error cause", { status: 401, headers: {
+            [failureHeader]: "internal_proxy_auth",
+            Location: "https://operator:private-credential@private.test",
+        } }));
+
+        const response = await get(event);
+
+        expect(response.status).toBe(502);
+        expect(await response.json()).toEqual(failure);
+        expect([...response.headers.keys()]).toEqual(["content-type"]);
+        expect(warn.mock.calls).toEqual([["Geocoding proxy failed: db rejected the internal proxy secret"]]);
     });
 
     it.each([
@@ -175,11 +249,14 @@ describe.each([
     });
 
     it("does not contact a redirect target on the PocketBase origin", async () => {
+        const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
         const requests: string[] = [];
         const backend = createServer((req, res) => {
             requests.push(req.url ?? "");
             if (req.url?.startsWith("/geocoding/")) {
-                res.writeHead(302, { Location: "/never-follow" });
+                res.writeHead(302, { Location: "/never-follow?q=private-location" });
+                res.end("private redirect body");
+                return;
             }
             res.end();
         }).listen(0, "127.0.0.1");
@@ -193,8 +270,10 @@ describe.each([
 
             expect(response.status).toBe(502);
             expect(await response.json()).toEqual(failure);
+            expect([...response.headers.keys()]).toEqual(["content-type"]);
             expect(requests).toHaveLength(1);
             expect(requests[0]).toMatch(new RegExp(`^/geocoding/${endpoint}\\?`));
+            expect(warn.mock.calls).toEqual([["Geocoding proxy blocked a redirect from db"]]);
         } finally {
             backend.closeAllConnections();
             await new Promise<void>(resolve => backend.close(() => resolve()));
@@ -220,6 +299,7 @@ describe.each([
 
     it("fails closed without a configured secret, even if the caller supplies one", async () => {
         const { event } = requestEvent(endpoint, query, { headers: { "X-Internal-Secret": secret } });
+        const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
         privateEnv.POCKETBASE_PROXY_SECRET = undefined;
         const fetch = mockFetch();
 
@@ -228,6 +308,7 @@ describe.each([
         expect(response.status).toBe(502);
         expect(await response.json()).toEqual(failure);
         expect(fetch).not.toHaveBeenCalled();
+        expect(warn.mock.calls).toEqual([["Geocoding disabled: POCKETBASE_PROXY_SECRET is not configured on web"]]);
     });
 });
 

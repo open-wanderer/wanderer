@@ -122,6 +122,12 @@ func NewClient(baseURL, version string) (*Client, error) {
 	return client, nil
 }
 
+// UsesPublicService reports whether the configured host is public Nominatim,
+// using the same decision as the shared rate limiter.
+func (c *Client) UsesPublicService() bool {
+	return c.queue != nil
+}
+
 func parseBaseURL(raw string) (*url.URL, error) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
