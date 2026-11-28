@@ -25,7 +25,7 @@ Since we use an unmodified installation of meilisearch you can use all variables
 | ------------------------------ | ----------------------------------------------------------------------------------------------------------------- | --------------------- |
 | ORIGIN                         | Public IP or hostname (including the port) of your <span class="-tracking-[0.075em]">wanderer</span> frontend (must be the same as in the frontend config) | <http://localhost:3000> |
 | POCKETBASE_ENCRYPTION_KEY      | **Required.** Valid 32 character AES key. Used to encrypt secrets. Generate with `openssl rand -hex 16`. Never change it after the first start, or stored secrets can no longer be decrypted |                       |
-| POCKETBASE_PROXY_SECRET        | **Required.** Shared secret authenticating the frontend → backend hop for inbound ActivityPub delivery to user inboxes and the instance inbox. Must be set to the **same** value on both the `db` and `web` services. If unset, inbound federation (including instance federation) is rejected (fail closed). Generate with `openssl rand -hex 32` |                       |
+| POCKETBASE_PROXY_SECRET        | **Required.** Authenticates `web` → `db` requests for inbound ActivityPub delivery and geocoding. Use the **same** value on both services; missing or mismatched values fail closed. Generate with `openssl rand -hex 32`. |                       |
 | POCKETBASE_CRON_SYNC_SCHEDULE  | Valid cron expression. Sets how often installed plugins are synced                                                | 0 2 ** *             |
 | POCKETBASE_CRON_SEARCH_REPAIR_SCHEDULE | Valid cron expression. Sets how often the search indexes are compared with the database and repaired. The job can also be run from the Crons page of the PocketBase dashboard | `0 4 * * *` |
 | POCKETBASE_SMTP_ENABLED        | Enables or disables SMTP functionality. Accepted values are true or false                                         | false                 |
@@ -56,7 +56,7 @@ bundles and configuring self-hosted connector trust settings.
 | ORIGIN                  | Public IP or hostname (including the port) of your <span class="-tracking-[0.075em]">wanderer</span> instance             | http://localhost:3000               |
 | BODY_SIZE_LIMIT         | Adapter ceiling and multipart upload limit; K, M and G suffixes use powers of 1024, `Infinity` permits uploads of any size after sign-in | 2G                                  |
 | PUBLIC_POCKETBASE_URL   | IP or hostname (including the port) of your pocketbase instance                  | http://db:8090                      |
-| POCKETBASE_PROXY_SECRET | **Required.** Shared secret authenticating the frontend → backend hop for inbound ActivityPub delivery to user inboxes and the instance inbox. Must match the value set on the `db` service; instance federation is rejected (fail closed) if it is unset or differs. |                       |
+| POCKETBASE_PROXY_SECRET | **Required.** Use the same shared proxy secret as on `db`. |                       |
 | PUBLIC_DISABLE_SIGNUP   | Disables signup option for new users                                             | false                               |
 | PUBLIC_PRIVATE_INSTANCE | Setting this to true will block visitors from viewing content without an account | false                               |
 | PUBLIC_MAP_MAX_POLYLINES | Maximum number of polylines (route previews) to show simultaneously on the map, based on result density | 100 |
@@ -88,7 +88,7 @@ visitors forge the address used for rate limiting.
 
 Configure PocketBase's [User IP proxy headers](/run/backend-configuration#visitor-ip-addresses)
 and restrict access to the backend as described there. `POCKETBASE_PROXY_SECRET`
-protects federation delivery only and does not authenticate these IP headers.
+does not authenticate these IP headers.
 
 ## Map tiles & assets
 
@@ -102,19 +102,57 @@ These variables configure where the mobile app loads map vector tiles, fonts (gl
 
 ## Geocoding & Routing
 
-These variables configure server-side requests to Valhalla, Nominatim and Overpass.
+| Environment Variable | Service | Description                                                    | Default                            |
+| -------------------- | ------- | -------------------------------------------------------------- | ---------------------------------- |
+| VALHALLA_URL         | `web`   | Valhalla API URL used for auto-routing and elevation data       | https://valhalla1.openstreetmap.de  |
+| NOMINATIM_URL        | `db`    | Nominatim API URL for search and reverse geocoding             | https://nominatim.openstreetmap.org |
+| OVERPASS_API_URL     | `web`   | Overpass API URL used for map points of interest                | https://overpass-api.de             |
 
-| Environment Variable     | Description                                                                 | Default                             |
-| ------------------------ | --------------------------------------------------------------------------- | ----------------------------------- |
-| VALHALLA_URL     | Valhalla API URL used for auto-routing and elevation data       | https://valhalla1.openstreetmap.de  |
-| NOMINATIM_URL    | Nominatim API URL used for (reverse) geocoding                  | https://nominatim.openstreetmap.org |
-| OVERPASS_API_URL | Overpass API URL used for map points of interest                | https://overpass-api.de             |
+If a variable is unset, its service accepts the corresponding legacy
+`PUBLIC_*_URL` variable. Prefer `NOMINATIM_URL` over `PUBLIC_NOMINATIM_URL`.
 
-When `*_URL` is unset, the backend falls back to legacy `PUBLIC_*_URL`.
+:::caution[Upgrading a private Nominatim deployment]
+If an older or custom Compose file sets a private Nominatim URL only on `web`
+(`NOMINATIM_URL` or `PUBLIC_NOMINATIM_URL`), move it to `NOMINATIM_URL` on `db`
+before upgrading. A private URL in the sample Compose file's shared `.env`
+already reaches `db` and needs no move.
+
+A nondefault, blank, or invalid setting left on `web` blocks geocoding with
+HTTP 502 before sending search terms or coordinates to public Nominatim,
+whether `db` selects it by default or explicitly. A valid private URL on
+`db` is unaffected. To switch to public Nominatim, remove the obsolete setting
+from `web`. On `db`, leave both Nominatim URL variables unset or set
+`NOMINATIM_URL` to the public default.
+:::
+
+A Nominatim URL without a scheme uses HTTPS. Use `http://` for an endpoint
+without TLS and punycode for internationalized hostnames. An explicitly empty
+or invalid Nominatim setting on `db` disables geocoding instead of falling
+back to the public service.
+
+Set `PUBLIC_POCKETBASE_URL` and the Nominatim base URL to their final URLs;
+neither hop follows redirects. The Nominatim URL must be reachable from `db`
+and serve `/search` and `/reverse`. If `db` uses an outbound proxy, add the
+private Nominatim hostname to `NO_PROXY` on `db` when it should be reached
+directly.
+
+PocketBase logs invalid Nominatim settings, blocked upstream redirects, and
+migration blocks (`private_nominatim_required`, once per `db` process).
+Upstream HTTP error statuses are returned without a geocoding log entry.
+
+Timeouts, oversized responses, and transport failures appear only in DEBUG
+logs. To see them, temporarily set the PocketBase minimum log level to `-4`
+with log retention enabled, then restore the previous level.
+
+Check the `web` logs for proxy authentication errors or blocked redirects from
+`db`. Both services use fixed diagnostics without request or endpoint details.
 
 ## Custom CA certificates
 
 If your API endpoints use certificates signed by a private CA, add the CA bundle and set `NODE_EXTRA_CA_CERTS` for the `web` service.
+If Nominatim uses a certificate signed by a private CA, mount a CA bundle in
+`db` that includes that CA and set `SSL_CERT_FILE` to the bundle's path.
+`NODE_EXTRA_CA_CERTS` does not affect `db`.
 
 | Environment Variable | Description                                                              | Default |
 | -------------------- | ------------------------------------------------------------------------ | ------- |

@@ -56,9 +56,14 @@ npm i -s vitest
 
 ## Launch
 
-You can launch all three services using a shell script that sets environment variables and ensures proper startup order:
+You can launch all three services using a shell script that sets environment variables and ensures proper startup order.
+
+For a deployment, generate `POCKETBASE_PROXY_SECRET` once with `openssl rand -hex 32`
+and store it securely. Supply the saved value in the launch script's environment
+on every restart. The script exports the same secret to both `db` and `web`.
 
 ```bash
+export POCKETBASE_PROXY_SECRET="${POCKETBASE_PROXY_SECRET:?Set the saved proxy secret before launching}"
 trap "kill 0" EXIT
 
 # Required configuration

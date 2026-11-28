@@ -41,8 +41,9 @@ headers allows callers to spoof their rate-limit identity.
 
 For the web service's own reverse proxy configuration, see
 [Visitor IP addresses](/run/environment-configuration#visitor-ip-addresses).
-`POCKETBASE_PROXY_SECRET` authenticates inbound federation delivery; it does not
-authenticate IP headers or make a proxy trustworthy.
+`POCKETBASE_PROXY_SECRET` authenticates inbound federation delivery and
+geocoding requests; it does not authenticate IP headers or make a proxy
+trustworthy.
 
 For specific configuration guides see:
 

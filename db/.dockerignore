@@ -1,6 +1,7 @@
 *
 !commands
 !federation
+!geocoding
 !hooks
 !go.*
 !integrations

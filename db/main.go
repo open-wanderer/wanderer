@@ -353,6 +353,7 @@ func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
 	se.Router.POST("/trail-merge", routes.TrailMerge(client))
 
 	se.Router.GET("/search/token", routes.SearchToken(client))
+	routes.RegisterGeocoding(se)
 
 	se.Router.GET("/plugins", routes.PluginSystemPluginsList)
 	se.Router.POST("/plugins/trail-send", routes.PluginSystemTrailSend)
