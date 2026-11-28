@@ -34,6 +34,9 @@ export function translatePluginError(code?: string, message?: string): string {
     if (normalizedCode === "sync_item_limit_exceeded") {
         return get(_)("plugin-error-sync-item-limit-exceeded");
     }
+    if (normalizedCode === "sync_timeout") {
+        return get(_)("plugin-error-sync-timeout");
+    }
 
     if (normalizedCode && credentialErrorCodes.has(normalizedCode)) {
         return get(_)("wrong-username-or-password");

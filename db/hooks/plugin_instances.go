@@ -26,6 +26,7 @@ func ListPluginInstanceHandler() func(e *core.RecordsListRequestEvent) error {
 		}
 		for _, r := range e.Records {
 			censorPluginInstanceAuth(e.App, r)
+			projectPluginInstanceBusy(r, e.Auth)
 		}
 
 		return e.Next()
@@ -40,6 +41,7 @@ func ViewPluginInstanceHandler() func(e *core.RecordRequestEvent) error {
 			return e.Next()
 		}
 		censorPluginInstanceAuth(e.App, e.Record)
+		projectPluginInstanceBusy(e.Record, e.Auth)
 
 		return e.Next()
 	}
@@ -101,6 +103,15 @@ func installedPluginDefaultConfig(app core.App, pluginID string) map[string]any 
 		return map[string]any{}
 	}
 	return pluginsystem.JSONMapFromRecord(record, "config")
+}
+
+func projectPluginInstanceBusy(record, auth *core.Record) {
+	record.Hide("busy")
+	if auth != nil && record.GetString("user") == auth.Id {
+		record.WithCustomData(true)
+		record.Set("busy", pluginsystem.InstanceBusy(record.Id))
+		record.Unhide("busy")
+	}
 }
 
 func censorPluginInstanceAuth(app core.App, r *core.Record) {

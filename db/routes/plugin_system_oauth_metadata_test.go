@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -369,6 +370,82 @@ func TestOAuthRevokeOutlastsARunningSync(t *testing.T) {
 	stored, _ := f.storedAuth(t)
 	if stored.GetBool("enabled") || stored.GetString("status") != "needs_auth" {
 		t.Fatalf("after revoke and sync: enabled=%v, status=%q", stored.GetBool("enabled"), stored.GetString("status"))
+	}
+}
+
+func TestOAuthRefreshKeepsASwitchOffMadeDuringIt(t *testing.T) {
+	f := newOAuthMetadataFixture(t)
+	instance, auth := f.storedAuth(t)
+	switchedOff, _ := f.storedAuth(t)
+	switchedOff.Set("enabled", false)
+	switchedOff.Set("status", "disabled")
+	if err := f.app.Save(switchedOff); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pluginsystem.RefreshOAuthAuthIfNeeded(context.Background(), f.app, f.plugin, instance, auth); err != nil {
+		t.Fatal(err)
+	}
+	stored, refreshed := f.storedAuth(t)
+	if stored.GetBool("enabled") || stored.GetString("status") != "disabled" {
+		t.Errorf("refresh undid the switch-off: enabled=%v, status=%q", stored.GetBool("enabled"), stored.GetString("status"))
+	}
+	if refreshed["accessToken"] != "strava-test-access-rotated" || refreshed["clientSecret"] != "strava-test-client-secret" {
+		t.Error("refresh did not keep the rotated token and the client credentials")
+	}
+}
+
+func TestOAuthRefreshGivesUpAfterADisconnectOrDelete(t *testing.T) {
+	f := newOAuthMetadataFixture(t)
+	instance, auth := f.storedAuth(t)
+	beforeDelete, beforeDeleteAuth := f.storedAuth(t)
+	f.request(t, http.MethodPost, "/api/plugin-system/oauth/revoke", map[string]any{"instanceId": f.instanceID})
+	_, err := pluginsystem.RefreshOAuthAuthIfNeeded(context.Background(), f.app, f.plugin, instance, auth)
+	if !errors.Is(err, pluginsystem.ErrOAuthConnectionChanged) {
+		t.Fatalf("err = %v, want ErrOAuthConnectionChanged", err)
+	}
+	stored, _ := f.storedAuth(t)
+	f.assertAuthFieldsAbsent(t, "refresh after revoke", "accessToken", "refreshToken")
+	if stored.GetBool("enabled") || stored.GetString("status") != "needs_auth" {
+		t.Errorf("refresh undid the disconnect: enabled=%v, status=%q", stored.GetBool("enabled"), stored.GetString("status"))
+	}
+	if err := f.app.Delete(stored); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pluginsystem.RefreshOAuthAuthIfNeeded(context.Background(), f.app, f.plugin, beforeDelete, beforeDeleteAuth); !errors.Is(err, pluginsystem.ErrOAuthConnectionChanged) {
+		t.Fatalf("refresh of a deleted instance: err = %v, want ErrOAuthConnectionChanged", err)
+	}
+	if _, err := f.app.FindRecordById("plugin_instances", f.instanceID); err == nil {
+		t.Error("refresh recreated the deleted instance")
+	}
+}
+
+func TestSyncKeepsTheStatusOfAConnectionReplacedDuringItsRefresh(t *testing.T) {
+	f := newOAuthMetadataFixture(t)
+	actors := core.NewBaseCollection("activitypub_actors")
+	actors.Fields.Add(&core.TextField{Name: "user"})
+	if err := f.app.Save(actors); err != nil {
+		t.Fatal(err)
+	}
+	stale, _ := f.storedAuth(t)
+	actor := core.NewRecord(actors)
+	actor.Set("user", stale.GetString("user"))
+	if err := f.app.Save(actor); err != nil {
+		t.Fatal(err)
+	}
+	reconnected, auth := f.storedAuth(t)
+	auth["refreshToken"] = "strava-test-refresh-reconnected"
+	reconnected.Set("auth", auth)
+	if err := f.app.Save(reconnected); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := syncPluginInstance(context.Background(), f.app, nil, f.plugin, stale)
+	if !errors.Is(err, pluginsystem.ErrOAuthConnectionChanged) {
+		t.Fatalf("err = %v, want ErrOAuthConnectionChanged", err)
+	}
+	stored, storedAuth := f.storedAuth(t)
+	if stored.GetString("status") != "configured" || storedAuth["refreshToken"] != "strava-test-refresh-reconnected" {
+		t.Errorf("sync changed the new connection: status=%q, refreshToken=%v", stored.GetString("status"), storedAuth["refreshToken"])
 	}
 }
 

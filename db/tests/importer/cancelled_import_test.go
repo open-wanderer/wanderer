@@ -24,7 +24,7 @@ func (c *cancelAfterChecks) Err() error {
 	return nil
 }
 
-func TestCancelledImportKeepsNoTrailWithoutItsReference(t *testing.T) {
+func TestCancelledImportSavesTheWholeTrailOrNothing(t *testing.T) {
 	app, opts := newProviderDifficultyApp(t)
 	cancelledBeforeSave := false
 	for checks := 0; checks < 10; checks++ {
@@ -38,9 +38,12 @@ func TestCancelledImportKeepsNoTrailWithoutItsReference(t *testing.T) {
 		result, err := importer.ImportTrail(&cancelAfterChecks{Context: context.Background(), remaining: checks}, app, item, opts)
 		trails := providerDifficultyRecordCount(t, app, "trails") - before
 		if err != nil {
-			// Once the trail is saved, a cancelled import keeps it, like any other
-			// failure in its waypoints or summit log.
-			cancelledBeforeSave = cancelledBeforeSave || trails == 0
+			// Once the trail is saved, later syncs skip it, so a cancellation
+			// must stop the import before the save or not at all.
+			if trails != 0 {
+				t.Fatalf("import cancelled after %d checks kept its trail: %v", checks, err)
+			}
+			cancelledBeforeSave = true
 			continue
 		}
 		if !result.Created || trails != 1 {
@@ -50,7 +53,11 @@ func TestCancelledImportKeepsNoTrailWithoutItsReference(t *testing.T) {
 	if !cancelledBeforeSave {
 		t.Fatal("no run was cancelled before the trail was saved")
 	}
-	if refs := providerDifficultyRecordCount(t, app, "trail_external_reference"); refs != providerDifficultyRecordCount(t, app, "trails") {
-		t.Fatalf("%d external references for %d trails", refs, providerDifficultyRecordCount(t, app, "trails"))
+	trails := providerDifficultyRecordCount(t, app, "trails")
+	if refs := providerDifficultyRecordCount(t, app, "trail_external_reference"); refs != trails {
+		t.Fatalf("%d external references for %d trails", refs, trails)
+	}
+	if waypoints := providerDifficultyRecordCount(t, app, "waypoints"); waypoints != trails {
+		t.Fatalf("%d waypoints for %d trails", waypoints, trails)
 	}
 }

@@ -11,6 +11,13 @@ Plugin installation and self-hosted connector trust settings are administrator
 tasks. See [Plugin installation](/run/installation/plugins) for runtime bundle
 and connector details.
 
+## Syncing trails
+
+Enabling a trail plugin starts its first sync. Click **Sync now** on an enabled
+plugin to start another sync before the scheduled run. The button is disabled
+while a sync is running. An administrator can limit or disable manual syncs through
+[environment variables](/run/environment-configuration); scheduled syncs still run.
+
 ## Strava Plugin
 
 :::caution[A Strava subscription is required]
