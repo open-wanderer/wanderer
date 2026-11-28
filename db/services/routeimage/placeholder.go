@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"hash/fnv"
 	"io"
-	"slices"
 	"strings"
 
 	"github.com/pocketbase/pocketbase/core"
@@ -18,13 +17,6 @@ const placeholderName = "wanderer_route_placeholder"
 
 func IsPlaceholder(filename string) bool {
 	return strings.HasPrefix(filename, placeholderName+"_")
-}
-
-// WithoutPlaceholder lists the photos to attach to an activity. The
-// placeholder is left out: Mastodon and other servers can't show SVG, and
-// receiving wanderer instances render their own.
-func WithoutPlaceholder(photos []string) []string {
-	return slices.DeleteFunc(slices.Clone(photos), IsPlaceholder)
 }
 
 // PlaceholderFile renders the current route. Routes without usable points do

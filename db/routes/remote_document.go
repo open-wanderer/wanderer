@@ -12,24 +12,25 @@ import (
 )
 
 func fetchRemoteDocument(ctx context.Context, client *http.Client, remoteURL *url.URL, kind string, limits ...int64) (map[string]any, error) {
+	remoteURL, _ = url.Parse(util.FederatedShareURL(ctx, remoteURL.String()))
 	releaseFetch, err := acquireRemoteSyncFetch(ctx, remoteURL.String())
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", errRemoteUnavailable, err)
+		return nil, fmt.Errorf("%w: %w", errRemoteUnavailable, util.RedactFederatedShareError(err))
 	}
 	defer releaseFetch()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, remoteURL.String(), nil)
 	if err != nil {
-		return nil, err
+		return nil, util.RedactFederatedShareError(err)
 	}
 	res, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", errRemoteUnavailable, err)
+		return nil, fmt.Errorf("%w: %w", errRemoteUnavailable, util.RedactFederatedShareError(err))
 	}
 	defer res.Body.Close()
 	if res.StatusCode != http.StatusOK {
 		statusErr := &remoteFetchStatusError{
 			Kind:       kind,
-			URL:        remoteURL.String(),
+			URL:        util.WithoutFederatedShareToken(remoteURL.String()),
 			StatusCode: res.StatusCode,
 		}
 		if res.StatusCode >= http.StatusInternalServerError {
@@ -55,7 +56,7 @@ func fetchRemoteDocument(ctx context.Context, client *http.Client, remoteURL *ur
 	}
 	if err := decode(ctx, res.Body, limit, &data); err != nil {
 		if errors.Is(err, util.ErrFederationBodyTooLarge) || errors.Is(err, errRemoteSyncJSONComplexity) {
-			return nil, fmt.Errorf("%w: %w", errRemoteUnavailable, err)
+			return nil, fmt.Errorf("%w: %w", errRemoteUnavailable, util.RedactFederatedShareError(err))
 		}
 		return nil, err
 	}
@@ -63,13 +64,14 @@ func fetchRemoteDocument(ctx context.Context, client *http.Client, remoteURL *ur
 }
 
 type remoteFetchStatusError struct {
-	Kind       string
-	URL        string
-	StatusCode int
+	Kind        string
+	URL         string
+	StatusCode  int
+	ShareDenied bool
 }
 
 func (err *remoteFetchStatusError) Error() string {
-	return fmt.Sprintf("remote %s fetch %s returned: %d", err.Kind, err.URL, err.StatusCode)
+	return fmt.Sprintf("remote %s fetch %s returned: %d", err.Kind, util.WithoutFederatedShareToken(err.URL), err.StatusCode)
 }
 
 // Small canonical responses share processing capacity too, after the entire

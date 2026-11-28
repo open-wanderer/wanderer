@@ -383,6 +383,7 @@ func onBeforeServeHandler(client meilisearch.ServiceManager, federationUpdates *
 }
 
 func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager, federationUpdates *hooks.FederationUpdates) {
+	se.Router.Bind(routes.RedactFederatedShareRequestLogs())
 	se.Router.BindFunc(routes.ProjectAssetFileDownloadRecord)
 	se.Router.BindFunc(routes.LegacyPhotoFileRedirect)
 	se.Router.GET("/assets/trail-previews", routes.AssetTrailPreviews)

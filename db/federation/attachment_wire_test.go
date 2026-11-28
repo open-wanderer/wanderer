@@ -18,7 +18,7 @@ import (
 	"github.com/pocketbase/pocketbase/tools/filesystem"
 )
 
-// Use the legacy photo, GPX and avatar file fields used by released peers.
+// Use assets for photos and the existing GPX and avatar fields.
 // Saving real files also checks that an accepted incoming attachment is stored.
 func setupAttachmentWireFixture(t *testing.T) *addressingFixture {
 	t.Helper()
@@ -31,7 +31,7 @@ func setupAttachmentWireFixture(t *testing.T) *addressingFixture {
 		if name == "lists" {
 			collection.Fields.Add(&core.FileField{Name: "avatar", MaxSelect: 1})
 		} else {
-			collection.Fields.Add(&core.FileField{Name: "photos", MaxSelect: 99}, &core.FileField{Name: "gpx", MaxSelect: 1})
+			collection.Fields.Add(&core.FileField{Name: "gpx", MaxSelect: 1})
 		}
 		if err := f.app.Save(collection); err != nil {
 			t.Fatal(err)
@@ -100,7 +100,6 @@ func TestLegacyAttachmentsStayArraysOnTheWire(t *testing.T) {
 			for i := range photos {
 				photos[i] = attachmentWireFile(t, attachmentWirePhoto(t), "photo.png")
 			}
-			values["photos"] = photos
 			want := tc.photos
 			if tc.gpx {
 				values["gpx"] = attachmentWireFile(t, []byte(`<gpx version="1.1"></gpx>`), "track.gpx")
@@ -111,6 +110,9 @@ func TestLegacyAttachmentsStayArraysOnTheWire(t *testing.T) {
 				want++
 			}
 			record := f.record(t, collection, values, tc.kind)
+			for _, photo := range photos {
+				testAddPhoto(t, f.app, record, photo, "")
+			}
 			var err error
 			switch tc.kind {
 			case "trail":
@@ -203,7 +205,15 @@ func TestLegacyBareAndArrayAttachmentsImportAfterWireParsing(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				files := record.GetStringSlice(field)
+				fileRecord := record
+				if field == "photos" {
+					assets := testPhotoAssets(t, f.app, record)
+					if len(assets) != 1 {
+						t.Fatalf("imported assets=%d", len(assets))
+					}
+					fileRecord, field = assets[0], "file"
+				}
+				files := fileRecord.GetStringSlice(field)
 				if len(files) != 1 {
 					t.Fatalf("imported %s = %v; want one file", field, files)
 				}
@@ -212,7 +222,7 @@ func TestLegacyBareAndArrayAttachmentsImportAfterWireParsing(t *testing.T) {
 					t.Fatal(err)
 				}
 				defer fs.Close()
-				reader, err := fs.GetReader(record.BaseFilesPath() + "/" + files[0])
+				reader, err := fs.GetReader(fileRecord.BaseFilesPath() + "/" + files[0])
 				if err != nil {
 					t.Fatal(err)
 				}

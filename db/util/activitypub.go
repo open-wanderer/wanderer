@@ -12,14 +12,12 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"pocketbase/services/routeimage"
 	"strconv"
 	"strings"
 	"time"
 
 	pub "github.com/go-ap/activitypub"
 	"github.com/pocketbase/pocketbase/core"
-	"github.com/pocketbase/pocketbase/tools/filesystem"
 	"github.com/pocketbase/pocketbase/tools/security"
 )
 
@@ -406,6 +404,7 @@ func trailFromActivity(activity pub.Activity, app core.App, actor *core.Record) 
 		return nil, err
 	}
 
+	photos := []FederatedPhoto{}
 	if t.Attachment != nil {
 
 		attachments, err := ActivityPubAttachmentItems(t.Attachment)
@@ -413,9 +412,6 @@ func trailFromActivity(activity pub.Activity, app core.App, actor *core.Record) 
 			return nil, err
 		}
 
-		photoURLs := []string{}
-		photoLimit := RemotePhotoLimit(app, "trails")
-		ignoredPhotos := 0
 		gpxURL := ""
 		for _, a := range attachments.Collection() {
 			attachment, err := pub.ToObject(a)
@@ -429,37 +425,17 @@ func trailFromActivity(activity pub.Activity, app core.App, actor *core.Record) 
 			if attachment.Type == pub.DocumentType && attachment.MediaType == "application/xml+gpx" {
 				gpxURL = link
 			} else if attachment.Type == pub.ImageType {
-				if len(photoURLs) >= photoLimit {
-					ignoredPhotos++
-					continue
+				if photo, ok := FederatedPhotoFromAttachment(attachment); ok && len(photos) < MaxFederatedTrailPhotos {
+					photos = append(photos, photo)
 				}
-				photoURLs = append(photoURLs, link)
 			}
-		}
-		if ignoredPhotos > 0 {
-			app.Logger().Info("ignoring remote trail photos past the collection limit",
-				"iri", iri, "limit", photoLimit, "ignored", ignoredPhotos)
-		}
-
-		if len(photoURLs) > 0 {
-			photos := []*filesystem.File{}
-			for _, purl := range photoURLs {
-				photo, cleanup, err := DownloadRemoteFile(context.Background(), purl, RemoteFileLimit(record, "photos", RemotePhotoMaxBytes))
-				defer cleanup()
-				if err != nil {
-					continue
-				}
-				photos = append(photos, photo)
-			}
-
-			record.Set("photos", photos)
 		}
 
 		if gpxURL != "" {
 			gpx, cleanup, err := DownloadRemoteFile(context.Background(), gpxURL, RemoteFileLimit(record, "gpx", RemoteGPXMaxBytes))
 			defer cleanup()
 			if err != nil {
-				return nil, err
+				return nil, RedactFederatedShareError(err)
 			}
 
 			record.Set("gpx", gpx)
@@ -467,7 +443,14 @@ func trailFromActivity(activity pub.Activity, app core.App, actor *core.Record) 
 	}
 
 	SanitizeHTMLFieldsWithLimits(record)
-	return record, app.Save(record)
+	if err := app.Save(record); err != nil {
+		// Keep the candidate for a concurrent delivery's IRI collision retry.
+		return record, err
+	}
+	if err := ReconcileFederatedPhotoAssets(app, context.Background(), "trail", record.Id, actor.Id, photos, len(photos) >= MaxFederatedTrailPhotos); err != nil {
+		return nil, err
+	}
+	return record, nil
 }
 
 type trailActivityCategoryMetadata struct {
@@ -631,23 +614,22 @@ func ObjectFromTrail(app core.App, trail *core.Record, mentions *pub.ItemCollect
 		tags.Append(hashtag)
 	}
 
-	photos := routeimage.WithoutPlaceholder(trail.GetStringSlice("photos"))
+	photos, err := PhotoAssetsForTarget(app, "trail", trail.Id, -1)
+	if err != nil {
+		return nil, err
+	}
+	photos = FederatedPhotosForActivity(photos, MaxFederatedTrailPhotos)
 
 	gpx := ""
 	if trail.GetString("gpx") != "" {
 		gpx = fmt.Sprintf("%s/api/v1/files/trails/%s/%s", origin, trail.Id, trail.GetString("gpx"))
 	}
 
-	attachments := make(pub.ItemCollection, max(len(photos), 2))
-	for i := range min(len(photos), 3) {
-		iri := fmt.Sprintf("%s/api/v1/files/trails/%s/%s", origin, trail.Id, photos[i])
-
-		attachments[i] = pub.Image{
-			Type:      pub.ImageType,
-			MediaType: "image/jpeg",
-			URL:       pub.IRI(iri),
-		}
+	attachments := make(pub.ItemCollection, 0, len(photos)+1)
+	for _, photo := range photos {
+		attachments.Append(FederatedPhotoImage(photo, origin))
 	}
+
 	if gpx != "" {
 		attachments.Append(pub.Document{
 			Type:      pub.DocumentType,

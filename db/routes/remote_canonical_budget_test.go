@@ -84,7 +84,12 @@ func TestCanonicalContributionsBoundBodiesAndRetainedSchema(t *testing.T) {
 				}
 				switch scenario {
 				case "body-limit":
-					if len(data) != 0 || bytes.Load() > canonicalRemoteBodyLimit+1 {
+					maxBytes, wantResponses := canonicalRemoteBodyLimit+1, int64(1)
+					if kind == "summit-log" {
+						maxBytes *= 2 // One asset-rich attempt, then one core-only attempt.
+						wantResponses = 2
+					}
+					if len(data) != 0 || bytes.Load() > maxBytes || responses.Load() != wantResponses {
 						t.Fatalf("oversized contribution accepted or over-read: count%d bytes%d", len(data), bytes.Load())
 					}
 				case "schema":

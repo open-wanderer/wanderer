@@ -182,15 +182,19 @@ func TestRemoteMediaCollectorBoundsFilesAndNewPhotosPerTarget(t *testing.T) {
 	}
 }
 
-func TestRemoteMediaCollectorUsesLegacyFieldLimits(t *testing.T) {
+func TestRemoteMediaCollectorUsesAssetFileLimits(t *testing.T) {
 	t.Setenv("ORIGIN", "https://local.example")
 	f := newRemoteSyncFixture(t)
-	f.trails.Fields.Add(&core.FileField{Name: "photos", MaxSelect: 3, MaxSize: 1024})
-	if err := f.app.Save(f.trails); err != nil {
+	assets, err := f.app.FindCollectionByNameOrId("assets")
+	if err != nil {
+		t.Fatal(err)
+	}
+	assets.Fields.Add(&core.FileField{Name: "file", MaxSelect: 1, MaxSize: 1024})
+	if err := f.app.Save(assets); err != nil {
 		t.Fatal(err)
 	}
 	collector := remoteMediaCollector{seen: map[string]bool{}}
-	collector.record(f.app, "trail", "remote", "https://remote.example", "https://remote.example/api/v1/trail/remote", map[string]any{"photos": []any{"one.jpg", true, "two.jpg", "three.jpg", "four.jpg", "../skip.jpg"}})
+	collector.record(f.app, "trail", "remote", "https://b.example", "https://b.example/api/v1/trail/remote", map[string]any{"photos": []any{"one.jpg", "two.jpg", "three.jpg"}})
 	if len(collector.requests) != 3 {
 		t.Fatalf("legacy photo requests=%d, want3", len(collector.requests))
 	}

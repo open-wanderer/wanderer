@@ -2,28 +2,23 @@ package routes
 
 import (
 	"context"
-	"testing"
-
-	"pocketbase/services/routeimage"
-
-	"github.com/pocketbase/pocketbase/core"
+	"fmt"
 	"github.com/pocketbase/pocketbase/tools/filesystem"
+	"net/http"
+	"pocketbase/util"
+	"testing"
 )
 
 const (
-	placeholderTestOrigin = "https://remote.example"
+	placeholderTestOrigin = "https://a.example"
 	placeholderTestIRI    = placeholderTestOrigin + "/api/v1/trail/remote"
 	originPlaceholder     = "wanderer_route_placeholder_abc1234567.svg"
 )
 
-func newRoutePlaceholderSyncFixture(t *testing.T, maxPhotos int) *remoteSyncFixture {
+func newRoutePlaceholderSyncFixture(t *testing.T) *remoteSyncFixture {
 	t.Helper()
-	t.Setenv("ORIGIN", "https://local.example")
+	t.Setenv("ORIGIN", "https://b.example")
 	f := newRemoteSyncFixture(t)
-	f.trails.Fields.Add(&core.FileField{Name: "photos", MaxSelect: maxPhotos, MaxSize: 20 << 20})
-	if err := f.app.Save(f.trails); err != nil {
-		t.Fatal(err)
-	}
 	previous := fetchRemoteSyncMedia
 	t.Cleanup(func() { fetchRemoteSyncMedia = previous })
 	fetchRemoteSyncMedia = func(ctx context.Context, raw, origin, name string, limit int64) (*filesystem.File, func(), error) {
@@ -34,86 +29,60 @@ func newRoutePlaceholderSyncFixture(t *testing.T, maxPhotos int) *remoteSyncFixt
 }
 
 func TestRemoteMediaCollectorSkipsOriginPlaceholder(t *testing.T) {
-	f := newRoutePlaceholderSyncFixture(t, 20)
+	f := newRoutePlaceholderSyncFixture(t)
 	collector := remoteMediaCollector{seen: map[string]bool{}}
-	collector.record(f.app, "trail", "remote", placeholderTestOrigin, placeholderTestIRI, map[string]any{
-		"photos": []any{originPlaceholder, "summit.jpg"},
-	})
+	collector.record(f.app, "trail", "remote", placeholderTestOrigin, placeholderTestIRI, map[string]any{"photos": []any{originPlaceholder, "summit.jpg"}})
 	if len(collector.requests) != 1 || collector.requests[0].name != "summit.jpg" {
 		t.Fatalf("requests=%v", collector.requests)
 	}
 }
 
-func TestRemoteMediaCollectorPlaceholderLeavesPhotoLimit(t *testing.T) {
-	f := newRoutePlaceholderSyncFixture(t, 1)
-	collector := remoteMediaCollector{seen: map[string]bool{}}
-	collector.record(f.app, "trail", "remote", placeholderTestOrigin, placeholderTestIRI, map[string]any{
-		"photos": []any{originPlaceholder, "summit.jpg"},
-	})
-	if len(collector.requests) != 1 || collector.requests[0].name != "summit.jpg" {
+func TestRemoteMediaCollectorPlaceholderLeavesFileBudget(t *testing.T) {
+	f := newRoutePlaceholderSyncFixture(t)
+	collector := remoteMediaCollector{seen: map[string]bool{}, requests: make([]remoteMediaRequest, remoteMediaMaxFiles-1)}
+	collector.record(f.app, "trail", "remote", placeholderTestOrigin, placeholderTestIRI, map[string]any{"photos": []any{originPlaceholder, "summit.jpg"}})
+	if len(collector.requests) != remoteMediaMaxFiles || collector.requests[len(collector.requests)-1].name != "summit.jpg" {
 		t.Fatalf("requests=%v", collector.requests)
 	}
 }
 
-// The placeholder is prepared here on purpose: syncRecordFiles has to skip it
-// even when the prefetch handed it a downloaded copy.
-func TestSyncRecordFilesSkipsOriginPlaceholder(t *testing.T) {
-	for _, scenario := range []struct {
-		name      string
-		maxPhotos int
-	}{{"room for both", 20}, {"room for one", 1}} {
-		t.Run(scenario.name, func(t *testing.T) {
-			f := newRoutePlaceholderSyncFixture(t, scenario.maxPhotos)
-			record := f.save(f.trails, map[string]any{"iri": placeholderTestIRI, "author": f.remoteActor.Id})
-			requests := make([]remoteMediaRequest, 0, 2)
-			for _, name := range []string{originPlaceholder, "summit.jpg"} {
-				requests = append(requests, remoteMediaRequest{
-					url:      placeholderTestOrigin + "/api/v1/files/trails/remote/" + name,
-					origin:   placeholderTestOrigin,
-					name:     name,
-					maxBytes: 1 << 20,
-				})
-			}
-			ctx, cleanup, err := prepareRemoteMedia(t.Context(), requests)
-			defer cleanup()
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			syncRecordFiles(ctx, record, "trails", "remote", placeholderTestOrigin, map[string]any{
-				"photos": []any{originPlaceholder, "summit.jpg"},
-			})
-			if err := f.app.Save(record); err != nil {
-				t.Fatal(err)
-			}
-
-			record, err = f.app.FindRecordById("trails", record.Id)
-			if err != nil {
-				t.Fatal(err)
-			}
-			saved := record.GetStringSlice("photos")
-			if len(saved) != 1 || !remotePhotoAlreadyStored(saved, "summit.jpg") {
-				t.Fatalf("photos=%v", saved)
-			}
-		})
+// Prepared origin previews must still be skipped by photo reconciliation.
+func TestSyncRecordPhotosSkipsOriginPlaceholder(t *testing.T) {
+	f := newRoutePlaceholderSyncFixture(t)
+	record := f.save(f.trails, map[string]any{"iri": placeholderTestIRI, "author": f.remoteActor.Id})
+	requests := []remoteMediaRequest{}
+	for _, name := range []string{originPlaceholder, "summit.jpg"} {
+		requests = append(requests, remoteMediaRequest{url: placeholderTestOrigin + "/api/v1/files/trails/remote/" + name, origin: placeholderTestOrigin, name: name, maxBytes: 1 << 20})
+	}
+	ctx, cleanup, err := prepareRemoteMedia(t.Context(), requests)
+	defer cleanup()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := syncRecordPhotos(f.app, ctx, "trail", record.Id, "remote", f.remoteActor.Id, placeholderTestOrigin, map[string]any{"photos": []any{originPlaceholder, "summit.jpg"}}, true); err != nil {
+		t.Fatal(err)
+	}
+	assets := testPhotoAssets(t, f.app, record)
+	if len(assets) != 1 || assets[0].GetString("external_id") != placeholderTestOrigin+"/api/v1/files/trails/remote/summit.jpg" {
+		t.Fatalf("assets=%v", assets)
 	}
 }
 
-// A mirror renders its own placeholder, so a sync must leave it the only
-// photo: anything added next to it makes routeimage drop it.
 func TestSyncKeepsLocalPlaceholder(t *testing.T) {
-	f := newRoutePlaceholderSyncFixture(t, 20)
+	f := newRoutePlaceholderSyncFixture(t)
 	local, err := filesystem.NewFileFromBytes([]byte("<svg/>"), "wanderer_route_placeholder.svg")
 	if err != nil {
 		t.Fatal(err)
 	}
-	record := f.save(f.trails, map[string]any{"iri": placeholderTestIRI, "author": f.remoteActor.Id, "photos": []any{local}})
-	before := record.GetStringSlice("photos")
-	if len(before) != 1 || !routeimage.IsPlaceholder(before[0]) {
-		t.Fatalf("fixture photos=%v", before)
+	record := f.save(f.trails, map[string]any{"iri": placeholderTestIRI, "author": f.remoteActor.Id})
+	preview := testAddPhoto(t, f.app, record, local, "")
+	preview.Set("metadata", map[string]any{"generated": map[string]any{"kind": "route-preview"}})
+	if err := f.app.Save(preview); err != nil {
+		t.Fatal(err)
 	}
-
-	// Each route edit on the origin gives its placeholder a new name.
+	if !util.IsGeneratedRoutePreviewAsset(preview) {
+		t.Fatal("fixture is not generated")
+	}
 	for _, name := range []string{originPlaceholder, "wanderer_route_placeholder_def7654321.svg"} {
 		data := map[string]any{"photos": []any{name}}
 		collector := remoteMediaCollector{seen: map[string]bool{}}
@@ -123,20 +92,52 @@ func TestSyncKeepsLocalPlaceholder(t *testing.T) {
 			cleanup()
 			t.Fatal(err)
 		}
-		syncRecordFiles(ctx, record, "trails", "remote", placeholderTestOrigin, data)
-		if err := f.app.Save(record); err != nil {
-			cleanup()
-			t.Fatal(err)
-		}
+		err = syncRecordPhotos(f.app, ctx, "trail", record.Id, "remote", f.remoteActor.Id, placeholderTestOrigin, data, true)
 		cleanup()
-		record, err = f.app.FindRecordById("trails", record.Id)
 		if err != nil {
 			t.Fatal(err)
 		}
 	}
+	assets := testPhotoAssets(t, f.app, record)
+	if len(assets) != 1 || assets[0].Id != preview.Id {
+		t.Fatalf("local preview changed: %v", assets)
+	}
+}
 
-	after := record.GetStringSlice("photos")
-	if len(after) != 1 || after[0] != before[0] {
-		t.Fatalf("photos=%v, want %v", after, before)
+func TestFullSyncKeepsOnlyItsLocalGeneratedThumbnail(t *testing.T) {
+	f := newRoutePlaceholderSyncFixture(t)
+	f.remoteActor.Set("iri", placeholderTestOrigin+"/api/v1/actor/riley")
+	f.remoteActor.Set("domain", "a.example")
+	if err := f.app.Save(f.remoteActor); err != nil {
+		t.Fatal(err)
+	}
+	record := f.save(f.trails, map[string]any{"iri": placeholderTestIRI, "author": f.remoteActor.Id, "public": true})
+	local, err := filesystem.NewFileFromBytes([]byte("<svg/>"), "local.svg")
+	if err != nil {
+		t.Fatal(err)
+	}
+	preview := testAddPhoto(t, f.app, record, local, "")
+	preview.Set("metadata", map[string]any{"generated": map[string]any{"kind": "route-preview"}})
+	if err := f.app.Save(preview); err != nil {
+		t.Fatal(err)
+	}
+	if err := util.SetTrailThumbnailAsset(f.app, record.Id, preview.Id); err != nil {
+		t.Fatal(err)
+	}
+	refreshTransport(t, func(*http.Request) map[string]any {
+		return map[string]any{"id": "remote", "iri": placeholderTestIRI, "name": "Remote", "public": true, "expand": map[string]any{"trail_assets_via_trail": []any{map[string]any{"is_thumbnail": true, "expand": map[string]any{"asset": map[string]any{"id": "originpreview", "type": "photo", "file": "map.webp", "collectionId": "assets", "metadata": map[string]any{"generated": map[string]any{"kind": "route-preview"}}}}}}}}
+	})
+	downloads := 0
+	fetchRemoteSyncMedia = func(context.Context, string, string, string, int64) (*filesystem.File, func(), error) {
+		downloads++
+		return nil, func() {}, fmt.Errorf("unexpected download")
+	}
+	if _, err := performFullSync(f.app, t.Context(), nil, record); err != nil {
+		t.Fatal(err)
+	}
+	photos := testPhotoAssets(t, f.app, record)
+	thumbnail, err := f.app.FindFirstRecordByData("trail_assets", "asset", preview.Id)
+	if downloads != 0 || len(photos) != 1 || photos[0].Id != preview.Id || err != nil || thumbnail == nil || !thumbnail.GetBool("is_thumbnail") {
+		t.Fatalf("local preview changed: downloads=%d photos=%v thumbnail=%v error=%v", downloads, photos, thumbnail, err)
 	}
 }

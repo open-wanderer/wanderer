@@ -20,8 +20,16 @@ func TestRemoteMediaHonorsRaisedAndLoweredFieldLimits(t *testing.T) {
 				if target == "list" {
 					field = "avatar"
 				}
-				col.Fields.Add(&core.FileField{Name: field, MaxSelect: 1, MaxSize: size}, &core.FileField{Name: "photos", MaxSelect: 10, MaxSize: size})
+				col.Fields.Add(&core.FileField{Name: field, MaxSelect: 1, MaxSize: size})
 				if err := f.app.Save(col); err != nil {
+					t.Fatal(err)
+				}
+				assets, err := f.app.FindCollectionByNameOrId("assets")
+				if err != nil {
+					t.Fatal(err)
+				}
+				assets.Fields.Add(&core.FileField{Name: "file", MaxSelect: 1, MaxSize: size})
+				if err := f.app.Save(assets); err != nil {
 					t.Fatal(err)
 				}
 				origin := "https://remote.example"
@@ -69,7 +77,12 @@ func TestRemoteMediaHonorsRaisedAndLoweredFieldLimits(t *testing.T) {
 				if err != nil || record.GetString(field) == "" {
 					t.Fatalf("configured file was not saved: %v", err)
 				}
-				if target != "list" && len(record.GetStringSlice("photos")) != 1 {
+				if target != "list" {
+					if err := syncRecordPhotos(f.app, ctx, target, record.Id, "remote", f.remoteActor.Id, origin, data, true); err != nil {
+						t.Fatal(err)
+					}
+				}
+				if target != "list" && len(testPhotoFiles(t, f.app, record)) != 1 {
 					t.Fatal("configured photo was not saved")
 				}
 			})

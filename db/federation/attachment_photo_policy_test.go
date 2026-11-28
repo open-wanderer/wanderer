@@ -13,7 +13,7 @@ func TestSummitLogCreateSkipsLoopbackPhoto(t *testing.T) {
 		t.Errorf("loopback server received %d requests, want 0", count)
 	}
 	stored := attachmentStored(t, f.app, "summit_logs", ownerRemoteLogIRI)
-	if photos := stored.GetStringSlice("photos"); len(photos) != 0 {
+	if photos := testPhotoFiles(t, f.app, stored); len(photos) != 0 {
 		t.Errorf("stored photos = %v, want none", photos)
 	}
 }

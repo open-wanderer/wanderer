@@ -137,3 +137,29 @@ describe("backend trail child completeness", () => {
         expect(new Headers(options?.headers).get("Authorization")).toBe("caller-token");
     });
 });
+
+describe("trail access error responses", () => {
+    const marker = { code: "federated_share_denied", message: "Share access denied." };
+
+    it.each([
+        ["", 403, { share: marker }],
+        ["&fields=id", 403, { share: marker }],
+        ["", 403, {}],
+        ["", 500, {}],
+    ])("preserves the origin access result for '%s' with status %s", async (fields, status, data) => {
+        const fetch = vi.fn(async (_url: RequestInfo | URL, _options?: RequestInit) =>
+            Response.json({ status, message: "Trail access failed.", data }, { status }));
+        const token = "s".repeat(32);
+        const event = trailEvent(`?share=${token}${fields}`, fetch);
+
+        const response = await responseOverHttp(await GET({ ...event, request: new Request(event.url) }));
+
+        expect(response.status).toBe(status);
+        expect((await response.json()).data).toEqual(data);
+        expect(fetch).toHaveBeenCalledOnce();
+        const requested = new URL(String(fetch.mock.calls[0][0]));
+        expect(requested.pathname).toBe("/remote/trail/trail0000000001");
+        expect(requested.searchParams.get("share")).toBe(token);
+        if (fields) expect(requested.searchParams.get("fields")).toBe("id");
+    });
+});

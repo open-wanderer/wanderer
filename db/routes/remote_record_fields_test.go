@@ -76,15 +76,15 @@ func TestRemoteChildSyncAcceptsOnlyExactMetadataFields(t *testing.T) {
 
 func TestRemoteRecordFieldsKeepFilesAndRelations(t *testing.T) {
 	f := newRemoteSyncFixture(t)
-	f.trails.Fields.Add(&core.FileField{Name: "photos", MaxSelect: 10})
+	f.trails.Fields.Add(&core.FileField{Name: "gpx", MaxSelect: 10})
 	if err := f.app.Save(f.trails); err != nil {
 		t.Fatal(err)
 	}
 	record := core.NewRecord(f.trails)
-	record.Set("photos", []string{"existing.jpg"})
+	record.Set("gpx", []string{"existing.jpg"})
 	record.Set("author", f.remoteActor.Id)
 	loadRemoteRecordFields(record, map[string]any{"name": "Updated", "photos": []string{"remote.jpg"}, "photos+": []string{"extra.jpg"}, "author+": f.localActor.Id, "needs_full_sync": true, "unknown": "value"})
-	if record.GetString("name") != "Updated" || record.GetString("author") != f.remoteActor.Id || !slices.Equal(record.GetStringSlice("photos"), []string{"existing.jpg"}) || record.GetBool("needs_full_sync") {
+	if record.GetString("name") != "Updated" || record.GetString("author") != f.remoteActor.Id || !slices.Equal(record.GetStringSlice("gpx"), []string{"existing.jpg"}) || record.GetBool("needs_full_sync") {
 		t.Fatalf("remote fields replaced sync values: %v", record.PublicExport())
 	}
 }

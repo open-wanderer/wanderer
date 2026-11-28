@@ -1,6 +1,7 @@
 package federation
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"os"
@@ -63,6 +64,39 @@ func CreateAnnounceActivity(app core.App, record *core.Record, typ AnnounceType)
 		return err
 	}
 
+	shareToken := ""
+	if typ == TrailAnnounceType && subjectActor.GetBool("is_local") && !objectActor.GetBool("is_local") {
+		shareToken, err = util.EnsureFederatedTrailShareToken(app, record)
+		if err != nil {
+			return err
+		}
+		if shareToken != "" {
+			trailObject, err := pub.ToObject(object)
+			if err != nil {
+				return err
+			}
+			attachments, err := util.ActivityPubAttachmentItems(trailObject.Attachment)
+			if err != nil {
+				return err
+			}
+			ctx := util.WithFederatedShareToken(context.Background(), origin, shareToken)
+			tokenised := pub.ItemCollection{}
+			for _, item := range attachments.Collection() {
+				attachment, err := pub.ToObject(item)
+				if err == nil && !pub.IsNil(attachment.URL) {
+					attachment.URL = pub.IRI(util.FederatedShareURL(ctx, attachment.URL.GetLink().String()))
+					tokenised.Append(attachment)
+				} else {
+					tokenised.Append(item)
+				}
+			}
+			trailObject.Attachment = util.ActivityPubAttachmentArray(tokenised)
+			trailObject.To = pub.ItemCollection{pub.IRI(objectActor.GetString("iri"))}
+			trailObject.CC = nil
+			object = trailObject
+		}
+	}
+
 	collection, err := app.FindCollectionByNameOrId("activitypub_activities")
 	if err != nil {
 		return err
@@ -83,6 +117,10 @@ func CreateAnnounceActivity(app core.App, record *core.Record, typ AnnounceType)
 			Name:    pub.NaturalLanguageValuesNew(pub.LangRefValueNew(pub.NilLangRef, "permission")),
 			Content: pub.NaturalLanguageValuesNew(pub.LangRefValueNew(pub.NilLangRef, record.GetString("permission"))),
 		},
+	}
+
+	if shareToken != "" {
+		activity.Tag.Append(pub.Object{Type: pub.NoteType, Name: pub.DefaultNaturalLanguageValue(util.FederatedShareTokenTag), Content: pub.DefaultNaturalLanguageValue(shareToken)})
 	}
 
 	err = PostActivity(app, subjectActor, activity, []string{objectActor.GetString("inbox")})
@@ -180,6 +218,15 @@ func processTrailAnnounceActivity(app core.App, actor *core.Record, activity pub
 			}
 		}
 
+		for _, tag := range activity.Tag {
+			value, tagErr := pub.ToObject(tag)
+			if tagErr == nil && value.Name.First().Value.String() == util.FederatedShareTokenTag {
+				token := value.Content.First().Value.String()
+				if util.ValidFederatedShareToken(token) {
+					record.Set("remote_token", token)
+				}
+			}
+		}
 		record.Set("permission", permission)
 
 		err = app.Save(record)

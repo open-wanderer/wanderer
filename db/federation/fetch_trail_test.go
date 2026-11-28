@@ -25,6 +25,7 @@ func TestFetchTrailAttributesToTrailAuthor(t *testing.T) {
 	}
 	t.Cleanup(app.Cleanup)
 	drainTestAppStartupLogs(t, app)
+	ensureTestPhotoCollections(t, app)
 
 	actors := core.NewBaseCollection("activitypub_actors")
 	actors.Fields.Add(

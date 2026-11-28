@@ -408,13 +408,43 @@ func TestRemoteTrailChildProofFailsClosedIndependently(t *testing.T) {
 		})
 	}
 	f.app.failQuery = ""
-	for _, rule := range []*string{nil, types.Pointer("missing_parent_field = true"), types.Pointer("id =")} {
-		f.app.takeQueries()
-		f.rules("trails", nil, rule)
-		w := f.request("/remote/trail/"+f.public.Id+"?expand=waypoints_via_trail,summit_logs_via_trail", nil)
-		if w.Code != 403 || len(f.app.takeQueries()) != 0 {
-			t.Fatalf("proof ran despite locked/invalid parent ViewRule: status=%d body=%s", w.Code, w.Body.String())
-		}
+	// A locked rule denies access; an invalid rule prevents the check from completing.
+	for _, tc := range []struct {
+		name   string
+		rule   *string
+		status int
+		share  string
+	}{
+		{"parent locked nil", nil, http.StatusForbidden, ""},
+		{"parent missing field", types.Pointer("missing_parent_field = true"), http.StatusInternalServerError, f.share},
+		{"parent malformed syntax", types.Pointer("id ="), http.StatusInternalServerError, f.share},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f.app.takeQueries()
+			f.rules("trails", nil, tc.rule)
+			path := "/remote/trail/" + f.public.Id + "?expand=waypoints_via_trail,summit_logs_via_trail"
+			if tc.share != "" {
+				path += "&share=" + url.QueryEscape(tc.share)
+			}
+			w := f.request(path, nil)
+			if queries := len(f.app.takeQueries()); queries != 0 {
+				t.Errorf("child proof ran %d queries after parent access failed", queries)
+			}
+			if w.Code != tc.status {
+				t.Fatalf("status=%d want=%d body=%s", w.Code, tc.status, w.Body.String())
+			}
+			if tc.share != "" {
+				var body struct {
+					Data map[string]json.RawMessage `json:"data"`
+				}
+				if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+					t.Fatalf("decode parent access error: %v; body=%s", err, w.Body.String())
+				}
+				if _, present := body.Data["share"]; present {
+					t.Fatalf("parent access error carries a share denial marker: %s", w.Body.String())
+				}
+			}
+		})
 	}
 	f.rules("trails", types.Pointer(""), types.Pointer(""))
 	f.rules("waypoints", nil, nil)

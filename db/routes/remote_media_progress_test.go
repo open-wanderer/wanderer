@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"pocketbase/util"
 	"strings"
 	"testing"
@@ -51,10 +52,6 @@ func TestRemoteMediaContinuesPartialFieldsAfterSaving(t *testing.T) {
 			t.Run(target+"/"+scenario.name, func(t *testing.T) {
 				f := newRemoteSyncFixture(t)
 				collection := map[string]*core.Collection{"trail": f.trails, "waypoint": f.waypoints, "summit_log": f.logs}[target]
-				collection.Fields.Add(&core.FileField{Name: "photos", MaxSelect: 200, MaxSize: 20 << 20})
-				if err := f.app.Save(collection); err != nil {
-					t.Fatal(err)
-				}
 				origin := "https://remote.example"
 				iri := origin + "/api/v1/" + strings.ReplaceAll(target, "_", "-") + "/remote"
 				record := f.save(collection, map[string]any{"iri": iri, "author": f.remoteActor.Id})
@@ -66,7 +63,7 @@ func TestRemoteMediaContinuesPartialFieldsAfterSaving(t *testing.T) {
 				t.Cleanup(func() { fetchRemoteSyncMedia = previous })
 				requests := map[string]int{}
 				fetchRemoteSyncMedia = func(ctx context.Context, raw, origin, name string, limit int64) (*filesystem.File, func(), error) {
-					requests[name]++
+					requests[strings.TrimPrefix(raw, origin+"/api/v1/files/"+collection.Name+"/remote/")]++
 					if scenario.size > limit {
 						return nil, func() {}, util.ErrFederatedMediaBudget
 					}
@@ -84,7 +81,9 @@ func TestRemoteMediaContinuesPartialFieldsAfterSaving(t *testing.T) {
 					if err != nil {
 						t.Fatal(err)
 					}
-					syncRecordFiles(ctx, record, collection.Name, "remote", origin, map[string]any{"photos": photos})
+					if err := syncRecordPhotos(f.app, ctx, target, record.Id, "remote", f.remoteActor.Id, origin, map[string]any{"photos": photos}, true); err != nil {
+						t.Fatal(err)
+					}
 					if err := f.app.Save(record); err != nil {
 						t.Fatal(err)
 					}
@@ -94,10 +93,10 @@ func TestRemoteMediaContinuesPartialFieldsAfterSaving(t *testing.T) {
 						t.Fatal(err)
 					}
 					if attempt == 0 {
-						first = append([]string(nil), record.GetStringSlice("photos")...)
+						first = append([]string(nil), testPhotoFiles(t, f.app, record)...)
 					}
 				}
-				stored := record.GetStringSlice("photos")
+				stored := testPhotoFiles(t, f.app, record)
 				if len(stored) != scenario.count {
 					t.Fatalf("copied %d/%d photos", len(stored), scenario.count)
 				}
@@ -119,10 +118,6 @@ func TestRemoteMediaContinuesPartialFieldsAfterSaving(t *testing.T) {
 func TestRemoteMediaSyncStoresMetadataAfterUnavailableFiles(t *testing.T) {
 	t.Setenv("ORIGIN", "https://local.example")
 	f := newRemoteSyncFixture(t)
-	f.trails.Fields.Add(&core.FileField{Name: "photos", MaxSelect: 20, MaxSize: 20 << 20})
-	if err := f.app.Save(f.trails); err != nil {
-		t.Fatal(err)
-	}
 	record := f.save(f.trails, map[string]any{"iri": "https://remote.example/api/v1/trail/remote", "author": f.remoteActor.Id, "needs_full_sync": true})
 	previousClient, previousFetch := newRemoteSyncHTTPClient, fetchRemoteSyncMedia
 	t.Cleanup(func() { newRemoteSyncHTTPClient, fetchRemoteSyncMedia = previousClient, previousFetch })
@@ -142,20 +137,20 @@ func TestRemoteMediaNamesDistinguishLongAndSimilarSources(t *testing.T) {
 	names := []string{strings.Repeat("a", 150) + "one.jpg", strings.Repeat("a", 150) + "two.jpg", "same-prefix_one.jpg", "same-prefix_two.jpg", "a snow photo.jpg", "a_snow_photo.jpg"}
 	saved := []string{}
 	for _, name := range names {
-		if remotePhotoAlreadyStored(saved, name) {
+		if util.RemotePhotoNameMatches(saved, name) {
 			t.Fatalf("different source considered saved: %q", name)
 		}
 		saved = append(saved, remoteSyncFileName(name))
 	}
 	for _, name := range names {
-		if !remotePhotoAlreadyStored(saved, name) {
+		if !util.RemotePhotoNameMatches(saved, name) {
 			t.Fatalf("completed source missing: %q", name)
 		}
 	}
-	if !remotePhotoAlreadyStored([]string{"photo_ab12cd34ef.jpg"}, "photo.jpg") {
+	if !util.RemotePhotoNameMatches([]string{"photo_ab12cd34ef.jpg"}, "photo.jpg") {
 		t.Fatal("earlier file suffix not recognized")
 	}
-	if remotePhotoAlreadyStored([]string{"photo_!!!!!!!!!!.jpg"}, "photo.jpg") {
+	if util.RemotePhotoNameMatches([]string{"photo_!!!!!!!!!!.jpg"}, "photo.jpg") {
 		t.Fatal("invalid earlier suffix accepted")
 	}
 	for _, tc := range []struct {
@@ -183,7 +178,7 @@ func TestRemoteMediaNamesDistinguishLongAndSimilarSources(t *testing.T) {
 		{"dots are not an empty extension", "photo..", "photo_ab12cd34ef", false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := remotePhotoAlreadyStored([]string{tc.saved}, tc.source); got != tc.want {
+			if got := util.RemotePhotoNameMatches([]string{tc.saved}, tc.source); got != tc.want {
 				t.Fatalf("stored %q for %q: got %v, want %v", tc.saved, tc.source, got, tc.want)
 			}
 		})
@@ -193,10 +188,6 @@ func TestRemoteMediaNamesDistinguishLongAndSimilarSources(t *testing.T) {
 func TestRemoteMediaSavedNamesAvoidRepeatDownloads(t *testing.T) {
 	t.Setenv("ORIGIN", "https://local.example")
 	f := newRemoteSyncFixture(t)
-	f.trails.Fields.Add(&core.FileField{Name: "photos", MaxSelect: 20, MaxSize: 20 << 20})
-	if err := f.app.Save(f.trails); err != nil {
-		t.Fatal(err)
-	}
 	origin := "https://remote.example"
 	iri := origin + "/api/v1/trail/remote"
 	record := f.save(f.trails, map[string]any{"iri": iri, "author": f.remoteActor.Id})
@@ -214,7 +205,9 @@ func TestRemoteMediaSavedNamesAvoidRepeatDownloads(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	syncRecordFiles(ctx, record, "trails", "remote", origin, map[string]any{"photos": names})
+	if err := syncRecordPhotos(f.app, ctx, "trail", record.Id, "remote", f.remoteActor.Id, origin, map[string]any{"photos": names}, true); err != nil {
+		t.Fatal(err)
+	}
 	if err := f.app.Save(record); err != nil {
 		t.Fatal(err)
 	}
@@ -222,12 +215,12 @@ func TestRemoteMediaSavedNamesAvoidRepeatDownloads(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	saved := record.GetStringSlice("photos")
+	saved := testPhotoFiles(t, f.app, record)
 	if len(saved) != len(names) {
 		t.Fatalf("saved %d/%d distinct photos", len(saved), len(names))
 	}
 	for _, name := range names {
-		if !remotePhotoAlreadyStored(saved, name.(string)) {
+		if !hasTestPhotoCanonicalID(t, f.app, record, origin+"/api/v1/files/trails/remote/"+url.PathEscape(name.(string))) {
 			t.Fatalf("stored source not recognized: %q", name)
 		}
 	}
