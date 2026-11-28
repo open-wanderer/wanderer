@@ -73,7 +73,7 @@ export async function GET(event: RequestEvent) {
  *             schema:
  *               $ref: '#/components/schemas/Waypoint'
  *       400:
- *         description: Bad Request
+ *         description: Invalid input or `waypoint_photos_form_field_removed` when photo modifier keys are present. A plain `photos` key is ignored. Save photos through PUT /api/v1/assets.
  *       500:
  *         description: Internal Server Error
  */

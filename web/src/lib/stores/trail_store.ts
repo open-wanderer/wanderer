@@ -407,7 +407,7 @@ async function createTrailWithAssets(trail: Trail, photos: File[], gpx: File | B
 
     trail.author = user.actor
 
-    const formData = objectToFormData(trail, ["photos", "expand", "_assetLinks"])
+    const formData = objectToFormData(trail, ["photos", "expand", "_assetLinks", "thumbnail"])
 
     if (gpx) {
         formData.set("gpx", gpx);
@@ -729,7 +729,7 @@ async function updateTrailWithAssets(oldTrail: Trail, newTrail: Trail, photos: F
         newTrail.tags = newTrail.tags.filter(t => t != tag.id);
     }
 
-    const formData = objectToFormData(newTrail, ["expand", "photos", "_assetLinks", ...(exclude ?? [])])
+    const formData = objectToFormData(newTrail, ["expand", "photos", "_assetLinks", "thumbnail", ...(exclude ?? [])])
 
     if (gpx) {
         formData.append("gpx", gpx);

@@ -451,6 +451,7 @@
  *
  *     TrailCreateInput:
  *       type: object
+ *       description: For JSON bodies, photo modifier keys return 400 `trail_photos_form_field_removed`; a plain `photos` key is ignored. Manage photos through PUT /api/v1/assets and DELETE /api/v1/assets/{id}.
  *       required:
  *         - name
  *         - author
@@ -502,13 +503,11 @@
  *         moving_duration:
  *           type: number
  *           description: Moving time in seconds, excluding accumulated pause time. Present only for trails recorded in the Wanderer app; absent otherwise, in which case `duration` (GPX-derived elapsed time) is displayed instead.
- *         photos:
- *           type: array
- *           items:
- *             type: string
- *           default: []
  *         thumbnail:
  *           type: integer
+ *           description: >
+ *             Legacy index of the thumbnail in the trail's `photos`. Trail responses use the photo marked through
+ *             `PATCH /api/v1/trail/{id}/thumbnail` (`trail_assets.is_thumbnail`) or else the first photo, not this index.
  *         like_count:
  *           type: integer
  *           default: 0
@@ -526,6 +525,7 @@
  *
  *     TrailUpdateInput:
  *       type: object
+ *       description: For JSON bodies, photo modifier keys return 400 `trail_photos_form_field_removed`; a plain `photos` key is ignored. Manage photos through PUT /api/v1/assets and DELETE /api/v1/assets/{id}.
  *       properties:
  *         name:
  *           type: string
@@ -565,18 +565,11 @@
  *         moving_duration:
  *           type: number
  *           description: Moving time in seconds, excluding accumulated pause time. Present only for trails recorded in the Wanderer app; absent otherwise, in which case `duration` (GPX-derived elapsed time) is displayed instead.
- *         photos:
- *           type: array
- *           items:
- *             type: string
- *         'photos-':
- *           type: string
- *           description: Remove photo by name
- *         'photos+':
- *           type: string
- *           description: Add photo by name
  *         thumbnail:
  *           type: integer
+ *           description: >
+ *             Legacy index of the thumbnail in the trail's `photos`. Trail responses use the photo marked through
+ *             `PATCH /api/v1/trail/{id}/thumbnail` (`trail_assets.is_thumbnail`) or else the first photo, not this index.
  *         like_count:
  *           type: integer
  *           default: 0
@@ -713,6 +706,7 @@
  *
  *     SummitLogInput:
  *       type: object
+ *       description: For JSON bodies, photo modifier keys return 400 `summit_log_photos_form_field_removed`; a plain `photos` key is ignored. Manage photos through PUT /api/v1/assets and DELETE /api/v1/assets/{id}.
  *       required:
  *         - date
  *         - author
@@ -741,14 +735,10 @@
  *           type: number
  *         duration:
  *           type: number
- *         photos:
- *           type: array
- *           items:
- *             type: string
- *           default: []
  *
  *     SummitLogUpdateInput:
  *       type: object
+ *       description: For JSON bodies, photo modifier keys return 400 `summit_log_photos_form_field_removed`; a plain `photos` key is ignored. Manage photos through PUT /api/v1/assets and DELETE /api/v1/assets/{id}.
  *       properties:
  *         date:
  *           type: string
@@ -765,16 +755,6 @@
  *           type: number
  *         duration:
  *           type: number
- *         photos:
- *           type: array
- *           items:
- *             type: string
- *         'photos-':
- *           type: string
- *           description: Remove photo by name
- *         'photos+':
- *           type: string
- *           description: Add photo by name
  *
  *     Waypoint:
  *       type: object
@@ -834,6 +814,7 @@
  *
  *     WaypointInput:
  *       type: object
+ *       description: For JSON bodies, photo modifier keys return 400 `waypoint_photos_form_field_removed`; a plain `photos` key is ignored. Manage photos through PUT /api/v1/assets and DELETE /api/v1/assets/{id}.
  *       required:
  *         - lat
  *         - lon
@@ -861,16 +842,12 @@
  *         author:
  *           type: string
  *           description: Author user ID (15 chars)
- *         photos:
- *           type: array
- *           items:
- *             type: string
- *           default: []
  *         trail:
  *           type: string
  *
  *     WaypointUpdateInput:
  *       type: object
+ *       description: For JSON bodies, photo modifier keys return 400 `waypoint_photos_form_field_removed`; a plain `photos` key is ignored. Manage photos through PUT /api/v1/assets and DELETE /api/v1/assets/{id}.
  *       properties:
  *         name:
  *           type: string
@@ -888,16 +865,6 @@
  *           type: number
  *         icon:
  *           type: string
- *         photos:
- *           type: array
- *           items:
- *             type: string
- *         'photos-':
- *           type: string
- *           description: Remove photo by name
- *         'photos+':
- *           type: string
- *           description: Add photo by name
  *
  *     List:
  *       type: object

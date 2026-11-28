@@ -32,7 +32,6 @@ const TrailCreateSchema = z.object({
     // `moving_duration` through the JSON API had it silently discarded. Only the
     // multipart `/trail/form` route worked, because it bypasses Zod entirely.
     moving_duration: z.coerce.number().nonnegative().optional(),
-    photos: z.array(z.string()).default([]),
     thumbnail: z.number().int().nonnegative().optional(),
     like_count: z.number().int().min(0).optional().default(0),
     category: z.string().length(15).optional().or(z.literal('')),
@@ -64,9 +63,6 @@ const TrailUpdateSchema = z.object({
     // `moving_duration` through the JSON API had it silently discarded. Only the
     // multipart `/trail/form` route worked, because it bypasses Zod entirely.
     moving_duration: z.coerce.number().nonnegative().optional(),
-    photos: z.array(z.string()).optional(),
-    "photos-": z.string().optional(),
-    "photos+": z.string().optional(),
     thumbnail: z.number().int().nonnegative().optional(),
     like_count: z.number().int().min(0).optional(),
     category: z.string().optional(),

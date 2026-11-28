@@ -1,3 +1,4 @@
+import { hasRemovedPhotoFields } from "#lib/server/removed_photo_form.ts";
 import { assetResponseJson as json } from "#lib/server/asset_response_json.ts";
 import { committedAssetResponseError } from "#lib/server/committed_asset_response.ts";
 import type { SummitLog } from "#lib/models/summit_log.ts";
@@ -12,9 +13,10 @@ import { elevationFetch, withParseSlot } from "#lib/server/parse_slot.ts";
  * @swagger
  * /api/v1/summit-log/form/{id}:
  *   post:
- *     summary: Update summit log with file upload
+ *     summary: Update summit log with GPX upload
  *     description: >
- *       Updates a summit log with file upload (photos/GPX) and date normalization. The record is addressed by the `id` path parameter; an `id` in the body is optional and must match it (400 `id_mismatch` otherwise).
+ *       Photo fields and their modifiers, including @jsonPayload, return 400 `summit_log_photos_form_field_removed` before any write. Use PUT /api/v1/assets to attach photos after saving.
+ *       Updates a summit log with GPX upload and date normalization. The record is addressed by the `id` path parameter; an `id` in the body is optional and must match it (400 `id_mismatch` otherwise).
  *       A `gpx` part replaces the track: the file is converted to GPX (FIT, KML, KMZ and TCX are accepted) and `distance`, `duration`, `elevation_gain` and `elevation_loss` are derived from it unless the request sets them explicitly.
  *     tags:
  *       - Summit Logs
@@ -38,7 +40,7 @@ import { elevationFetch, withParseSlot } from "#lib/server/parse_slot.ts";
  *             schema:
  *               $ref: '#/components/schemas/SummitLog'
  *       400:
- *         description: Bad Request (invalid id, body `id` differs from the path, or the `gpx` file cannot be parsed)
+ *         description: Bad Request (invalid id, body `id` differs from the path, the `gpx` file cannot be parsed, or `summit_log_photos_form_field_removed` for removed photo fields)
  *       401:
  *         description: Unauthorized
  *       404:
@@ -62,12 +64,13 @@ import { elevationFetch, withParseSlot } from "#lib/server/parse_slot.ts";
  */
 export async function POST(event: RequestEvent) {
     if (!event.locals.user) {
-        return json({ message: "Unauthorized" }, { status: 401 });
+        return Response.json({ message: "Unauthorized" }, { status: 401 });
     }
     let committedRecord: SummitLog | undefined;
     try {
         RecordIdSchema.parse(event.params);
         const data = await event.request.formData();
+        if (hasRemovedPhotoFields(data)) { return Response.json({ message: "summit_log_photos_form_field_removed" }, { status: 400 }); }
         if (data.has("gpx")) {
             await withParseSlot(() => applyGpxToForm(data, summitLogGpxFields, true, elevationFetch(event.fetch)));
         }

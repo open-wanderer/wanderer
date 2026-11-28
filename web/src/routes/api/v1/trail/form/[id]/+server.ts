@@ -1,3 +1,4 @@
+import { hasRemovedPhotoFields } from "#lib/server/removed_photo_form.ts";
 import { assetResponseJson as json } from "#lib/server/asset_response_json.ts";
 import { committedAssetResponseError } from "#lib/server/committed_asset_response.ts";
 import type { Trail } from "#lib/models/trail.ts";
@@ -13,9 +14,10 @@ import { elevationFetch, withParseSlot } from "#lib/server/parse_slot.ts";
  * @swagger
  * /api/v1/trail/form/{id}:
  *   post:
- *     summary: Update trail with file upload
+ *     summary: Update trail with GPX upload
  *     description: >
- *       Updates a trail with file upload (GPX/photos) and date normalization. The record is addressed by the `id` path parameter; an `id` in the body is optional and must match it (400 `id_mismatch` otherwise).
+ *       Photo fields and their modifiers, including @jsonPayload, return 400 `trail_photos_form_field_removed` before any write. Use PUT /api/v1/assets to attach photos after saving.
+ *       Updates a trail with GPX upload and date normalization. The record is addressed by the `id` path parameter; an `id` in the body is optional and must match it (400 `id_mismatch` otherwise).
  *       A `gpx` part replaces the track: the file is converted to GPX (FIT, KML, KMZ and TCX are accepted) and `distance`, `duration`, `elevation_gain`, `elevation_loss`, `lat` and `lon` are derived from it unless the request sets them explicitly. `bounding_box_diagonal` and `polyline` are always recomputed.
  *     tags:
  *       - Trails
@@ -39,7 +41,7 @@ import { elevationFetch, withParseSlot } from "#lib/server/parse_slot.ts";
  *             schema:
  *               $ref: '#/components/schemas/Trail'
  *       400:
- *         description: Bad Request (invalid id, body `id` differs from the path, or the `gpx` file cannot be parsed)
+ *         description: Bad Request (invalid id, body `id` differs from the path, the `gpx` file cannot be parsed, or `trail_photos_form_field_removed` for removed photo fields)
  *       401:
  *         description: Unauthorized
  *       404:
@@ -63,12 +65,13 @@ import { elevationFetch, withParseSlot } from "#lib/server/parse_slot.ts";
  */
 export async function POST(event: RequestEvent) {
     if (!event.locals.user) {
-        return json({ message: "Unauthorized" }, { status: 401 });
+        return Response.json({ message: "Unauthorized" }, { status: 401 });
     }
     let committedRecord: Trail | undefined;
     try {
         RecordIdSchema.parse(event.params);
         const data = await event.request.formData();
+        if (hasRemovedPhotoFields(data)) { return Response.json({ message: "trail_photos_form_field_removed" }, { status: 400 }); }
         if (data.has("gpx")) {
             await withParseSlot(() => applyGpxToForm(data, trailGpxFields, true, elevationFetch(event.fetch)));
         }

@@ -12,6 +12,7 @@ vi.mock("svelte-i18n", () => ({ locale: { set: vi.fn() } }));
 vi.mock("@sveltejs/kit/hooks", () => ({ sequence: (...handlers: Handle[]) => handlers[3] }));
 
 import { handle } from "./hooks.server";
+import { isRouteProtected } from "#lib/util/authorization_util.ts";
 
 // Tests swap request-scoped functions on the event.
 type TestEvent = { -readonly [K in keyof RequestEvent]: RequestEvent[K] };
@@ -77,6 +78,18 @@ describe("API token authentication", () => {
         const resolve = vi.fn(async () => new Response("resolved"));
         return { event, resolve };
     }
+
+    it.each([undefined, "Bearer wanderer_key_bogus"])("discovers capabilities on a private instance with authorization %s", async authorization => {
+        const { event, resolve } = request("/api/v1/capabilities", false, authorization ?? "");
+        const response = await handle({ event, resolve });
+
+        expect(isRouteProtected(event.url)).toBe(false);
+        expect(response.status).toBe(200);
+        expect(await response.json()).toEqual({ assetApi: true });
+        expect(requests).toEqual([]);
+        expect(resolve).not.toHaveBeenCalled();
+        expect(event.cookies.set).not.toHaveBeenCalled();
+    });
 
     it.each([
         ["/api/v1/api-token", "Invalid or revoked API token."],

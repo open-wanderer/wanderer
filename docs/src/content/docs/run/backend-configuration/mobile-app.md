@@ -57,3 +57,17 @@ Older app versions do not perform this check. On an unsupported instance, their 
 If everything else works but the map is blank, the instance has no [map tile source](#a-map-tile-source) configured.
 
 Users pick your instance from the public server list on wanderer.to or type its address; there is nothing to register on your side.
+
+
+## Photo API compatibility
+
+Servers that return `{"assetApi":true}` from `GET /api/v1/capabilities` require
+photo uploads and removals through the asset API. App releases up to and including
+`app-v0.1.0-beta.25` cannot upload photos to these servers.
+Complete pending uploads before upgrading the server, and install an app release
+that supports this capability before adding more photos.
+
+Clients must use the explicit capability marker to choose the asset API. Only a 200 response without
+`assetApi`, or a 404, means the marker is absent and the previous multipart workflow
+applies. Other non-200 responses leave support unknown; retry discovery. Resolve relative photo
+URLs against the server address and send credentials when reading private photos.

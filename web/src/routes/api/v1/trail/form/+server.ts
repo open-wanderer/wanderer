@@ -1,3 +1,4 @@
+import { hasRemovedPhotoFields } from "#lib/server/removed_photo_form.ts";
 import { assetResponseJson as json } from "#lib/server/asset_response_json.ts";
 import { committedAssetResponseError } from "#lib/server/committed_asset_response.ts";
 import type { Trail } from '#lib/models/trail.ts';
@@ -10,7 +11,8 @@ import { type RequestEvent } from '@sveltejs/kit';
  * /api/v1/trail/form:
  *   put:
  *     summary: Create trail with file upload
- *     description: Creates a new trail with file upload (GPX/photos) and date normalization
+ *     description: >
+ *       Photo fields and their modifiers, including @jsonPayload, return 400 `trail_photos_form_field_removed` before any write. Use PUT /api/v1/assets to attach photos after saving.
  *     tags:
  *       - Trails
  *     requestBody:
@@ -42,8 +44,11 @@ import { type RequestEvent } from '@sveltejs/kit';
  *               $ref: '#/components/schemas/AssetWriteError'
  */
 export async function PUT(event: RequestEvent) {
+    if (!event.locals.user) return Response.json({ message: "Unauthorized" }, { status: 401 });
     let committedRecord: Trail | undefined;
     try {
+        const data = await event.request.clone().formData();
+        if (hasRemovedPhotoFields(data)) { return Response.json({ message: "trail_photos_form_field_removed" }, { status: 400 }); }
 
         let r = await uploadCreate<Trail>(event, Collection.trails)
         committedRecord = r;
