@@ -89,6 +89,14 @@ func LegacyPhotoFileRedirect(e *core.RequestEvent) error {
 			util.LegacyPhotoAliasTable + ".source_record":     record.Id,
 			util.LegacyPhotoAliasTable + ".source_file":       e.Request.PathValue("filename"),
 		}).Limit(1).One(link)
+	// Profile search still exposes a bare filename to older peers. Resolve
+	// that filename only among photos linked directly to this trail.
+	if errors.Is(err, sql.ErrNoRows) && collection.Name == "trails" {
+		err = e.App.RecordQuery(linkCollection).
+			InnerJoin("assets", dbx.NewExp("assets.id = "+linkCollection+".asset")).
+			AndWhere(dbx.HashExp{linkCollection + ".trail": record.Id, "assets.type": "photo", "assets.file": e.Request.PathValue("filename")}).
+			Limit(1).One(link)
+	}
 	if errors.Is(err, sql.ErrNoRows) {
 		return e.Next()
 	}

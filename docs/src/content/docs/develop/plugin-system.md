@@ -465,8 +465,11 @@ Detail capabilities return the full trail import:
 
 The host imports the trails, writes PocketBase records, applies visibility
 rules, deduplicates by provider/external ID, and stores the returned state.
-Trail photos are attached to the imported trail. Waypoint photos are attached to
-the corresponding waypoint records. Waypoint `distance_from_start` is derived
+Trail photos become reusable photo assets linked to the imported trail. Waypoint
+photos link to their corresponding waypoint records. Each target accepts up to 20
+successful photo imports independently; failed downloads leave room for later
+photos. Public trails are published after their photos and waypoints have been
+stored. Unavailable or unsupported photos are skipped with a reason in the logs. Waypoint `distance_from_start` is derived
 by the host from the nearest position on the imported GPX track.
 
 Trail photos with a position move to waypoints before the import. A photo near

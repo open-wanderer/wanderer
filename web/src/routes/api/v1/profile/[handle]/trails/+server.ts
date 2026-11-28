@@ -71,6 +71,9 @@ export async function POST(event: RequestEvent) {
                 `author = ${actor.id}`,
             ]);
             r = await event.locals.ms.index("trails").search(data.q, { ...data.options, filter });
+            r.hits.forEach(hit => {
+                hit.thumbnail = localTrailThumbnailFilename(hit.thumbnail);
+            });
         } else {
             const origin = new URL(actor.iri).origin
             const url = `${origin}/api/v1/profile/${actor.preferred_username}/trails?` + event.url.searchParams
@@ -82,7 +85,7 @@ export async function POST(event: RequestEvent) {
             r = response.json
 
             r.hits.forEach(h => {
-                h.thumbnail = `${origin}/api/v1/files/trails/${h.id}/${h.thumbnail}`;
+                h.thumbnail = remoteTrailThumbnailURL(origin, h.id, h.thumbnail);
                 h.domain = actor.domain
                 if(h.iri == '') {
                     h.iri = `${origin}/api/v1/trails/${h.id}`
@@ -99,4 +102,31 @@ export async function POST(event: RequestEvent) {
         }
         return handleError(e)
     }
+}
+
+
+function remoteTrailThumbnailURL(origin: string, trailId: string, thumbnail?: string) {
+    if (!thumbnail) {
+        return thumbnail ?? "";
+    }
+    if (/^https?:\/\//i.test(thumbnail) || thumbnail.startsWith("//")) {
+        try {
+            const url = new URL(thumbnail, origin);
+            return url.origin === origin ? url.href : "";
+        } catch {
+            return "";
+        }
+    }
+    if (thumbnail.startsWith("/")) {
+        return `${origin}${thumbnail}`;
+    }
+    return `${origin}/api/v1/files/trails/${trailId}/${thumbnail}`;
+}
+
+// Older peers build /files/trails/{id}/{thumbnail} themselves.
+function localTrailThumbnailFilename(thumbnail?: string) {
+    if (!thumbnail || !thumbnail.includes("/")) return thumbnail ?? "";
+    const path = new URL(thumbnail, "https://a.example").pathname;
+    const file = path.match(/^\/api\/v1\/files\/[^/]+\/[^/]+\/([^/]+)$/)?.[1];
+    return file ? decodeURIComponent(file) : "";
 }
