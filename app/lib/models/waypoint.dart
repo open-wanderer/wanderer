@@ -34,6 +34,10 @@ abstract class Waypoint with _$Waypoint, RecordFunctions {
     @Default([])
     List<String> localPhotos,
 
+    @JsonKey(includeFromJson: false, includeToJson: false)
+    @Default([])
+    List<String> removedPendingPhotos,
+
     /// Carries list identity for a waypoint that has no server id yet
     /// yet. Device-local only, never serialized.
     @JsonKey(includeFromJson: false, includeToJson: false) String? localKey,

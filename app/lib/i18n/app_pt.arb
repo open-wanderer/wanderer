@@ -661,5 +661,6 @@
   },
   "selected_location": "Selected location",
   "distance_from_your_location": "{distance} from your location",
-  "plan_route_from_here": "Plan route from here"
+  "plan_route_from_here": "Plan route from here",
+  "photos_session_expired": "Sua sessão expirou. As fotos permanecem neste dispositivo. Os envios serão retomados quando você entrar novamente."
 }

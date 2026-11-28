@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_form_builder/flutter_form_builder.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,6 +13,10 @@ import 'package:wanderer/components/base/wanderer_text_field.dart';
 import 'package:wanderer/i18n/app_localizations.dart';
 import 'package:wanderer/models/waypoint.dart';
 import 'package:wanderer/provider/toast_provider.dart';
+import 'package:wanderer/provider/auth_provider.dart';
+import 'package:wanderer/provider/api_provider.dart';
+import 'package:wanderer/services/asset_photo_client.dart';
+import 'package:wanderer/services/photo_mutation_service.dart';
 import 'package:wanderer/util/exif.dart';
 
 class WaypointCreateScreen extends ConsumerStatefulWidget {
@@ -27,6 +33,42 @@ class _WaypointCreateScreenState extends ConsumerState<WaypointCreateScreen> {
   final _formKey = GlobalKey<FormBuilderState>();
 
   late List<String> _localPhotos = List.of(waypoint.localPhotos);
+  late final List<String> _removedPending = List.of(
+    waypoint.removedPendingPhotos,
+  );
+  int _photoRevision = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_rehydratePendingPhotos().catchError((Object _) {}));
+  }
+
+  Future<void> _rehydratePendingPhotos() async {
+    final user = ref.read(authProvider).value;
+    if (user == null || waypoint.id.isEmpty) return;
+    final base = ref.read(apiProvider).options.baseUrl;
+    final paths = await ref
+        .read(photoMutationServiceProvider)
+        .pendingPaths(
+          PhotoTarget.waypoint(waypoint.id),
+          user.actorId,
+          serverBaseUrl: base,
+          excludeSources: waypoint.localPhotos,
+        );
+    if (paths.isEmpty) return;
+    if (!mounted ||
+        ref.read(apiProvider).options.baseUrl != base ||
+        ref.read(authProvider).value?.actorId != user.actorId)
+      return;
+    setState(() {
+      _localPhotos = {
+        ..._localPhotos,
+        ...paths,
+      }.where((path) => !_removedPending.contains(path)).toList();
+      _photoRevision++;
+    });
+  }
 
   Future<void> _fillCoordinatesFromExif(String path) async {
     final coords = await readGpsFromImage(path);
@@ -61,6 +103,7 @@ class _WaypointCreateScreenState extends ConsumerState<WaypointCreateScreen> {
       lat: double.parse(v['lat'] as String),
       lon: double.parse(v['lon'] as String),
       localPhotos: _localPhotos,
+      removedPendingPhotos: _removedPending,
     );
 
     context.pop(result);
@@ -137,7 +180,9 @@ class _WaypointCreateScreenState extends ConsumerState<WaypointCreateScreen> {
                 const Divider(),
                 const SizedBox(height: 8),
                 WandererPhotoPicker(
-                  initialLocalPhotos: waypoint.localPhotos,
+                  key: ValueKey(_photoRevision),
+                  initialLocalPhotos: _localPhotos,
+                  onLocalPhotoRemoved: _removedPending.add,
                   onChanged: (photos) => _localPhotos = photos,
                   onExifRequested: _fillCoordinatesFromExif,
                 ),

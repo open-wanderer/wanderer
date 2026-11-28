@@ -17,6 +17,7 @@ import 'package:wanderer/entities/active_navigation_entity.dart';
 import 'package:wanderer/entities/trail_entity.dart';
 import 'package:wanderer/entities/user_entity.dart';
 import 'package:wanderer/provider/auth_provider.dart';
+import 'package:wanderer/provider/server_capabilities_provider.dart';
 import 'package:wanderer/provider/cookie_jar_provider.dart';
 import 'package:wanderer/models/navigate_response.dart';
 import 'package:wanderer/provider/objectbox_store_provider.dart';
@@ -29,6 +30,7 @@ import 'package:wanderer/util/image_cache.dart';
 import 'package:wanderer/provider/account_scope_invalidation.dart';
 import 'package:wanderer/store/active_navigation_store.dart' as active_nav;
 import 'package:wanderer/store/local_photo_store.dart';
+import 'package:wanderer/store/app_photo_paths.dart';
 import 'package:wanderer/store/local_trail_store.dart';
 import 'package:wanderer/actions/launch_navigation.dart';
 import 'package:wanderer/services/app_shortcuts.dart';
@@ -55,6 +57,7 @@ void main() async {
 
   final appDocDir = await getApplicationDocumentsDirectory();
 
+  configurePhotoDocumentsDirectory(appDocDir.path);
   final dbPath = p.join(appDocDir.path, "objectbox");
   final store = await openStore(directory: dbPath);
   final proxyServer = await TileProxyServer.start(store);
@@ -169,6 +172,11 @@ class _MainAppState extends ConsumerState<MainApp> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    ref.read(serverCapabilitiesProvider).onResolved = () {
+      if (mounted && ref.read(authProvider).value != null) {
+        unawaited(ref.read(trailSyncProvider.notifier).drainIfOnline());
+      }
+    };
 
     // Seed the app-wide online status as early as possible; unawaited since
     // startup must not block on a network probe.
@@ -259,12 +267,16 @@ class _MainAppState extends ConsumerState<MainApp> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
+      unawaited(ref.read(serverCapabilitiesProvider).resume());
       unawaited(ref.read(trailSyncProvider.notifier).drainIfOnline());
+    } else {
+      ref.read(serverCapabilitiesProvider).background();
     }
   }
 
   @override
   void dispose() {
+    ref.read(serverCapabilitiesProvider).onResolved = null;
     WidgetsBinding.instance.removeObserver(this);
     _authSub?.close();
     _onlineStatusSub?.close();
@@ -386,8 +398,7 @@ class _MainAppState extends ConsumerState<MainApp> with WidgetsBindingObserver {
     // The session's own copy first: it exists for any navigated trail, while
     // the trail cache exists only for one this account downloaded. The cache
     // is the fallback for rows written before sessions carried their route.
-    final response =
-        readSessionNav(row) ?? readCachedNav(store, row.trailId!);
+    final response = readSessionNav(row) ?? readCachedNav(store, row.trailId!);
     if (response == null ||
         response.maneuvers.isEmpty ||
         response.shape.isEmpty) {

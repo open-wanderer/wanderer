@@ -36,6 +36,8 @@ import 'package:wanderer/models/waypoint.dart';
 import 'package:wanderer/objectbox.g.dart';
 import 'package:maplibre/maplibre.dart' as ml;
 import 'package:wanderer/provider/api_provider.dart';
+import 'package:wanderer/services/asset_photo_client.dart';
+import 'package:wanderer/services/photo_mutation_service.dart';
 import 'package:wanderer/provider/auth_provider.dart';
 import 'package:wanderer/provider/category_preference_provider.dart';
 import 'package:wanderer/provider/objectbox_store_provider.dart';
@@ -93,6 +95,8 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
 
   bool _saving = false;
   List<String> _removedServerPhotos = [];
+  final List<String> _removedPendingPhotos = [];
+  int _photoRevision = 0;
 
   // A track transform's network round trip is in flight; the switches stay
   // disabled until it lands.
@@ -115,6 +119,75 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
     _sheetSize = ValueNotifier<double>(sheetMinSize);
     _localId = widget.trail.localId;
     _maybeResolveMissingLocation();
+    unawaited(_rehydratePendingPhotos().catchError((Object _) {}));
+  }
+
+  Future<void> _rehydratePendingPhotos() async {
+    final user = ref.read(authProvider).value;
+    if (user == null || !trailHasServerId(trail.id)) return;
+    final api = ref.read(apiProvider);
+    final base = api.options.baseUrl;
+    final journal = ref.read(photoMutationServiceProvider);
+    final paths = await journal.pendingPaths(
+      PhotoTarget.trail(trail.id),
+      user.actorId,
+      serverBaseUrl: base,
+      excludeSources: trail.localPhotos,
+    );
+    final pendingWaypoints = <String, List<String>>{};
+    for (final waypoint
+        in trail.expand?.waypointsViaTrail ?? const <Waypoint>[]) {
+      if (waypoint.id.isNotEmpty) {
+        pendingWaypoints[waypoint.id] = await journal.pendingPaths(
+          PhotoTarget.waypoint(waypoint.id),
+          user.actorId,
+          serverBaseUrl: base,
+          excludeSources: waypoint.localPhotos,
+        );
+      }
+    }
+    if (paths.isEmpty &&
+        pendingWaypoints.values.every((paths) => paths.isEmpty))
+      return;
+    if (!mounted ||
+        api.options.baseUrl != base ||
+        ref.read(authProvider).value?.actorId != user.actorId)
+      return;
+    List<Waypoint> hydrated(Trail model) => [
+      for (final waypoint
+          in model.expand?.waypointsViaTrail ?? const <Waypoint>[])
+        waypoint.copyWith(
+          localPhotos:
+              {...waypoint.localPhotos, ...?pendingWaypoints[waypoint.id]}
+                  .where(
+                    (path) => !waypoint.removedPendingPhotos.contains(path),
+                  )
+                  .toList(),
+        ),
+    ];
+    final picks =
+        (_formKey.currentState?.fields['photos']?.value as List<String>?) ??
+        trail.localPhotos;
+    final merged = {
+      ...picks,
+      ...paths,
+    }.where((path) => !_removedPendingPhotos.contains(path)).toList();
+    setState(() {
+      trail = trail.copyWith(
+        localPhotos: merged,
+        expand: trail.expand?.copyWith(waypointsViaTrail: hydrated(trail)),
+      );
+      _originalTrail = _originalTrail.copyWith(
+        localPhotos: {..._originalTrail.localPhotos, ...paths}.toList(),
+        expand: _originalTrail.expand?.copyWith(
+          waypointsViaTrail: hydrated(_originalTrail),
+        ),
+      );
+      _photoRevision++;
+    });
+    final form = _formKey.currentState;
+    form?.fields['photos']?.setValue(merged, populateForm: false);
+    form?.setInternalFieldValue('photos', merged);
   }
 
   /// A draft trail handed in from the Route Planner or a recorded navigation
@@ -481,7 +554,14 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
       subcategories,
     );
 
-    final localPhotoPaths = (values['photos'] as List<String>?) ?? const [];
+    var localPhotoPaths = (values['photos'] as List<String>?) ?? const [];
+    final selectedCover = values['photo_cover'] as String?;
+    if (selectedCover != null && localPhotoPaths.contains(selectedCover)) {
+      localPhotoPaths = [
+        selectedCover,
+        ...localPhotoPaths.where((path) => path != selectedCover),
+      ];
+    }
 
     final updatedTrail = trail.copyWith(
       name: values['name'] as String,
@@ -861,12 +941,16 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
             authorId: authorId,
             newPhotos: newPhotoFiles,
             removedPhotoFilenames: _removedServerPhotos,
+            removedPendingPaths: _removedPendingPhotos,
+            coverPhoto: _formKey.currentState?.value['photo_cover'] as String?,
+            setCover: true,
           );
 
       if (!mounted) return;
       setState(() {
         trail = result.trail;
         _removedServerPhotos = [];
+        _removedPendingPhotos.clear();
         _originalTrail = trail;
       });
 
@@ -958,14 +1042,24 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
           .read(toastProvider.notifier)
           .add(
             ToastMessage(
-              type: result.hadWaypointFailures
+              type:
+                  result.hadWaypointFailures ||
+                      result.hasPendingPhotos ||
+                      result.rejectedPhotoCount > 0
                   ? ToastType.warning
                   : ToastType.success,
-              icon: result.hadWaypointFailures
+              icon:
+                  result.hadWaypointFailures ||
+                      result.hasPendingPhotos ||
+                      result.rejectedPhotoCount > 0
                   ? FontAwesomeIcons.circleExclamation
                   : FontAwesomeIcons.circleCheck,
-              text: result.hadWaypointFailures
+              text: result.rejectedPhotoCount > 0
+                  ? l10n.photos_rejected_upload(result.rejectedPhotoCount)
+                  : result.hadWaypointFailures
                   ? l10n.some_waypoints_failed_to_save
+                  : result.hasPendingPhotos
+                  ? l10n.photos_pending_upload
                   : l10n.trail_saved_successfully,
             ),
           );
@@ -1358,6 +1452,8 @@ class _TrailCreateScreenState extends ConsumerState<TrailCreateScreen> {
                         onEditWaypoint: _onEditWaypoint,
                         onDeleteWaypoint: _onDeleteWaypoint,
                         onPhotosChanged: _onServerPhotosChanged,
+                        onLocalPhotoRemoved: _removedPendingPhotos.add,
+                        photoRevision: _photoRevision,
                         onElevationLineTouch: (p) => setState(
                           () => _elevationMarkerPosition = p?.lonlat,
                         ),
@@ -1386,6 +1482,8 @@ class TrailForm extends ConsumerWidget {
   onEditWaypoint;
   final void Function(Waypoint waypoint) onDeleteWaypoint;
   final void Function(List<String> remainingFilenames) onPhotosChanged;
+  final ValueChanged<String>? onLocalPhotoRemoved;
+  final int photoRevision;
   final void Function(TrackPoint? point) onElevationLineTouch;
   final bool transformingTrack;
   final Future<void> Function({
@@ -1403,6 +1501,8 @@ class TrailForm extends ConsumerWidget {
     required this.onEditWaypoint,
     required this.onDeleteWaypoint,
     required this.onPhotosChanged,
+    this.onLocalPhotoRemoved,
+    this.photoRevision = 0,
     required this.onElevationLineTouch,
     required this.transformingTrack,
     required this.onTrackTransformsChanged,
@@ -1595,34 +1695,55 @@ class TrailForm extends ConsumerWidget {
             Text(l10n.photos, style: theme.textTheme.titleMedium),
             Divider(),
             SizedBox(height: 12),
-            FormBuilderField<List<String>>(
-              name: 'photos',
-              initialValue: trail.localPhotos,
-              builder: (field) {
-                final serverUrl = ref.watch(authProvider).value?.serverUrl;
-                return WandererPhotoPicker(
-                  initialLocalPhotos: trail.localPhotos,
-                  // In the `alreadyUploaded` window `trail.photos`
-                  // (server filenames written by `writeServerTrailId`) and
-                  // `trail.localPhotos` (the app-owned copies) name the SAME
-                  // images -- rendering both doubles every thumbnail before
-                  // the save even runs. The local copies are the ones the
-                  // hiker can actually remove here, so they win; the server
-                  // list only matters once the trail is fully `synced`.
-                  initialWebPhotos: isUnsyncedState(trail.syncState)
-                      ? const <String>[]
-                      : trail.photos,
-                  resolveWebPhotoUrl: (filename) =>
-                      trail.getFileUrl(
-                        serverUrl ?? '',
-                        filename,
-                        thumb: '400x0',
-                      ) ??
-                      '',
-                  onChanged: (photos) => field.didChange(photos),
-                  onWebPhotosChanged: onPhotosChanged,
-                );
-              },
+            FormBuilderField<String>(
+              name: 'photo_cover',
+              initialValue:
+                  trail.photos.elementAtOrNull(trail.thumbnail) ??
+                  trail.localPhotos.firstOrNull,
+              builder: (coverField) => FormBuilderField<List<String>>(
+                name: 'photos',
+                initialValue: trail.localPhotos,
+                builder: (field) {
+                  final serverUrl = ref.watch(authProvider).value?.serverUrl;
+                  return WandererPhotoPicker(
+                    key: ValueKey(photoRevision),
+                    onLocalPhotoRemoved: onLocalPhotoRemoved,
+                    initialLocalPhotos: trail.localPhotos,
+                    // In the `alreadyUploaded` window `trail.photos`
+                    // (server filenames written by `writeServerTrailId`) and
+                    // `trail.localPhotos` (the app-owned copies) name the SAME
+                    // images -- rendering both doubles every thumbnail before
+                    // the save even runs. The local copies are the ones the
+                    // hiker can actually remove here, so they win; the server
+                    // list only matters once the trail is fully `synced`.
+                    initialWebPhotos: isUnsyncedState(trail.syncState)
+                        ? const <String>[]
+                        : trail.photos,
+                    resolveWebPhotoUrl: (filename) =>
+                        trail.getFileUrl(
+                          serverUrl ?? '',
+                          filename,
+                          thumb: '400x0',
+                        ) ??
+                        '',
+                    initialThumbnailPhoto: coverField.value,
+                    onThumbnailChanged: coverField.didChange,
+                    generatedPreviews: {
+                      for (final photo in trail.photos)
+                        if ((trail.expand?.photoAssets ?? const []).any(
+                          (link) =>
+                              link.photoAsset?.isGeneratedRoutePreview ==
+                                  true &&
+                              (Uri.tryParse(photo)?.path ?? photo) ==
+                                  link.photoAsset?.url,
+                        ))
+                          photo,
+                    },
+                    onChanged: (photos) => field.didChange(photos),
+                    onWebPhotosChanged: onPhotosChanged,
+                  );
+                },
+              ),
             ),
             SizedBox(height: 16),
             Text(l10n.waypoints(2), style: theme.textTheme.titleMedium),

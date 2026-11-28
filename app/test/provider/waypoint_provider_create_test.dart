@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wanderer/models/waypoint.dart';
 import 'package:wanderer/provider/api_provider.dart';
+import 'package:wanderer/provider/photo_api_provider.dart';
 import 'package:wanderer/provider/waypoint/waypoint_provider.dart';
 
 /// A backend that always accepts `PUT /waypoint` and answers
@@ -26,9 +27,10 @@ class _FakeApi extends Api {
     dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) {
-          requestedPaths.add(options.path);
+          final path = options.uri.path.replaceFirst('/api/v1', '');
+          requestedPaths.add(path);
 
-          if (options.path == '/waypoint') {
+          if (path == '/waypoint') {
             handler.resolve(
               Response(
                 requestOptions: options,
@@ -98,7 +100,10 @@ void main() {
   }) {
     final api = _FakeApi(photoUploadSucceeds: photoUploadSucceeds);
     final container = ProviderContainer(
-      overrides: [apiProvider.overrideWith(() => api)],
+      overrides: [
+        apiProvider.overrideWith(() => api),
+        photoApiModeProvider.overrideWithValue(() async => PhotoApiMode.legacy),
+      ],
     );
     addTearDown(container.dispose);
     return (container: container, api: api);
@@ -129,23 +134,26 @@ void main() {
       expect(pumped.api.requestedPaths, ['/waypoint']);
     });
 
-    test('a successful photo upload returns the record with its photos', () async {
-      final pumped = harness(photoUploadSucceeds: true);
+    test(
+      'a successful photo upload returns the record with its photos',
+      () async {
+        final pumped = harness(photoUploadSucceeds: true);
 
-      final created = await pumped.container
-          .read(waypointSaveProvider.notifier)
-          .create(
-            buildWaypoint(localPhotos: [photoPath]),
-            authorId: 'actor1',
-            trailId: 'trail1',
-          );
+        final created = await pumped.container
+            .read(waypointSaveProvider.notifier)
+            .create(
+              buildWaypoint(localPhotos: [photoPath]),
+              authorId: 'actor1',
+              trailId: 'trail1',
+            );
 
-      expect(created.photos, ['uploaded.jpg']);
-      expect(pumped.api.requestedPaths, [
-        '/waypoint',
-        '/waypoint/wpserverid1234/file',
-      ]);
-    });
+        expect(created.photos, ['uploaded.jpg']);
+        expect(pumped.api.requestedPaths, [
+          '/waypoint',
+          '/waypoint/wpserverid1234/file',
+        ]);
+      },
+    );
 
     test(
       'a failed photo upload throws WaypointPhotoUploadException CARRYING the '
@@ -159,11 +167,13 @@ void main() {
         // `PUT /waypoint` again -- a duplicate waypoint on the server, with no
         // idempotency key to reconcile it.
         await expectLater(
-          pumped.container.read(waypointSaveProvider.notifier).create(
-            buildWaypoint(localPhotos: [photoPath]),
-            authorId: 'actor1',
-            trailId: 'trail1',
-          ),
+          pumped.container
+              .read(waypointSaveProvider.notifier)
+              .create(
+                buildWaypoint(localPhotos: [photoPath]),
+                authorId: 'actor1',
+                trailId: 'trail1',
+              ),
           throwsA(
             isA<WaypointPhotoUploadException>().having(
               (e) => e.created.id,
@@ -181,26 +191,28 @@ void main() {
       },
     );
 
-    test(
-      'the underlying transport failure is retained as `cause`, so a photo '
-      'failure stays diagnosable rather than being flattened',
-      () async {
-        final pumped = harness(photoUploadSucceeds: false);
+    test('the underlying transport failure is retained as `cause`, so a photo '
+        'failure stays diagnosable rather than being flattened', () async {
+      final pumped = harness(photoUploadSucceeds: false);
 
-        Object? thrown;
-        try {
-          await pumped.container.read(waypointSaveProvider.notifier).create(
-            buildWaypoint(localPhotos: [photoPath]),
-            authorId: 'actor1',
-            trailId: 'trail1',
-          );
-        } catch (e) {
-          thrown = e;
-        }
+      Object? thrown;
+      try {
+        await pumped.container
+            .read(waypointSaveProvider.notifier)
+            .create(
+              buildWaypoint(localPhotos: [photoPath]),
+              authorId: 'actor1',
+              trailId: 'trail1',
+            );
+      } catch (e) {
+        thrown = e;
+      }
 
-        expect(thrown, isA<WaypointPhotoUploadException>());
-        expect((thrown as WaypointPhotoUploadException).cause, isA<DioException>());
-      },
-    );
+      expect(thrown, isA<WaypointPhotoUploadException>());
+      expect(
+        (thrown as WaypointPhotoUploadException).cause,
+        isA<DioException>(),
+      );
+    });
   });
 }

@@ -2301,6 +2301,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Remove all recent searches?'**
   String get clear_search_history_confirm;
+
+  /// Tooltip for the currently selected trail cover.
+  ///
+  /// In en, this message translates to:
+  /// **'Cover photo'**
+  String get photo_cover;
+
+  /// Action that selects a photo as the trail cover.
+  ///
+  /// In en, this message translates to:
+  /// **'Use as cover'**
+  String get photo_set_cover;
+
+  /// Warning after metadata was saved while photo changes remain queued on the device.
+  ///
+  /// In en, this message translates to:
+  /// **'Trail saved. Photos are kept on this device and will upload when your server is available.'**
+  String get photos_pending_upload;
+
+  /// Warning after saving when unsupported or oversized photo uploads were rejected.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{One photo was rejected by your server. Check the file size and type, then try adding it again.} other{{count} photos were rejected by your server. Check their file sizes and types, then try adding them again.}}'**
+  String photos_rejected_upload(int count);
+
+  /// Sign-out confirmation when durable photo jobs will be removed; count includes queued trail rows and photo jobs.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{One upload is pending.} other{{count} uploads are pending.}} Signing out removes pending photo changes outside queued captures. Queued captures and their photos remain on this device.'**
+  String signout_photo_jobs_warning(int count);
+
+  /// Information when uploads wait for signing in again during navigation or recording.
+  ///
+  /// In en, this message translates to:
+  /// **'Your session has expired. Photos stay on this device. Uploads will resume after you sign in again.'**
+  String get photos_session_expired;
 }
 
 class _AppLocalizationsDelegate

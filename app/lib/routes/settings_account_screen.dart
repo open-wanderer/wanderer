@@ -119,7 +119,7 @@ class _SettingsAccountScreenState extends ConsumerState<SettingsAccountScreen> {
       // never upload regardless of what the hiker does here. Warning them
       // would be pointless; there is nothing to wait for. Do not "fix" this
       // by adding the guard back.
-      await ref.read(authProvider.notifier).logout();
+      await ref.read(authProvider.notifier).logout(purgePhotoJobs: true);
     } catch (_) {
       if (!context.mounted) return;
       ref

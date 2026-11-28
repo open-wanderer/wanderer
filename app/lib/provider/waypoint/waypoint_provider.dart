@@ -2,9 +2,15 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
+import 'package:path/path.dart' as p;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:wanderer/models/waypoint.dart';
 import 'package:wanderer/provider/api_provider.dart';
+import 'package:wanderer/provider/auth_provider.dart';
+import 'package:wanderer/provider/server_capabilities_provider.dart';
+import 'package:wanderer/provider/photo_api_provider.dart';
+import 'package:wanderer/services/asset_photo_client.dart';
+import 'package:wanderer/services/photo_mutation_service.dart';
 
 part 'waypoint_provider.g.dart';
 
@@ -39,6 +45,7 @@ class WaypointPhotoUploadException implements Exception {
 
 @Riverpod(keepAlive: true)
 class WaypointSave extends _$WaypointSave {
+  int rejectedPhotoCount = 0;
   @override
   FutureOr<void> build() {}
 
@@ -46,8 +53,16 @@ class WaypointSave extends _$WaypointSave {
     Waypoint waypoint, {
     required String authorId,
     required String trailId,
+    PhotoApiMode? mode,
+    bool retainPhotoReceipts = false,
   }) async {
     final api = ref.read(apiProvider);
+    final session = PhotoWriteSession(
+      api,
+      currentEpoch: () => ref.read(apiProvider.notifier).sessionEpoch,
+    );
+    rejectedPhotoCount = 0;
+    mode ??= await ref.read(photoApiModeProvider)();
 
     final body = waypoint.toJson()
       ..remove('id')
@@ -55,11 +70,16 @@ class WaypointSave extends _$WaypointSave {
       ..remove('collectionName')
       ..remove('created')
       ..remove('updated')
+      ..remove('expand')
       ..['author'] = authorId
       ..['trail'] = trailId;
 
-    final response = await api.put('/waypoint', data: body);
-    final created = Waypoint.fromJson(response.data);
+    if (mode != PhotoApiMode.legacy) body.remove('photos');
+    final response = await photoMetadataWrite(
+      api.put(session.route('/waypoint'), data: body),
+      waypoint.toJson(),
+    );
+    final created = Waypoint.fromJson(response);
 
     if (waypoint.localPhotos.isEmpty) return created;
 
@@ -69,6 +89,11 @@ class WaypointSave extends _$WaypointSave {
     try {
       return await _uploadPhotos(
         created,
+        authorId: authorId,
+        mode: mode,
+        retainPhotoReceipts: retainPhotoReceipts,
+        serverBaseUrl: session.baseUrl,
+        session: session,
         newPhotos: waypoint.localPhotos,
         removedFilenames: const [],
       );
@@ -81,8 +106,15 @@ class WaypointSave extends _$WaypointSave {
     Waypoint oldWaypoint,
     Waypoint newWaypoint, {
     required String authorId,
+    PhotoApiMode? mode,
   }) async {
     final api = ref.read(apiProvider);
+    final session = PhotoWriteSession(
+      api,
+      currentEpoch: () => ref.read(apiProvider.notifier).sessionEpoch,
+    );
+    rejectedPhotoCount = 0;
+    mode ??= await ref.read(photoApiModeProvider)();
 
     final body = newWaypoint.toJson()
       ..remove('id')
@@ -90,21 +122,50 @@ class WaypointSave extends _$WaypointSave {
       ..remove('collectionName')
       ..remove('created')
       ..remove('updated')
+      ..remove('expand')
       ..remove('author')
       ..remove('trail');
 
-    final response = await api.post('/waypoint/${newWaypoint.id}', data: body);
-    var updated = Waypoint.fromJson(response.data);
+    if (mode != PhotoApiMode.legacy) body.remove('photos');
+    final response = await photoMetadataWrite(
+      api.post(session.route('/waypoint/${newWaypoint.id}'), data: body),
+      newWaypoint.toJson(),
+    );
+    var updated = Waypoint.fromJson(response);
 
     final removedFilenames = oldWaypoint.photos
         .where((p) => !newWaypoint.photos.contains(p))
         .toList();
 
-    if (newWaypoint.localPhotos.isNotEmpty || removedFilenames.isNotEmpty) {
+    final useJournal =
+        newWaypoint.removedPendingPhotos.isNotEmpty ||
+        newWaypoint.localPhotos.any(
+          (path) => p
+              .split(path)
+              .any((part) => part == 'photo-mutations' || part == 'unsynced'),
+        ) ||
+        (await ref
+                .read(photoMutationServiceProvider)
+                .pendingPaths(
+                  PhotoTarget.waypoint(newWaypoint.id),
+                  authorId,
+                  serverBaseUrl: session.baseUrl,
+                ))
+            .isNotEmpty;
+    if (newWaypoint.localPhotos.isNotEmpty ||
+        useJournal ||
+        removedFilenames.isNotEmpty ||
+        newWaypoint.removedPendingPhotos.isNotEmpty) {
       updated = await _uploadPhotos(
         updated,
+        useJournal: useJournal,
+        authorId: authorId,
+        mode: mode,
+        serverBaseUrl: session.baseUrl,
+        session: session,
         newPhotos: newWaypoint.localPhotos,
         removedFilenames: removedFilenames,
+        removedPendingPaths: newWaypoint.removedPendingPhotos,
       );
     }
 
@@ -112,14 +173,65 @@ class WaypointSave extends _$WaypointSave {
   }
 
   Future<void> delete(Waypoint waypoint) async {
-    await ref.read(apiProvider).delete('/waypoint/${waypoint.id}');
+    final api = ref.read(apiProvider);
+    final session = PhotoWriteSession(
+      api,
+      currentEpoch: () => ref.read(apiProvider.notifier).sessionEpoch,
+    );
+    final actor = ref.read(authProvider).value?.actorId ?? waypoint.author;
+    await api.delete(session.route('/waypoint/${waypoint.id}'));
+    await ref
+        .read(photoMutationServiceProvider)
+        .drop(
+          PhotoTarget.waypoint(waypoint.id),
+          actor,
+          serverBaseUrl: session.baseUrl,
+        );
   }
 
   Future<Waypoint> _uploadPhotos(
     Waypoint waypoint, {
+    required String authorId,
+    required PhotoApiMode mode,
+    String? serverBaseUrl,
+    PhotoWriteSession? session,
+    bool useJournal = false,
+    bool retainPhotoReceipts = false,
     required List<String> newPhotos,
     required List<String> removedFilenames,
+    List<String> removedPendingPaths = const [],
   }) async {
+    if (mode != PhotoApiMode.legacy || useJournal) {
+      final result = await ref
+          .read(photoMutationServiceProvider)
+          .apply(
+            target: PhotoTarget.waypoint(waypoint.id),
+            actorId: authorId,
+            serverBaseUrl: serverBaseUrl,
+            mode: mode,
+            retryImmediately: !retainPhotoReceipts,
+            removedPendingPaths: removedPendingPaths,
+            newPhotos: newPhotos,
+            removedPhotos: removedFilenames,
+            existingPhotos: waypoint.photos,
+          );
+      rejectedPhotoCount = result.rejectedCount;
+      final saved = waypoint.copyWith(
+        removedPendingPhotos: const [],
+        photos: result.photos,
+        localPhotos: result.pendingPaths,
+      );
+      if (!result.pending && !retainPhotoReceipts) {
+        await ref
+            .read(photoMutationServiceProvider)
+            .acknowledge(
+              PhotoTarget.waypoint(saved.id),
+              authorId,
+              serverBaseUrl: serverBaseUrl,
+            );
+      }
+      return saved;
+    }
     final formData = FormData();
     for (final path in newPhotos) {
       formData.files.add(
@@ -138,9 +250,29 @@ class WaypointSave extends _$WaypointSave {
       );
     }
 
-    final response = await ref
-        .read(apiProvider)
-        .post('/waypoint/${waypoint.id}/file', data: formData);
-    return Waypoint.fromJson(response.data);
+    try {
+      final response = await ref
+          .read(apiProvider)
+          .post(
+            session?.route('/waypoint/${waypoint.id}/file') ??
+                '/waypoint/${waypoint.id}/file',
+            data: formData,
+          );
+      return Waypoint.fromJson(response.data);
+    } catch (error) {
+      if (!isLegacyPhotoFieldRemoved(error)) rethrow;
+      ref.read(serverCapabilitiesProvider).markAssetApi();
+      return _uploadPhotos(
+        waypoint,
+        authorId: authorId,
+        mode: PhotoApiMode.assets,
+        retainPhotoReceipts: retainPhotoReceipts,
+        serverBaseUrl: serverBaseUrl,
+        session: session,
+        newPhotos: newPhotos,
+        removedFilenames: removedFilenames,
+        removedPendingPaths: removedPendingPaths,
+      );
+    }
   }
 }

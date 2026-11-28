@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:dio_cookie_manager/dio_cookie_manager.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:wanderer/provider/cookie_jar_provider.dart';
+import 'package:wanderer/provider/deferred_photo_session_provider.dart';
 import 'package:wanderer/provider/online_status_provider.dart';
 import 'package:wanderer/util/server_url.dart';
 import 'package:wanderer/util/image_cache.dart';
@@ -42,6 +43,11 @@ bool isBackendRequest(Dio dio, Uri uri) {
 
 @Riverpod(keepAlive: true)
 class Api extends _$Api {
+  void Function()? onServerChanged;
+  int _sessionEpoch = 0;
+  int get sessionEpoch => _sessionEpoch;
+  void renewSession() => _sessionEpoch++;
+
   /// The default [CancelToken] attached to any request that does not bring
   /// its own — which is every ordinary API call (auth, feed, trail, profile).
   /// [cancelPendingRequests] cancels this one and swaps in a fresh instance,
@@ -84,6 +90,29 @@ class Api extends _$Api {
     dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) {
+          final prefix = Uri.parse(dio.options.baseUrl).path;
+          final path = options.uri.path;
+          final route = path.startsWith('$prefix/')
+              ? path.substring(prefix.length)
+              : path;
+          // A legacy save can finish reading files after cancellation has
+          // replaced the token. Fence that later request at admission too.
+          if (isBackendRequest(dio, options.uri) &&
+              ref
+                  .read(deferredPhotoSessionProvider)
+                  .blocksBase(dio.options.baseUrl) &&
+              {'PUT', 'POST', 'PATCH', 'DELETE'}.contains(options.method) &&
+              RegExp(r'^/(assets|trail|waypoint|summit-log|tag)(/|$)')
+                  .hasMatch(route)) {
+            handler.reject(
+              DioException(
+                requestOptions: options,
+                type: DioExceptionType.cancel,
+                error: StateError('Photo session expired'),
+              ),
+            );
+            return;
+          }
           options.cancelToken ??= _sessionCancelToken;
           handler.next(options);
         },
@@ -144,6 +173,7 @@ class Api extends _$Api {
   /// are untouched, since those are designed to survive a logout — see the
   /// exclusion notes in `account_scope_invalidation.dart`.
   void cancelPendingRequests() {
+    renewSession();
     final expiring = _sessionCancelToken;
     _sessionCancelToken = CancelToken();
     if (!expiring.isCancelled) {
@@ -159,9 +189,11 @@ class Api extends _$Api {
   /// normalised at all is passed through unchanged, so it fails loudly here
   /// rather than being silently swallowed into an unusable client.
   void updateBaseUrl(String baseUrl) {
+    renewSession();
     final normalized = normalizeServerUrl(baseUrl) ?? baseUrl;
     state.options.baseUrl = "$normalized$_apiPath";
     WandererImageCacheManager.serverHost = Uri.parse(normalized).host;
+    onServerChanged?.call();
   }
 
   /// The instance address the client currently talks to, as normalised by

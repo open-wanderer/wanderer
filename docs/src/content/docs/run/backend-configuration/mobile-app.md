@@ -58,16 +58,23 @@ If everything else works but the map is blank, the instance has no [map tile sou
 
 Users pick your instance from the public server list on wanderer.to or type its address; there is nothing to register on your side.
 
-
 ## Photo API compatibility
 
 Servers that return `{"assetApi":true}` from `GET /api/v1/capabilities` require
-photo uploads and removals through the asset API. App releases up to and including
-`app-v0.1.0-beta.25` cannot upload photos to these servers.
-Complete pending uploads before upgrading the server, and install an app release
-that supports this capability before adding more photos.
+photo uploads and removals through the asset API. Use the first app release after
+`app-v0.1.0-beta.25` to show and upload photos on these servers. App releases up to
+and including `app-v0.1.0-beta.25` cannot show or upload their photos; users should
+update the app before the server is upgraded.
 
-Clients must use the explicit capability marker to choose the asset API. Only a 200 response without
-`assetApi`, or a 404, means the marker is absent and the previous multipart workflow
-applies. Other non-200 responses leave support unknown; retry discovery. Resolve relative photo
-URLs against the server address and send credentials when reading private photos.
+The updated app discovers this capability automatically for each server and
+session. It uses the asset API when the marker is present and keeps the existing
+multipart workflow on servers without it, including `v0.21.x-app` images and
+app-compatible releases before the asset API. A 200 response without `assetApi`,
+or a 404, means the marker is absent. Other responses leave support unknown: the
+app retains pending photo changes on the device and retries discovery while
+metadata saves continue. Pending uploads also survive a server upgrade because
+the app chooses the workflow when sending them.
+
+Relative photo URLs are resolved against the server address. Private photos use
+the session cookie only on that server's host; previously downloaded trails
+remain available offline.

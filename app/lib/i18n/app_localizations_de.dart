@@ -1305,4 +1305,41 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get clear_search_history_confirm =>
       'Alle letzten Suchanfragen entfernen?';
+
+  @override
+  String get photo_cover => 'Titelbild';
+
+  @override
+  String get photo_set_cover => 'Als Titelbild verwenden';
+
+  @override
+  String get photos_pending_upload =>
+      'Route gespeichert. Die Fotos bleiben auf diesem Gerät und werden hochgeladen, sobald dein Server erreichbar ist.';
+
+  @override
+  String photos_rejected_upload(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count Fotos wurden vom Server abgelehnt. Prüfe Dateigrössen und Typen und füge sie erneut hinzu.',
+      one: 'Ein Foto wurde vom Server abgelehnt. Prüfe Dateigrösse und Typ und füge es erneut hinzu.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String signout_photo_jobs_warning(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count Uploads stehen aus.',
+      one: 'Ein Upload steht aus.',
+    );
+    return '$_temp0 Beim Abmelden werden ausstehende Fotoänderungen ausserhalb vorgemerkter Aufzeichnungen entfernt. Vorgemerkte Aufzeichnungen und ihre Fotos bleiben auf diesem Gerät.';
+  }
+
+  @override
+  String get photos_session_expired =>
+      'Deine Sitzung ist abgelaufen. Fotos bleiben auf diesem Gerät. Uploads werden fortgesetzt, wenn du dich wieder anmeldest.';
 }

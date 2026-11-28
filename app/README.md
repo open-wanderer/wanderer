@@ -106,6 +106,7 @@ The tests under [`test/`](test/) mirror the `lib/` layout. A few points worth kn
 
 - **GPX metrics corpus.** [`test/util/gpx/corpus_test.dart`](test/util/gpx/corpus_test.dart) reads [`../fixtures/gpx-corpus`](../fixtures/gpx-corpus) from the repository root. The web app runs the same corpus through its TypeScript implementation, which pins both to identical distance and elevation results. Run `flutter test` from `app/` so the relative path resolves. If you change how a trail's metrics are computed, change both implementations and the corpus together; see the corpus [README](../fixtures/gpx-corpus/README.md).
 - **Harnesses.** Files ending in `_harness.dart` in `test/services/` are test helpers, not tests.
+- **Photo HTTP replay.** `test/integration/photo_api_replay_test.dart` uses a temporary ObjectBox database and mocked HTTP for both photo APIs. Desktop tests need the native ObjectBox library matching `objectbox_flutter_libs` (the version is pinned in that package's desktop build configuration). Follow [ObjectBox setup](https://docs.objectbox.io/getting-started) and make the library available under `app/lib/` or the system library search path before running `flutter test`.
 - **Real devices.** Recording, background location, notifications and offline tiles depend on platform behaviour that unit tests cannot cover. Changes in those areas need a check on a physical device.
 
 ## Project layout

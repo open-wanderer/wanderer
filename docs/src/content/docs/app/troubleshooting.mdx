@@ -63,6 +63,12 @@ The last upload attempt didn't go through. Tap the chip once you have a connecti
 **"Trail saved, but some waypoints failed to save."** / **"Trail saved, but N photos couldn't be saved."**
 The trail itself is on your instance. Open it, choose **Edit**, and add the missing waypoints or photos again.
 
+**"Trail saved. Photos are kept on this device and will upload when your server is available."**
+The trail details are saved. Keep the app signed in, check your connection, and reopen the editor to see pending photos or cancel an individual upload. Photo changes retry automatically. A confirmed sign-out removes pending photo changes outside queued captures; queued captures and their photos remain on this device. An expired session or an account switch keeps pending work scoped to its original account and server. Sign in to that account on the same server to resume it; another account cannot upload or view those jobs.
+
+**"N photos were rejected by your server."**
+Check the file size and type, then add those photos again. Server and proxy limits may differ. Other photos and trail details can still save.
+
 ## Offline maps
 
 **"No offline regions available"** / **"Ask your Wanderer instance administrator to configure downloadable regions."**
@@ -94,10 +100,14 @@ The app doesn't reroute in the beta; it keeps pointing at the next turn of the o
 **I don't hear any directions.**
 There is no voice guidance in the beta. Directions are shown in the banner at the top of the screen.
 
-
 ## Photo API compatibility
 
-App releases up to and including `app-v0.1.0-beta.25` cannot upload photos to
-servers that use the asset API. Complete pending uploads before upgrading your
-server, then install an app release that supports that API before adding photos.
-Ask your administrator to check [photo API compatibility](/run/backend-configuration/mobile-app#photo-api-compatibility).
+**Photos stopped displaying or uploading after a server upgrade.**
+App releases up to and including `app-v0.1.0-beta.25` cannot show or upload photos
+on servers that use the asset API. Install the first app release after
+`app-v0.1.0-beta.25`. It also supports older app-compatible servers.
+
+If the updated app cannot confirm the server's photo support, pending photo
+changes stay on the device while it retries. Trail details can still be saved.
+Check your connection and retry once the instance is reachable. Administrators
+can check [photo API compatibility](/run/backend-configuration/mobile-app#photo-api-compatibility).

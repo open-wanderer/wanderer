@@ -1,6 +1,13 @@
 import 'dart:async';
+import 'dart:ui' show Locale, PlatformDispatcher;
 
 import 'package:dio/dio.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:wanderer/entities/active_navigation_entity.dart';
+import 'package:wanderer/i18n/app_localizations.dart';
+import 'package:wanderer/provider/deferred_photo_session_provider.dart';
+import 'package:wanderer/provider/local_settings_provider.dart';
+import 'package:wanderer/provider/toast_provider.dart';
 import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
 import 'package:objectbox/objectbox.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -10,6 +17,8 @@ import 'package:wanderer/models/auth_response.dart';
 import 'package:wanderer/models/oauth_provider.dart';
 import 'package:wanderer/models/user.dart';
 import 'package:wanderer/provider/api_provider.dart';
+import 'package:wanderer/services/photo_mutation_service.dart';
+import 'package:wanderer/provider/server_capabilities_provider.dart';
 import 'package:wanderer/provider/cookie_jar_provider.dart';
 import 'package:wanderer/provider/objectbox_store_provider.dart';
 import 'package:wanderer/provider/settings_provider.dart';
@@ -43,6 +52,9 @@ const _legacyOAuthAppStateMarker = ".wanderer-app";
 
 @Riverpod(keepAlive: true)
 class Auth extends _$Auth {
+  StreamSubscription<List<Type>>? _activeSessionChanges;
+  Timer? _deferredSignOut;
+
   Box<UserEntity> get _box => ref.read(objectBoxProvider).box<UserEntity>();
 
   @override
@@ -57,6 +69,14 @@ class Auth extends _$Auth {
     }
 
     ref.read(apiProvider.notifier).updateBaseUrl(savedUserEntity.serverUrl);
+    final deferred = ref.read(deferredPhotoSessionProvider);
+    deferred.selectAccount(savedUserEntity.id);
+    await deferred.restore();
+    if (!ref.mounted) return null;
+    if (deferred.matches(savedUserEntity)) {
+      _watchActiveSession(savedUserEntity);
+      return savedUserEntity;
+    }
 
     final jar = ref.watch(cookieJarProvider);
 
@@ -69,6 +89,7 @@ class Auth extends _$Auth {
       return null;
     }
 
+    ref.read(serverCapabilitiesProvider).newSession();
     unawaited(_validateInBackground(savedUserEntity));
     return savedUserEntity;
   }
@@ -94,9 +115,8 @@ class Auth extends _$Auth {
     try {
       fresh = await _updateUserEntity(cached.id);
     } catch (err) {
-      if (_isAuthError(err)) {
-        await logout();
-      }
+      // Cold-start validation keeps its existing immediate sign-out path.
+      if (_isAuthError(err)) await logout();
       // Any other error (a 5xx, or a Dio connectionError/connectionTimeout) is
       // treated as offline: the cached session stands.
       return;
@@ -137,12 +157,89 @@ class Auth extends _$Auth {
         cached.serverUrl != fresh.serverUrl;
   }
 
+  // The server hook clears a revoked session when refresh fails. The user
+  // endpoint then runs as a guest, whose view rule returns an API JSON 404.
+  // Proxy error pages have no API message and keep the cached session.
   bool _isAuthError(Object err) {
     if (err is DioException) {
       final statusCode = err.response?.statusCode;
-      return statusCode == 401 || statusCode == 403 || statusCode == 404;
+      return (statusCode == 401 || statusCode == 403 || statusCode == 404) &&
+          err.response?.data is Map &&
+          (err.response!.data as Map)['message'] is String;
     }
     return false;
+  }
+
+  /// A mid-session expiry must not erase an activity still being recorded.
+  Future<void> signOutIfSessionInvalid(Object error) async {
+    if (!_isAuthError(error)) return;
+    final user = _box.getAll().firstOrNull;
+    if (user == null) return;
+    if (ref.read(objectBoxProvider).box<ActiveNavigationEntity>().count() ==
+        0) {
+      await logout();
+      return;
+    }
+    final deferred = ref.read(deferredPhotoSessionProvider);
+    final first = !deferred.matches(user);
+    final persisted = deferred.mark(user);
+    if (first) {
+      ref.read(apiProvider.notifier).cancelPendingRequests();
+      ref.read(serverCapabilitiesProvider).endSession();
+      var locale =
+          ref.read(localeProvider) ?? PlatformDispatcher.instance.locale;
+      if (!AppLocalizations.supportedLocales.any(
+        (supported) => supported.languageCode == locale.languageCode,
+      ))
+        locale = const Locale('en');
+      ref
+          .read(toastProvider.notifier)
+          .add(
+            ToastMessage(
+              type: ToastType.info,
+              icon: FontAwesomeIcons.circleInfo,
+              text: lookupAppLocalizations(locale).photos_session_expired,
+            ),
+          );
+    }
+    _watchActiveSession(user);
+    await persisted;
+  }
+
+  void _watchActiveSession(UserEntity user) {
+    if (_activeSessionChanges != null) return;
+    final store = ref.read(objectBoxProvider);
+    void checkAfterWrite() {
+      _deferredSignOut?.cancel();
+      // A fresh activity briefly clears the old row before writing its own.
+      _deferredSignOut = Timer(Duration.zero, () {
+        if (!ref.mounted) return;
+        final current = _box.getAll().firstOrNull;
+        if (current == null ||
+            current.id != user.id ||
+            !ref.read(deferredPhotoSessionProvider).matches(current) ||
+            store.box<ActiveNavigationEntity>().count() != 0)
+          return;
+        unawaited(logout());
+      });
+    }
+
+    _activeSessionChanges = store.entityChanges.listen((types) {
+      if (types.contains(ActiveNavigationEntity)) checkAfterWrite();
+    });
+    ref.onDispose(() {
+      _deferredSignOut?.cancel();
+      _activeSessionChanges?.cancel();
+      _activeSessionChanges = null;
+    });
+    checkAfterWrite();
+  }
+
+  Future<void> _clearDeferredSession() async {
+    _deferredSignOut?.cancel();
+    await _activeSessionChanges?.cancel();
+    _activeSessionChanges = null;
+    await ref.read(deferredPhotoSessionProvider).clear();
   }
 
   /// Records the currently selected instance as "last used", best-effort.
@@ -269,9 +366,14 @@ class Auth extends _$Auth {
           data: {'username': username, 'password': password},
         );
     final authData = AuthResponse.fromJson(loginResponse.data);
+    ref.read(apiProvider.notifier).renewSession();
 
     // Fetch user data with expanded actor
     final userEntity = await _updateUserEntity(authData.record.id);
+    if (userEntity != null) {
+      await _clearDeferredSession();
+      ref.read(serverCapabilitiesProvider).newSession();
+    }
     _recordLastUsedServer();
     return userEntity;
   }
@@ -368,8 +470,13 @@ class Auth extends _$Auth {
             },
           );
       final authData = AuthResponse.fromJson(exchangeResponse.data);
+      ref.read(apiProvider.notifier).renewSession();
 
       final userEntity = await _updateUserEntity(authData.record.id);
+      if (userEntity != null) {
+        await _clearDeferredSession();
+        ref.read(serverCapabilitiesProvider).newSession();
+      }
       _recordLastUsedServer();
       return userEntity;
     });
@@ -389,7 +496,28 @@ class Auth extends _$Auth {
   /// renders as a spinner on the sign-out button. Widgets that read the user
   /// must therefore tolerate a null — see the note on [_validateInBackground],
   /// which can now trigger this with `/map` live rather than during the splash.
-  Future<void> logout() async {
+  Future<void> _purgePhotoJobs(UserEntity? previous) async {
+    if (previous != null) {
+      await ref
+          .read(photoMutationServiceProvider)
+          .dropScope(
+            previous.actorId,
+            serverBaseUrl:
+                '${previous.serverUrl.replaceFirst(RegExp(r'/+$'), '')}/api/v1',
+          );
+    }
+    ref.invalidate(photoMutationServiceProvider);
+  }
+
+  Future<void> logout({bool purgePhotoJobs = false}) async {
+    final previous = _box.getAll().firstOrNull;
+    if (previous != null &&
+        ref.read(deferredPhotoSessionProvider).matches(previous) &&
+        ref.read(objectBoxProvider).box<ActiveNavigationEntity>().count() !=
+            0) {
+      _watchActiveSession(previous);
+      return;
+    }
     state = const AsyncLoading();
     // Abort anything already awaiting a response on the shared client BEFORE
     // touching local state below: a request that lands afterwards would
@@ -399,6 +527,9 @@ class Auth extends _$Auth {
     // into the jar right after `jar.deleteAll()` runs. See
     // Api.cancelPendingRequests and .planning/debug/app-relogin-after-logout.md.
     ref.read(apiProvider.notifier).cancelPendingRequests();
+    ref.read(serverCapabilitiesProvider).endSession();
+    if (purgePhotoJobs) await _purgePhotoJobs(previous);
+    ref.invalidate(photoMutationServiceProvider);
     final jar = ref.read(cookieJarProvider);
     await jar.deleteAll();
     _box.removeAll();
@@ -463,6 +594,8 @@ class Auth extends _$Auth {
     // to return the previous account.
     final cachedUserId = _box.getAll().firstOrNull?.id;
     if (shouldPurgeForIncomingUser(cachedUserId, userEntity.id)) {
+      // Pending work stays scoped to its original server and account.
+      ref.invalidate(photoMutationServiceProvider);
       _box.removeAll();
       await purgeAccountScopedData(ref.read(objectBoxProvider));
     }

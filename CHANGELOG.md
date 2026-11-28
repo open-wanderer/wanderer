@@ -1,3 +1,9 @@
+# Unreleased
+
+## Mobile app
+
+- App releases up to and including `app-v0.1.0-beta.25` cannot show or upload photos on servers with the asset API; the first app release after `app-v0.1.0-beta.25` supports those photos, keeps pending changes durably and continues to use the previous requests on older app-compatible servers.
+
 # 0.21.2
 
 ## Breaking Changes
