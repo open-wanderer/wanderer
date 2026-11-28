@@ -25,7 +25,7 @@ Since we use an unmodified installation of meilisearch you can use all variables
 | ------------------------------ | ----------------------------------------------------------------------------------------------------------------- | --------------------- |
 | ORIGIN                         | Public IP or hostname (including the port) of your <span class="-tracking-[0.075em]">wanderer</span> frontend (must be the same as in the frontend config) | <http://localhost:3000> |
 | POCKETBASE_ENCRYPTION_KEY      | **Required.** Valid 32 character AES key. Used to encrypt secrets. Generate with `openssl rand -hex 16`. Never change it after the first start, or stored secrets can no longer be decrypted |                       |
-| POCKETBASE_PROXY_SECRET        | **Required.** Shared secret authenticating the frontend → backend hop for inbound ActivityPub delivery and geocoding. Set the **same** value on `db` and `web`; if missing or mismatched, these internal requests fail closed. Generate with `openssl rand -hex 32` |                       |
+| POCKETBASE_PROXY_SECRET        | **Required.** Authenticates `web` → `db` requests for inbound ActivityPub delivery and geocoding. Use the **same** value on both services; missing or mismatched values fail closed. Generate with `openssl rand -hex 32`. |                       |
 | POCKETBASE_CRON_SYNC_SCHEDULE  | Valid cron expression. Sets how often installed plugins are synced                                                | 0 2 ** *             |
 | POCKETBASE_CRON_SEARCH_REPAIR_SCHEDULE | Valid cron expression. Sets how often the search indexes are compared with the database and repaired. The job can also be run from the Crons page of the PocketBase dashboard | `0 4 * * *` |
 | POCKETBASE_SMTP_ENABLED        | Enables or disables SMTP functionality. Accepted values are true or false                                         | false                 |
@@ -56,7 +56,7 @@ bundles and configuring self-hosted connector trust settings.
 | ORIGIN                  | Public IP or hostname (including the port) of your <span class="-tracking-[0.075em]">wanderer</span> instance             | http://localhost:3000               |
 | BODY_SIZE_LIMIT         | Adapter ceiling and multipart upload limit; K, M and G suffixes use powers of 1024, `Infinity` permits uploads of any size after sign-in | 2G                                  |
 | PUBLIC_POCKETBASE_URL   | IP or hostname (including the port) of your pocketbase instance                  | http://db:8090                      |
-| POCKETBASE_PROXY_SECRET | **Required.** Shared secret authenticating the frontend → backend hop for inbound ActivityPub delivery and geocoding. Must match the value set on the `db` service. |                       |
+| POCKETBASE_PROXY_SECRET | **Required.** Use the same shared proxy secret as on `db`. |                       |
 | PUBLIC_DISABLE_SIGNUP   | Disables signup option for new users                                             | false                               |
 | PUBLIC_PRIVATE_INSTANCE | Setting this to true will block visitors from viewing content without an account | false                               |
 | PUBLIC_MAP_MAX_POLYLINES | Maximum number of polylines (route previews) to show simultaneously on the map, based on result density | 100 |
@@ -88,8 +88,7 @@ visitors forge the address used for rate limiting.
 
 Configure PocketBase's [User IP proxy headers](/run/backend-configuration#visitor-ip-addresses)
 and restrict access to the backend as described there. `POCKETBASE_PROXY_SECRET`
-protects federation delivery and geocoding requests and does not authenticate
-these IP headers.
+does not authenticate these IP headers.
 
 ## Map tiles & assets
 
@@ -103,82 +102,51 @@ These variables configure where the mobile app loads map vector tiles, fonts (gl
 
 ## Geocoding & Routing
 
-These variables configure server-side requests to Valhalla, Nominatim and Overpass.
-Nominatim is called by the `db` service.
+| Environment Variable | Service | Description                                                    | Default                            |
+| -------------------- | ------- | -------------------------------------------------------------- | ---------------------------------- |
+| VALHALLA_URL         | `web`   | Valhalla API URL used for auto-routing and elevation data       | https://valhalla1.openstreetmap.de  |
+| NOMINATIM_URL        | `db`    | Nominatim API URL for search and reverse geocoding             | https://nominatim.openstreetmap.org |
+| OVERPASS_API_URL     | `web`   | Overpass API URL used for map points of interest                | https://overpass-api.de             |
 
-| Environment Variable     | Description                                                                 | Default                             |
-| ------------------------ | --------------------------------------------------------------------------- | ----------------------------------- |
-| VALHALLA_URL     | Valhalla API URL used for auto-routing and elevation data       | https://valhalla1.openstreetmap.de  |
-| NOMINATIM_URL    | Nominatim API URL used for (reverse) geocoding                  | https://nominatim.openstreetmap.org |
-| OVERPASS_API_URL | Overpass API URL used for map points of interest                | https://overpass-api.de             |
+If a variable is unset, its service accepts the corresponding legacy
+`PUBLIC_*_URL` variable. Prefer `NOMINATIM_URL` over `PUBLIC_NOMINATIM_URL`.
 
-When the canonical setting is unset, the service also accepts the
-corresponding legacy `PUBLIC_*_URL` setting. `PUBLIC_NOMINATIM_URL` is a
-server-side compatibility fallback; prefer `NOMINATIM_URL`. A
-Nominatim URL without a scheme uses HTTPS. Use an explicit `http://` for a
-private endpoint that does not use TLS, and use punycode for internationalized
-hostnames. An explicitly empty or invalid setting on `db` disables geocoding
-rather than falling back to the public service.
+:::caution[Upgrading a private Nominatim deployment]
+If an older or custom Compose file sets a private Nominatim URL only on `web`
+(`NOMINATIM_URL` or `PUBLIC_NOMINATIM_URL`), move it to `NOMINATIM_URL` on `db`
+before upgrading. A private URL in the sample Compose file's shared `.env`
+already reaches `db` and needs no move.
 
-:::caution[Before upgrading geocoding]
-Upgrade `web` and `db` together. Set `POCKETBASE_PROXY_SECRET` to the **same**
-value on both services. If you don't already have one, generate it once with
-`openssl rand -hex 32` and store it securely.
-
-If you customized Nominatim only on `web` (for example in the v0.21.2 Compose
-file), move the setting to `NOMINATIM_URL` on **`db` before updating**.
-The `web` service still checks the old setting for this upgrade: a custom,
-blank or invalid value on `web` blocks search and reverse geocoding if `db`
-would use public Nominatim. This applies even when `db` explicitly selects
-the public service. The request returns a generic HTTP 502 without sending
-search terms or coordinates upstream. The check never sends the old URL to
-`db` and does not prevent a valid private setting on `db` from working.
-
-If you intend to use public Nominatim, remove the obsolete custom setting
-from `web`. With the original public default (or both old settings unset)
-on `web`, leaving both URL settings unset on `db` uses public Nominatim.
+A nondefault, blank, or invalid setting left on `web` blocks geocoding with
+HTTP 502 before sending search terms or coordinates to public Nominatim,
+whether `db` selects it by default or explicitly. A valid private URL on
+`db` is unaffected. To switch to public Nominatim, remove the obsolete setting
+from `web` and leave both Nominatim URL variables unset on `db`.
 :::
 
-With the new sample Compose file, an existing `NOMINATIM_URL` in the shared
-`.env` already reaches `db` and needs no change. With per-service
-environments, set the private URL (including one previously set as
-`PUBLIC_NOMINATIM_URL`) on `db`, for example:
+A Nominatim URL without a scheme uses HTTPS. Use `http://` for an endpoint
+without TLS and punycode for internationalized hostnames. An explicitly empty
+or invalid Nominatim setting on `db` disables geocoding instead of falling
+back to the public service.
 
-```yaml
-services:
-  db:
-    environment:
-      NOMINATIM_URL: http://nominatim:8080
-```
+Set `PUBLIC_POCKETBASE_URL` and the Nominatim base URL to their final URLs;
+neither hop follows redirects. The Nominatim URL must be reachable from `db`
+and serve `/search` and `/reverse`. If `db` uses an outbound proxy, add the
+private Nominatim hostname to `NO_PROXY` on `db` when it should be reached
+directly.
 
-Make sure the configured endpoint is reachable **from `db`**. If `db` uses
-an outbound proxy, add the private Nominatim hostname to `NO_PROXY` on `db`
-when it should be reached directly.
-
-Geocoding keeps upstream HTTP 4xx and 5xx statuses (including an upstream
-401) but returns a generic error instead of forwarding provider details.
-A missing or mismatched `POCKETBASE_PROXY_SECRET`, blocked redirects and
-unexpected success bodies return a generic 502. Configure each hop with
-its final URL; the Nominatim base URL must serve `/search` and `/reverse`
-without redirects.
-Reverse lookups without a matching address keep Nominatim's normal 200
-no-result response.
-
-Check the PocketBase logs for a blocked migration (`private_nominatim_required`,
-warned once), invalid Nominatim configuration, or a blocked upstream redirect.
-Check the `web` logs for internal proxy-secret errors and redirects from `db`.
-If neither URL variable is set on `db`, its startup log notes the public
-default. To diagnose upstream timeouts, oversized responses
-or transport/read failures, temporarily set **Logs → Logs settings → Min log
-level** to `-4` (DEBUG) in the PocketBase dashboard with log retention enabled.
-Geocoding diagnostics include only a fixed failure category, not request or
-endpoint details. Restore the previous level when finished.
+Check the PocketBase logs for migration blocks (`private_nominatim_required`),
+invalid Nominatim settings, or upstream failures. For upstream transport
+failures, temporarily set the PocketBase minimum log level to DEBUG (`-4`)
+with log retention enabled. Check the `web` logs for proxy authentication
+errors or redirects from `db`. These diagnostics use fixed messages without
+request or endpoint details.
 
 ## Custom CA certificates
 
 If your API endpoints use certificates signed by a private CA, add the CA bundle and set `NODE_EXTRA_CA_CERTS` for the `web` service.
-For a private Nominatim endpoint, `db` must trust its CA instead. Mount a CA
-bundle that includes your private CA in `db` and point `SSL_CERT_FILE` to it;
+If Nominatim uses a certificate signed by a private CA, mount a CA bundle in
+`db` that includes that CA and set `SSL_CERT_FILE` to the bundle's path.
 `NODE_EXTRA_CA_CERTS` does not affect `db`.
 
 | Environment Variable | Description                                                              | Default |
