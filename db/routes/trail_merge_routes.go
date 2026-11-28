@@ -48,7 +48,7 @@ func TrailMergeSuggest(e *core.RequestEvent) error {
 	return e.JSON(http.StatusOK, response)
 }
 
-func TrailMerge(client meilisearch.ServiceManager) func(e *core.RequestEvent) error {
+func TrailMerge(client meilisearch.ServiceManager, announce func(*core.Record)) func(e *core.RequestEvent) error {
 	return func(e *core.RequestEvent) error {
 		if e.Auth == nil {
 			return apis.NewUnauthorizedError("trail_merge_auth_required", nil)
@@ -79,7 +79,7 @@ func TrailMerge(client meilisearch.ServiceManager) func(e *core.RequestEvent) er
 
 		ctx, err := util.GetSafeActorContext(e.Request, userActor)
 
-		if err := trailmerge.Merge(e.App, client, ctx, userActor, request.SourceTrailID, request.TargetTrailID, request.Settings); err != nil {
+		if err := trailmerge.Merge(e.App, client, ctx, userActor, request.SourceTrailID, request.TargetTrailID, request.Settings, announce); err != nil {
 			return apis.NewBadRequestError(err.Error(), err)
 		}
 

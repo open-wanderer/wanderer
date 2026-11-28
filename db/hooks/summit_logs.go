@@ -8,13 +8,18 @@ import (
 	"pocketbase/federation"
 	"pocketbase/util"
 
-	pub "github.com/go-ap/activitypub"
 	"github.com/meilisearch/meilisearch-go"
+	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
 )
 
-func CreateSummitLogHandler(client meilisearch.ServiceManager) func(e *core.RecordRequestEvent) error {
+func CreateSummitLogHandler(client meilisearch.ServiceManager, updates *FederationUpdates) func(e *core.RecordRequestEvent) error {
 	return func(e *core.RecordRequestEvent) error {
+		batchID := e.Request.URL.Query().Get("federationBatch")
+		if batchID != "" && !util.ValidFederationSaveBatchID(batchID) {
+			return apis.NewBadRequestError("invalid federation save batch", nil)
+		}
+
 		err := e.Next()
 		if err != nil {
 			return err
@@ -33,14 +38,8 @@ func CreateSummitLogHandler(client meilisearch.ServiceManager) func(e *core.Reco
 			return err
 		}
 
-		userActor, err := e.App.FindFirstRecordByData("activitypub_actors", "user", e.Auth.Id)
-		if err != nil {
-			return err
-		}
-
-		ctx, err := util.GetSafeActorContext(e.Request, userActor)
-		if err != nil {
-			return err
+		if batchID != "" {
+			updates.BeginSave(e.Record, batchID)
 		}
 
 		trail, err := e.App.FindRecordById("trails", e.Record.GetString("trail"))
@@ -52,16 +51,13 @@ func CreateSummitLogHandler(client meilisearch.ServiceManager) func(e *core.Reco
 			return err
 		}
 
-		err = federation.CreateSummitLogActivity(e.App, ctx, e.Record, pub.CreateType)
-		if err != nil {
-			return err
-		}
+		updates.EnqueueCreate(e.Record)
 
 		return nil
 	}
 }
 
-func UpdateSummitLogHandler() func(e *core.RecordRequestEvent) error {
+func UpdateSummitLogHandler(updates *FederationUpdates) func(e *core.RecordRequestEvent) error {
 	return func(e *core.RecordRequestEvent) error {
 
 		err := e.Next()
@@ -69,20 +65,7 @@ func UpdateSummitLogHandler() func(e *core.RecordRequestEvent) error {
 			return err
 		}
 
-		userActor, err := e.App.FindFirstRecordByData("activitypub_actors", "user", e.Auth.Id)
-		if err != nil {
-			return err
-		}
-
-		ctx, err := util.GetSafeActorContext(e.Request, userActor)
-		if err != nil {
-			return err
-		}
-
-		err = federation.CreateSummitLogActivity(e.App, ctx, e.Record, pub.UpdateType)
-		if err != nil {
-			return err
-		}
+		updates.Enqueue(e.Record)
 		return nil
 	}
 }

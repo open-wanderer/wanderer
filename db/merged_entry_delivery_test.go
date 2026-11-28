@@ -35,7 +35,7 @@ func TestMergedEntriesKeepTheirDeliveryState(t *testing.T) {
 		w.Write([]byte(`{"taskUid":1,"status":"enqueued"}`))
 	}))
 	t.Cleanup(search.Close)
-	if err := trailmerge.Merge(f.app, meilisearch.New(search.URL), context.Background(), owner, source.Id, target.Id, trailmerge.MergeSettings{SummitLog: true}); err != nil {
+	if err := trailmerge.Merge(f.app, meilisearch.New(search.URL), context.Background(), owner, source.Id, target.Id, trailmerge.MergeSettings{SummitLog: true}, nil); err != nil {
 		t.Fatal(err)
 	}
 	logs, err := f.app.FindRecordsByFilter("summit_logs", "trail={:trail} && author={:author}", "", -1, 0, dbx.Params{"trail": target.Id, "author": contributor.Id})
@@ -114,6 +114,9 @@ func TestMergedEntriesKeepTheirDeliveryState(t *testing.T) {
 	stored, err := f.app.FindRecordById("summit_logs", control["id"].(string))
 	if err != nil || stored.GetBool("federation_suppressed") {
 		t.Fatalf("entry create accepted request delivery state: record=%v error=%v", stored, err)
+	}
+	if err := f.app.OnTerminate().Trigger(&core.TerminateEvent{App: f.app}); err != nil {
+		t.Fatal(err)
 	}
 	count(1)
 	if err := federation.CreateSummitLogDeleteActivity(f.app, stored); err != nil {

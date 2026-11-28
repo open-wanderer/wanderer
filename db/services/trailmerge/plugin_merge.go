@@ -14,6 +14,7 @@ func TryAutoMergeImportedTrail(
 	actor *core.Record,
 	sourceTrailID string,
 	settings PluginAutoMergeSettings,
+	announce func(*core.Record),
 ) error {
 	if actor == nil || sourceTrailID == "" || !settings.Enabled {
 		return nil
@@ -43,5 +44,5 @@ func TryAutoMergeImportedTrail(
 		return nil
 	}
 
-	return Merge(app, client, ctx, actor, sourceTrailID, targetTrailID, DefaultPluginAutoMergeMergeSettings())
+	return Merge(app, client, ctx, actor, sourceTrailID, targetTrailID, DefaultPluginAutoMergeMergeSettings(), announce)
 }

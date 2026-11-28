@@ -10,13 +10,11 @@ import (
 	"pocketbase/util"
 	"time"
 
-	"github.com/go-ap/activitypub"
-	pub "github.com/go-ap/activitypub"
 	"github.com/meilisearch/meilisearch-go"
 	"github.com/pocketbase/pocketbase/core"
 )
 
-func CreateTrailHandler(client meilisearch.ServiceManager) func(e *core.RecordEvent) error {
+func CreateTrailHandler(client meilisearch.ServiceManager, updates *FederationUpdates) func(e *core.RecordEvent) error {
 	return func(e *core.RecordEvent) error {
 		record := e.Record
 
@@ -56,16 +54,8 @@ func CreateTrailHandler(client meilisearch.ServiceManager) func(e *core.RecordEv
 			return nil
 		}
 
-		ctx, err := util.GetSafeActorContext(nil, userActor)
-
-		if err != nil {
-			return err
-		}
-
-		err = federation.CreateTrailActivity(e.App, ctx, e.Record, activitypub.CreateType)
-		if err != nil {
-			return err
-		}
+		// Photo links arrive after this save and go out with its Create.
+		updates.EnqueueCreate(e.Record)
 
 		_, err = util.InsertIntoFeed(e.App, userActor.Id, userActor.Id, record.Id, util.TrailFeed)
 		if err != nil {
@@ -97,7 +87,7 @@ func setTrailCompletedAt(record *core.Record, now time.Time) {
 	}
 }
 
-func UpdateTrailHandler(client meilisearch.ServiceManager) func(e *core.RecordEvent) error {
+func UpdateTrailHandler(client meilisearch.ServiceManager, updates *FederationUpdates) func(e *core.RecordEvent) error {
 	return func(e *core.RecordEvent) error {
 		record := e.Record
 		userActor, err := e.App.FindRecordById("activitypub_actors", record.GetString(("author")))
@@ -136,16 +126,8 @@ func UpdateTrailHandler(client meilisearch.ServiceManager) func(e *core.RecordEv
 			return err
 		}
 
-		ctx, err := util.GetSafeActorContext(nil, userActor)
-
-		if err != nil {
-			return err
-		}
-
-		err = federation.CreateTrailActivity(e.App, ctx, e.Record, pub.UpdateType)
-		if err != nil {
-			return err
-		}
+		// Include later photo-link requests in the same announcement.
+		updates.EnqueueTrailSave(e.Record)
 
 		return nil
 	}

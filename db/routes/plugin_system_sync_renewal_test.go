@@ -117,7 +117,7 @@ func TestPluginSyncRenewsOrReopensBeforeListAndDetail(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = sessions.close(context.Background()) })
 	result, err := syncPluginCapability(t.Context(), app, nil, sessions, plugin, pluginsystem.CapabilityManifest{Export: "list"}, pluginsystem.CapabilityManifest{Export: "detail"}, instance, actor,
-		map[string]any{"password": "keep-auth"}, map[string]any{"after": "keep-options"}, hostConfig, false, false)
+		map[string]any{"password": "keep-auth"}, map[string]any{"after": "keep-options"}, hostConfig, false, false, nil)
 	wantImported, wantSkipped := wantItems, 0
 	if phase == "recycle-backfill" {
 		wantImported, wantSkipped = 0, wantItems

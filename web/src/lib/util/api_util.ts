@@ -114,7 +114,7 @@ export async function update<T>(event: RequestEvent, schema: ZodType<Record<stri
     return r
 }
 
-export async function uploadCreate<T>(event: RequestEvent, collection: Collection) {
+export async function uploadCreate<T>(event: RequestEvent, collection: Collection, options?: { federationBatch?: string }) {
     if (!event.locals.user) throw error(401, "Unauthorized");
     const searchParams = Object.fromEntries(event.url.searchParams);
     const safeSearchParams = RecordOptionsSchema.parse(searchParams);
@@ -122,7 +122,7 @@ export async function uploadCreate<T>(event: RequestEvent, collection: Collectio
     const data = await event.request.formData();
 
 
-    const r = await event.locals.pb.collection(Collection[collection]).create<T>(data, safeSearchParams)
+    const r = await event.locals.pb.collection(Collection[collection]).create<T>(data, { ...safeSearchParams, ...options })
 
     return r
 }

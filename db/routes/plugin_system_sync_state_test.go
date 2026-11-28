@@ -86,11 +86,11 @@ func TestCronRereadsInstanceBeforeSyncing(t *testing.T) {
 	if err := f.app.Delete(f.stored(t, deleted)); err != nil {
 		t.Fatal(err)
 	}
-	usePluginInstanceSync(t, func(_ context.Context, _ core.App, _ meilisearch.ServiceManager, _ pluginsystem.LocalPlugin, instance *core.Record) (*pluginSystemSyncResult, error) {
+	usePluginInstanceSync(t, func(_ context.Context, _ core.App, _ meilisearch.ServiceManager, _ pluginsystem.LocalPlugin, instance *core.Record, _ func(*core.Record)) (*pluginSystemSyncResult, error) {
 		t.Errorf("synced %s from a stale copy", instance.Id)
 		return &pluginSystemSyncResult{}, nil
 	})
-	if err := syncPluginInstancesOneByOne(t.Context(), f.app, nil, pluginsystem.LocalPlugin{}, listed); err != nil {
+	if err := syncPluginInstancesOneByOne(t.Context(), f.app, nil, pluginsystem.LocalPlugin{}, listed, nil); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -98,11 +98,11 @@ func TestCronRereadsInstanceBeforeSyncing(t *testing.T) {
 func TestPluginSyncPanicBecomesAnError(t *testing.T) {
 	f := newPluginInstanceFixture(t)
 	instanceID := f.instance(t, true, time.Time{})
-	usePluginInstanceSync(t, func(context.Context, core.App, meilisearch.ServiceManager, pluginsystem.LocalPlugin, *core.Record) (*pluginSystemSyncResult, error) {
+	usePluginInstanceSync(t, func(context.Context, core.App, meilisearch.ServiceManager, pluginsystem.LocalPlugin, *core.Record, func(*core.Record)) (*pluginSystemSyncResult, error) {
 		panic("bad plugin item")
 	})
 
-	_, skipped, err := syncFreshPluginInstance(t.Context(), f.app, nil, pluginsystem.LocalPlugin{}, instanceID)
+	_, skipped, err := syncFreshPluginInstance(t.Context(), f.app, nil, pluginsystem.LocalPlugin{}, instanceID, nil)
 	if skipped || err == nil {
 		t.Fatalf("panic not reported: skipped=%v, err=%v", skipped, err)
 	}
@@ -271,7 +271,7 @@ func TestPluginSyncStopsAfterInstanceChangesDuringReopen(t *testing.T) {
 				defer sessions.close(context.Background())
 				_, err = syncPluginCapability(t.Context(), f.app, nil, sessions, pluginsystem.LocalPlugin{},
 					pluginsystem.CapabilityManifest{Export: "list"}, pluginsystem.CapabilityManifest{Export: "detail"},
-					instance, nil, map[string]any{"password": "stale-credentials"}, nil, hostConfig, false, false)
+					instance, nil, map[string]any{"password": "stale-credentials"}, nil, hostConfig, false, false, nil)
 				wantLists := 1
 				if phase == "list" {
 					wantLists = 0
@@ -322,7 +322,7 @@ func TestSyncCapabilityHandlesSessionAndSwitchOff(t *testing.T) {
 		sessions := &pluginSyncRuntimeSession{runtime: runtime, session: killed}
 		_, err := syncPluginCapability(t.Context(), f.app, nil, sessions, pluginsystem.LocalPlugin{},
 			pluginsystem.CapabilityManifest{Export: "list_routes_v1"}, pluginsystem.CapabilityManifest{}, f.stored(t, instanceID), nil,
-			nil, nil, nil, false, false)
+			nil, nil, nil, false, false, nil)
 		if err != nil || runtime.opened != 1 {
 			t.Fatalf("list after a killed session: opened %d times, err=%v", runtime.opened, err)
 		}
@@ -336,7 +336,7 @@ func TestSyncCapabilityHandlesSessionAndSwitchOff(t *testing.T) {
 		sessions := &pluginSyncRuntimeSession{session: ok}
 		_, err := syncPluginCapability(t.Context(), f.app, nil, sessions, pluginsystem.LocalPlugin{},
 			pluginsystem.CapabilityManifest{Export: "list_routes_v1"}, pluginsystem.CapabilityManifest{}, record, nil,
-			nil, nil, nil, false, false)
+			nil, nil, nil, false, false, nil)
 		if !errors.Is(err, errPluginInstanceSwitchedOff) {
 			t.Fatalf("sync went on after the plugin was switched off: %v", err)
 		}
@@ -384,7 +384,7 @@ func TestSyncCapabilityHandlesSessionAndSwitchOff(t *testing.T) {
 			}}
 			_, err := syncPluginCapability(t.Context(), f.app, nil, &pluginSyncRuntimeSession{session: session}, pluginsystem.LocalPlugin{},
 				pluginsystem.CapabilityManifest{Export: "list_routes_v1"}, pluginsystem.CapabilityManifest{Export: "get_route_detail_v1"}, f.stored(t, id), nil,
-				nil, nil, nil, false, false)
+				nil, nil, nil, false, false, nil)
 			if !errors.Is(err, errPluginInstanceSwitchedOff) || details != 1 {
 				t.Fatalf("sync went on after the plugin was %s: %d detail calls, err=%v", name, details, err)
 			}
@@ -450,7 +450,7 @@ func TestSyncRestoresStatusWhenSwitchedOffDuringTheSync(t *testing.T) {
 				{Name: "get_route_detail", Version: "v1", Export: "get_route_detail_v1"},
 			}
 
-			_, err := syncPluginInstance(t.Context(), f.app, nil, plugin, f.stored(t, instanceID))
+			_, err := syncPluginInstance(t.Context(), f.app, nil, plugin, f.stored(t, instanceID), nil)
 			wantErr := errPluginInstanceSwitchedOff
 			if outcome == "error" {
 				wantErr = providerErr
@@ -506,15 +506,15 @@ func TestResetInterruptedPluginSyncs(t *testing.T) {
 func TestCronTreatsASwitchOffDuringTheSyncAsSkipped(t *testing.T) {
 	f := newPluginInstanceFixture(t)
 	instanceID := f.instance(t, true, time.Time{})
-	usePluginInstanceSync(t, func(context.Context, core.App, meilisearch.ServiceManager, pluginsystem.LocalPlugin, *core.Record) (*pluginSystemSyncResult, error) {
+	usePluginInstanceSync(t, func(context.Context, core.App, meilisearch.ServiceManager, pluginsystem.LocalPlugin, *core.Record, func(*core.Record)) (*pluginSystemSyncResult, error) {
 		return nil, errPluginInstanceSwitchedOff
 	})
-	if err := syncPluginInstancesOneByOne(t.Context(), f.app, nil, pluginsystem.LocalPlugin{}, []*core.Record{f.stored(t, instanceID)}); err != nil {
+	if err := syncPluginInstancesOneByOne(t.Context(), f.app, nil, pluginsystem.LocalPlugin{}, []*core.Record{f.stored(t, instanceID)}, nil); err != nil {
 		t.Fatalf("a switch-off was reported as a failed sync: %v", err)
 	}
 }
 
-type pluginSyncFunc func(context.Context, core.App, meilisearch.ServiceManager, pluginsystem.LocalPlugin, *core.Record) (*pluginSystemSyncResult, error)
+type pluginSyncFunc func(context.Context, core.App, meilisearch.ServiceManager, pluginsystem.LocalPlugin, *core.Record, func(*core.Record)) (*pluginSystemSyncResult, error)
 
 func usePluginInstanceSync(t *testing.T, fake pluginSyncFunc) {
 	t.Helper()

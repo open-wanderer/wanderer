@@ -95,7 +95,7 @@ func TestSyncPluginRejectsOversizedListBeforeAnyStorageAccess(t *testing.T) {
 	// A nil app makes any lookup or write before validating maxItems fail.
 	_, err = syncPluginCapability(context.Background(), nil, nil, session, pluginsystem.LocalPlugin{},
 		pluginsystem.CapabilityManifest{Export: "list_routes_v1"}, pluginsystem.CapabilityManifest{}, instance, nil,
-		nil, nil, nil, false, false)
+		nil, nil, nil, false, false, nil)
 	if err == nil || !strings.Contains(err.Error(), "exceeding maxItems 50") {
 		t.Fatalf("oversized list accepted: %v", err)
 	}
@@ -108,7 +108,7 @@ func TestSyncItemLimitHasOwnInstanceCategory(t *testing.T) {
 		return data, nil
 	}}}
 	instance := core.NewRecord(core.NewBaseCollection("plugin_instances"))
-	_, err := syncPluginCapability(t.Context(), nil, nil, session, pluginsystem.LocalPlugin{}, pluginsystem.CapabilityManifest{Export: "list_routes_v1"}, pluginsystem.CapabilityManifest{}, instance, nil, nil, nil, nil, false, false)
+	_, err := syncPluginCapability(t.Context(), nil, nil, session, pluginsystem.LocalPlugin{}, pluginsystem.CapabilityManifest{Export: "list_routes_v1"}, pluginsystem.CapabilityManifest{}, instance, nil, nil, nil, nil, false, false, nil)
 	var limit pluginsystem.SyncItemLimitError
 	if !errors.As(err, &limit) || limit.Returned != 51 || limit.MaxItems != 50 {
 		t.Fatalf("lost protocol limit: %v", err)
@@ -166,7 +166,7 @@ func TestSyncPluginAcceptsListAtItemLimit(t *testing.T) {
 	}
 	result, err := syncPluginCapability(t.Context(), app, nil, session, pluginsystem.LocalPlugin{},
 		pluginsystem.CapabilityManifest{Export: "list_routes_v1"}, pluginsystem.CapabilityManifest{}, instance, nil,
-		nil, nil, nil, false, false)
+		nil, nil, nil, false, false, nil)
 	if err != nil || result == nil || calls != 1 {
 		t.Fatalf("list at limit rejected: result=%#v, calls=%d, error=%v", result, calls, err)
 	}

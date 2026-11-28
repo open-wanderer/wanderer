@@ -310,17 +310,21 @@ func TestVisibilityChangeSurvivesIndexFailure(t *testing.T) {
 	client := meilisearch.New("http://127.0.0.1:1")
 	for _, kind := range []struct {
 		collection, path string
-		handler          func(meilisearch.ServiceManager) func(*core.RecordEvent) error
+		handler          func(core.App, meilisearch.ServiceManager) func(*core.RecordEvent) error
 	}{
-		{"trails", "trail", UpdateTrailHandler},
-		{"lists", "list", UpdateListHandler},
+		{"trails", "trail", func(app core.App, client meilisearch.ServiceManager) func(*core.RecordEvent) error {
+			return UpdateTrailHandler(client, NewFederationUpdates(app))
+		}},
+		{"lists", "list", func(_ core.App, client meilisearch.ServiceManager) func(*core.RecordEvent) error {
+			return UpdateListHandler(client)
+		}},
 	} {
 		t.Run(kind.collection, func(t *testing.T) {
 			app := setupSnapshotTestApp(t)
 			_, author := newDepartingActor(t, app, newInboxCounter(t))
 			record := newSnapshotSubject(t, app, kind.collection, kind.path, author)
 			create := recordSnapshot(t, app, author, "Create", map[string]any{"id": record.GetString("iri")})
-			app.OnRecordAfterUpdateSuccess(kind.collection).BindFunc(kind.handler(client))
+			app.OnRecordAfterUpdateSuccess(kind.collection).BindFunc(kind.handler(app, client))
 
 			fresh, err := app.FindRecordById(kind.collection, record.Id)
 			if err != nil {

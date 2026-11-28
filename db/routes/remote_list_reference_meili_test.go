@@ -87,8 +87,8 @@ func remoteListIndexedDocument(t *testing.T, client meilisearch.ServiceManager, 
 func TestRemoteListReferencesUpdateTheRealSearchIndex(t *testing.T) {
 	client := startRemoteListMeili(t)
 	f := newListViewFixture(t)
-	f.app.OnRecordAfterCreateSuccess("trails").BindFunc(hooks.CreateTrailHandler(client))
-	f.app.OnRecordAfterUpdateSuccess("trails").BindFunc(hooks.UpdateTrailHandler(client))
+	f.app.OnRecordAfterCreateSuccess("trails").BindFunc(hooks.CreateTrailHandler(client, hooks.NewFederationUpdates(f.app)))
+	f.app.OnRecordAfterUpdateSuccess("trails").BindFunc(hooks.UpdateTrailHandler(client, hooks.NewFederationUpdates(f.app)))
 	f.app.OnRecordAfterCreateSuccess("lists").BindFunc(hooks.CreateListHandler(client))
 	f.app.OnRecordAfterUpdateSuccess("lists").BindFunc(hooks.UpdateListHandler(client))
 	t.Setenv("POCKETBASE_ENCRYPTION_KEY", "0123456789abcdef0123456789abcdef")

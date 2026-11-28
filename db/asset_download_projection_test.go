@@ -10,6 +10,7 @@ import (
 	"github.com/pocketbase/pocketbase/tools/filesystem"
 	"net/http"
 	"net/http/httptest"
+	"pocketbase/hooks"
 	"pocketbase/util"
 	"strings"
 	"sync"
@@ -42,7 +43,7 @@ func TestAssetDownloadsProjectRowsWhileKeepingPocketBaseGuardsAndServing(t *test
 	if err != nil {
 		t.Fatal(err)
 	}
-	registerRoutes(&core.ServeEvent{App: f.app, Router: api}, nil)
+	registerRoutes(&core.ServeEvent{App: f.app, Router: api}, nil, hooks.NewFederationUpdates(f.app))
 	mux, err := api.BuildMux()
 	if err != nil {
 		t.Fatal(err)

@@ -36,7 +36,7 @@ func TestTrailMergeRequiresOwnershipOfEverySource(t *testing.T) {
 		if trailmerge.CanMerge(f.app, other.Id, source, target, deleteSource) {
 			t.Fatal("source owned by another actor accepted")
 		}
-		if err := trailmerge.Merge(f.app, client, context.Background(), other, source.Id, target.Id, trailmerge.MergeSettings{SummitLog: true, Delete: deleteSource}); !errors.Is(err, trailmerge.ErrMergeNotAllowed) {
+		if err := trailmerge.Merge(f.app, client, context.Background(), other, source.Id, target.Id, trailmerge.MergeSettings{SummitLog: true, Delete: deleteSource}, nil); !errors.Is(err, trailmerge.ErrMergeNotAllowed) {
 			t.Fatalf("service error = %v", err)
 		}
 		body := fmt.Sprintf(`{"sourceTrailId":%q,"targetTrailId":%q,"settings":{"summitLog":true,"delete":%t}}`, source.Id, target.Id, deleteSource)
@@ -44,7 +44,7 @@ func TestTrailMergeRequiresOwnershipOfEverySource(t *testing.T) {
 		e.Request = httptest.NewRequest(http.MethodPost, "/trail-merge", strings.NewReader(body))
 		e.Request.Header.Set("Content-Type", "application/json")
 		e.Response = httptest.NewRecorder()
-		if err := routes.TrailMerge(nil)(e); err == nil {
+		if err := routes.TrailMerge(nil, nil)(e); err == nil {
 			t.Fatal("route accepted source owned by another actor")
 		}
 	}
