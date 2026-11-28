@@ -9,10 +9,13 @@ import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:wanderer/entities/trail_entity.dart';
+import 'package:wanderer/entities/waypoint_entity.dart';
 import 'package:wanderer/models/navigate_response.dart';
 import 'package:wanderer/models/subcategory.dart';
 import 'package:wanderer/models/trail.dart';
+import 'package:wanderer/models/trail_sync_state.dart';
 import 'package:wanderer/objectbox.g.dart';
+import 'package:wanderer/store/app_photo_paths.dart';
 import 'package:wanderer/util/gpx/gpx.dart';
 import 'package:wanderer/util/image_cache.dart';
 import 'package:wanderer/util/local/library_membership.dart';
@@ -62,6 +65,7 @@ class TrailDownloadService {
     final box = _store.box<TrailEntity>();
     final trailId = trail.id;
     final appDir = await getApplicationDocumentsDirectory();
+    configurePhotoDocumentsDirectory(appDir.path);
     // p.join + a whitelisted segment, not interpolation. `trailId` and the
     // waypoint ids below arrive over the network; a federated or compromised
     // instance returning an id containing `..` wrote outside `library/`.
@@ -154,10 +158,15 @@ class TrailDownloadService {
     await Future.wait(futures);
 
     final entity = TrailEntity.fromModel(trail, store: _store);
-    entity.photos = localPaths;
+    entity.photos = localPaths
+        .map((path) => storePhotoPath(appDir.path, path))
+        .toList();
     for (final waypointEntity in entity.waypoints) {
       final paths = waypointLocalPhotos[waypointEntity.id];
-      if (paths != null) waypointEntity.localPhotos = paths;
+      if (paths != null)
+        waypointEntity.downloadedPhotos = paths
+            .map((path) => storePhotoPath(appDir.path, path))
+            .toList();
     }
 
     // Best-effort Valhalla cache write; any failure is swallowed so photo
@@ -222,21 +231,54 @@ class TrailDownloadService {
       entity.syncAttempts = existing?.syncAttempts ?? 0;
       entity.syncNextAttemptAt = existing?.syncNextAttemptAt;
       entity.localPhotos = existing?.localPhotos ?? const [];
+      entity.obxId = existing?.obxId ?? 0;
+      final previousWaypoints = {
+        for (final waypoint in existing?.waypoints ?? const [])
+          waypoint.id: waypoint,
+      };
+      for (final waypoint in entity.waypoints) {
+        final previous = previousWaypoints[waypoint.id];
+        if (previous == null) continue;
+        waypoint.obxId = previous.obxId;
+        waypoint.localKey = previous.localKey;
+        waypoint.localPhotos = previous.localPhotos;
+      }
+      final included = entity.waypoints.map((waypoint) => waypoint.id).toSet();
+      final preserveMissing =
+          trail.expand?.waypointsViaTrail == null ||
+          (existing?.localId != null && isUnsyncedState(existing!.syncState));
+      for (final waypoint in previousWaypoints.values) {
+        if (included.contains(waypoint.id)) continue;
+        if (preserveMissing) {
+          entity.waypoints.add(waypoint);
+        } else {
+          _store.box<WaypointEntity>().remove(waypoint.obxId);
+        }
+      }
 
       box.put(entity);
     });
 
     await _cleanupPhotos(trailDir, {
       ...localPaths,
-      for (final paths in waypointLocalPhotos.values) ...paths,
+      for (final waypoint in entity.waypoints)
+        ...waypoint.downloadedPhotos.map(
+          (path) => resolvePhotoPath(appDir.path, path),
+        ),
     });
   }
 
   Future<void> _cleanupPhotos(Directory trailDir, Set<String> retained) async {
-    await for (final entry in trailDir.list(recursive: true, followLinks: false)) {
+    await for (final entry in trailDir.list(
+      recursive: true,
+      followLinks: false,
+    )) {
       if (entry is! File ||
-          !p.split(p.relative(entry.path, from: trailDir.path)).contains('photos') ||
-          retained.contains(entry.path)) continue;
+          !p
+              .split(p.relative(entry.path, from: trailDir.path))
+              .contains('photos') ||
+          retained.contains(entry.path))
+        continue;
       await FileImage(entry).evict();
       await entry.delete();
     }
@@ -351,8 +393,12 @@ class TrailDownloadService {
         final fileName = fileNameSegment(p.basename(Uri.parse(url).path));
         final extension = p.extension(fileName);
         final suffix = RegExp(r'^\.[a-zA-Z0-9]{1,10}$').hasMatch(extension)
-            ? extension : '';
-        final hash = sha256.convert(utf8.encode(url)).toString().substring(0, 24);
+            ? extension
+            : '';
+        final hash = sha256
+            .convert(utf8.encode(url))
+            .toString()
+            .substring(0, 24);
         final savePath = p.join(photoDir.path, '$hash$suffix');
         await _downloadTracked(
           url,

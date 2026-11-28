@@ -10,8 +10,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:objectbox/objectbox.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:wanderer/entities/trail_entity.dart';
+import 'package:wanderer/entities/waypoint_entity.dart';
 import 'package:wanderer/models/trail.dart';
+import 'package:wanderer/models/trail_sync_state.dart';
+import 'package:wanderer/models/waypoint.dart';
 import 'package:wanderer/services/trail_download_service.dart';
+import 'package:wanderer/objectbox.g.dart' as database;
+import 'package:wanderer/store/app_photo_paths.dart';
 import 'package:wanderer/util/image_cache.dart';
 
 const _account = 'ddddddddddddddd';
@@ -102,7 +107,9 @@ class _MemoryBox<T> extends Fake implements Box<T> {
   int put(T object, {PutMode mode = PutMode.put}) {
     final row = object as dynamic;
     if (row.obxId == 0) row.obxId = rows.length + 1;
-    final previous = rows.indexWhere((entry) => (entry as dynamic).id == row.id);
+    final previous = rows.indexWhere(
+      (entry) => (entry as dynamic).id == row.id,
+    );
     if (previous >= 0) {
       row.obxId = (rows[previous] as dynamic).obxId;
       rows[previous] = object;
@@ -212,7 +219,8 @@ void main() {
         );
         for (var index = 0; index < expected.length; index++) {
           expect(
-            await File(saved.photos[index]).readAsBytes(),
+            await File(resolveStoredPhotoPath(saved.photos[index]))
+                .readAsBytes(),
             expected[index],
           );
         }
@@ -238,18 +246,32 @@ void main() {
     const first = '/api/v1/assets/asset0000000001/file';
     const second = '/api/v1/assets/asset0000000002/file';
     const replacement = '/api/v1/assets/asset0000000003/file';
-    h.server.originals.addAll({first: [1], second: [2], replacement: [3]});
-    final model = Trail.empty().copyWith(id: 'trail0000000001', photos: [first, second]);
+    h.server.originals.addAll({
+      first: [1],
+      second: [2],
+      replacement: [3],
+    });
+    final model = Trail.empty().copyWith(
+      id: 'trail0000000001',
+      photos: [first, second],
+    );
     await service.downloadTrail(model);
-    final previous = List<String>.of(h.store.box<TrailEntity>().getAll().single.photos);
+    final previous = List<String>.of(
+      h.store.box<TrailEntity>().getAll().single.photos,
+    );
     await service.downloadTrail(model.copyWith(photos: [second, first]));
     final reordered = h.store.box<TrailEntity>().getAll().single.photos;
     expect(reordered, [previous[1], previous[0]]);
     await service.downloadTrail(model.copyWith(photos: [replacement]));
     final current = h.store.box<TrailEntity>().getAll().single.photos.single;
     expect(previous, isNot(contains(current)));
-    expect(await File(current).readAsBytes(), [3]);
-    expect(previous.every((path) => !File(path).existsSync()), isTrue);
+    expect(await File(resolveStoredPhotoPath(current)).readAsBytes(), [3]);
+    expect(
+      previous.every(
+        (path) => !File(resolveStoredPhotoPath(path)).existsSync(),
+      ),
+      isTrue,
+    );
   });
 
   test('replacing a cached file evicts its decoded image', () async {
@@ -260,14 +282,17 @@ void main() {
     final model = Trail.empty().copyWith(id: 'trail0000000001', photos: [url]);
     await service.downloadTrail(model);
     final path = h.store.box<TrailEntity>().getAll().single.photos.single;
-    final key = FileImage(File(path));
+    final key = FileImage(File(resolveStoredPhotoPath(path)));
     final cache = PaintingBinding.instance.imageCache;
-    cache.putIfAbsent(key, () => OneFrameImageStreamCompleter(Completer<ImageInfo>().future));
+    cache.putIfAbsent(
+      key,
+      () => OneFrameImageStreamCompleter(Completer<ImageInfo>().future),
+    );
     expect(cache.containsKey(key), isTrue);
     h.server.originals[url] = [2];
     await service.downloadTrail(model);
     expect(cache.containsKey(key), isFalse);
-    expect(await File(path).readAsBytes(), [2]);
+    expect(await File(resolveStoredPhotoPath(path)).readAsBytes(), [2]);
   });
 
   for (final status in [300, 302, 304, 307]) {
@@ -277,12 +302,141 @@ void main() {
       h.server.originals[url] = utf8.encode('<html>moved</html>');
       h.server.statuses[url] = status;
       await TrailDownloadService(h.store, h.api, photoApi: h.api).downloadTrail(
-        Trail.empty().copyWith(id: 'trail0000000001', photos: [url]));
+        Trail.empty().copyWith(id: 'trail0000000001', photos: [url]),
+      );
       expect(h.store.box<TrailEntity>().getAll().single.photos, isEmpty);
-      final photoFiles = Directory(directory.path).listSync(recursive: true).whereType<File>();
+      final photoFiles = Directory(directory.path)
+          .listSync(recursive: true)
+          .whereType<File>();
       expect(photoFiles, isEmpty);
     });
   }
+
+  test('downloaded waypoint copies preserve pending photos and uncreated children', () async {
+    final h = harness(true);
+    const trailId = 'trail0000000001';
+    const pointId = 'point0000000001';
+    const url = '/api/v1/assets/asset0000000001/file';
+    h.server.originals[url] = [1, 2, 3];
+    final pending = File(
+      '${directory.path}/unsynced/$_account/local-1-1/waypoints/local-2-1/pending.jpg',
+    );
+    await pending.parent.create(recursive: true);
+    await pending.writeAsBytes([8]);
+    final old = TrailEntity.fromModel(Trail.empty().copyWith(id: trailId));
+    old.localId = 'local-1-1';
+    old.owner = _account;
+    old.syncState = TrailSyncState.pending;
+    final created = WaypointEntity(
+      id: pointId,
+      lat: 1,
+      lon: 2,
+      author: 'actor',
+      created: DateTime(2026),
+      updated: DateTime(2026),
+      localKey: 'local-2-1',
+      localPhotos: [pending.path],
+      photos: [url],
+    )..obxId = 17;
+    final uncreated = WaypointEntity(
+      id: 'local-3-1',
+      lat: 3,
+      lon: 4,
+      author: 'actor',
+      created: DateTime(2026),
+      updated: DateTime(2026),
+      localKey: 'local-3-1',
+    );
+    old.waypoints.addAll([created, uncreated]);
+    h.store.box<TrailEntity>().put(old);
+    final remote = Trail.empty().copyWith(
+      id: trailId,
+      expand: TrailExpand(
+        waypointsViaTrail: [
+          Waypoint(
+            id: pointId,
+            lat: 1,
+            lon: 2,
+            created: DateTime(2026),
+            updated: DateTime(2026),
+            photos: [url],
+          ),
+        ],
+      ),
+    );
+    await TrailDownloadService(
+      h.store,
+      h.api,
+      photoApi: h.api,
+    ).downloadTrail(remote, savedByUserId: _account);
+    final saved = h.store.box<TrailEntity>().getAll().single;
+    expect(saved.obxId, old.obxId);
+    expect(saved.waypoints, hasLength(2));
+    final point = saved.waypoints.singleWhere(
+      (waypoint) => waypoint.id == pointId,
+    );
+    expect(point.obxId, 17);
+    expect(point.localKey, 'local-2-1');
+    expect(point.localPhotos, [pending.path]);
+    expect(point.photos, [url]);
+    expect(point.downloadedPhotos, hasLength(1));
+    expect(point.downloadedPhotos, isNot(contains(pending.path)));
+    expect(
+      saved.waypoints.any((waypoint) => waypoint.id == 'local-3-1'),
+      isTrue,
+    );
+    expect(await pending.readAsBytes(), [8]);
+  });
+
+  test('download refresh prunes missing waypoint rows but preserves omitted expands', () async {
+    final store = await database.openStore(
+      directory: '${directory.path}/database',
+    );
+    addTearDown(store.close);
+    final server = _PhotoDownloadServer();
+    final api = Dio(BaseOptions(baseUrl: 'https://a.example/api/v1'))
+      ..httpClientAdapter = server;
+    addTearDown(api.close);
+    const firstPhoto = '/api/v1/assets/asset0000000001/file';
+    const secondPhoto = '/api/v1/assets/asset0000000002/file';
+    server.originals.addAll({
+      firstPhoto: [1],
+      secondPhoto: [2],
+    });
+    Waypoint point(String id, String photo) => Waypoint(
+      id: id,
+      lat: 1,
+      lon: 2,
+      created: DateTime(2026),
+      updated: DateTime(2026),
+      photos: [photo],
+    );
+    final first = point('point0000000001', firstPhoto);
+    final second = point('point0000000002', secondPhoto);
+    final model = Trail.empty().copyWith(
+      id: 'trail0000000001',
+      expand: TrailExpand(waypointsViaTrail: [first, second]),
+    );
+    final service = TrailDownloadService(store, api, photoApi: api);
+    await service.downloadTrail(model);
+    final original = store.box<TrailEntity>().getAll().single;
+    final removedPath = original.waypoints
+        .singleWhere((point) => point.id == second.id)
+        .downloadedPhotos
+        .single;
+    await service.downloadTrail(
+      model.copyWith(expand: TrailExpand(waypointsViaTrail: [first])),
+    );
+    final refreshed = store.box<TrailEntity>().get(original.obxId)!;
+    expect(refreshed.waypoints.map((point) => point.id), [first.id]);
+    expect(store.box<WaypointEntity>().getAll(), hasLength(1));
+    expect(File(resolveStoredPhotoPath(removedPath)).existsSync(), isFalse);
+    final keptPath = refreshed.waypoints.single.downloadedPhotos.single;
+    await service.downloadTrail(model.copyWith(expand: null));
+    final withoutExpand = store.box<TrailEntity>().get(original.obxId)!;
+    expect(withoutExpand.waypoints.single.id, first.id);
+    expect(File(resolveStoredPhotoPath(keptPath)).existsSync(), isTrue);
+  });
 
   test('offline download keeps the selected cover first', () async {
     final h = harness(true);
@@ -303,9 +457,18 @@ void main() {
     ).downloadTrail(model);
     final saved = h.store.box<TrailEntity>().getAll().single;
     expect(saved.photos, hasLength(2));
-    expect(await File(saved.photos.first).readAsBytes(), [4, 5, 6]);
-    expect(await File(saved.photos.last).readAsBytes(), [1, 2, 3]);
-    expect(saved.toModel().localPhotos.first, saved.photos.first);
+    expect(
+      await File(resolveStoredPhotoPath(saved.photos.first)).readAsBytes(),
+      [4, 5, 6],
+    );
+    expect(
+      await File(resolveStoredPhotoPath(saved.photos.last)).readAsBytes(),
+      [1, 2, 3],
+    );
+    expect(
+      saved.toModel().localPhotos.first,
+      resolveStoredPhotoPath(saved.photos.first),
+    );
   });
 
   test(

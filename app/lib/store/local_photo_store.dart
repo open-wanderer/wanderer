@@ -34,6 +34,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:wanderer/util/local/id.dart';
+import 'package:wanderer/store/app_photo_paths.dart';
 
 /// Root of all unsynced-trail photo storage: `<appDocsPath>/unsynced`.
 String unsyncedPhotoRoot(String appDocsPath) {
@@ -271,6 +272,26 @@ List<String> photosNotYetOnServer({
   required List<String> pickedPaths,
 }) {
   return pickedPaths.where((path) => !p.isWithin(unsyncedDir, path)).toList();
+}
+
+/// Cleans removed waypoint sources without reaching outside this capture.
+Future<void> deleteUnsyncedPhotoFiles(
+  String accountId,
+  String localId,
+  Iterable<String> paths,
+) async {
+  final documents = (await getApplicationDocumentsDirectory()).path;
+  final directory = unsyncedTrailPhotoDir(documents, accountId, localId);
+  for (final path in paths) {
+    final resolved = resolvePhotoPath(documents, path);
+    if (!p.isWithin(directory, resolved)) continue;
+    try {
+      final file = File(resolved);
+      if (await file.exists()) await file.delete();
+    } catch (_) {
+      // Best-effort, like whole-capture cleanup after retirement.
+    }
+  }
 }
 
 /// Deletes [accountId]'s [localId] unsynced photo directory (and its

@@ -25,9 +25,11 @@ import 'package:wanderer/entities/actor_entity.dart';
 import 'package:wanderer/entities/trail_entity.dart';
 import 'package:wanderer/entities/waypoint_entity.dart';
 import 'package:wanderer/models/trail.dart';
+import 'package:wanderer/models/tag.dart';
 import 'package:wanderer/models/trail_sync_state.dart';
 import 'package:wanderer/objectbox.g.dart';
 import 'package:wanderer/util/local/id.dart';
+import 'package:wanderer/store/app_photo_paths.dart';
 
 // ---------------------------------------------------------------------------
 // Pure decisions (no Store, unit-testable)
@@ -383,13 +385,14 @@ String saveNewLocalTrail(
     if (!asDraft) _dropTrackOriginal(entity);
     entity.syncAttempts = 0;
     entity.syncNextAttemptAt = null;
-    entity.localPhotos = trailLocalPhotos;
+    entity.localPhotos = trailLocalPhotos.map(storeCurrentPhotoPath).toList();
 
     for (final waypointEntity in entity.waypoints) {
       final key = waypointEntity.localKey;
       if (key == null) continue;
       final photos = waypointLocalPhotosByKey[key];
-      if (photos != null) waypointEntity.localPhotos = photos;
+      if (photos != null)
+        waypointEntity.localPhotos = photos.map(storeCurrentPhotoPath).toList();
     }
 
     if (authorActorId != null) {
@@ -588,13 +591,24 @@ LocalUpdateOutcome updateLocalTrail(
     // AND empty `localPhotos`: a permanently thumbnail-less card whose photos
     // exist only on the server.
     entity.photos = existing.photos;
-    entity.localPhotos = trailLocalPhotos;
+    entity.localPhotos = trailLocalPhotos.map(storeCurrentPhotoPath).toList();
 
+    final previousWaypoints = {
+      for (final waypoint in existing.waypoints)
+        (waypoint.localKey ?? waypoint.id): waypoint,
+    };
     for (final waypointEntity in entity.waypoints) {
+      final previous =
+          previousWaypoints[waypointEntity.localKey ?? waypointEntity.id];
+      if (previous != null) {
+        waypointEntity.obxId = previous.obxId;
+        waypointEntity.downloadedPhotos = previous.downloadedPhotos;
+      }
       final key = waypointEntity.localKey;
       if (key == null) continue;
       final photos = waypointLocalPhotosByKey[key];
-      if (photos != null) waypointEntity.localPhotos = photos;
+      if (photos != null)
+        waypointEntity.localPhotos = photos.map(storeCurrentPhotoPath).toList();
     }
 
     // Remove waypoint rows that belonged to the old trail but are absent
@@ -691,6 +705,106 @@ void applyNetworkEditToLocalRow(
     entity.updated = trail.updated;
 
     trailBox.put(entity);
+  });
+}
+
+/// Whether this account still has a capture responsible for a photo target.
+bool hasQueuedPhotoTarget(
+  Store store, {
+  required String accountId,
+  required String kind,
+  required String targetId,
+}) {
+  final query = store
+      .box<TrailEntity>()
+      .query(
+        TrailEntity_.owner.equals(accountId) &
+            TrailEntity_.dbSyncState.notEquals(TrailSyncState.synced.index),
+      )
+      .build();
+  final captures = query.find();
+  query.close();
+  return captures.any(
+    (capture) =>
+        capture.localId != null &&
+        (kind == 'trail' && capture.id == targetId ||
+            kind == 'waypoint' &&
+                capture.waypoints.any((point) => point.id == targetId)),
+  );
+}
+
+/// Removes a server-deleted waypoint from this account's pending captures.
+/// Returned sources are cleaned only after the database write commits.
+List<({String localId, List<String> paths})> removeQueuedWaypoint(
+  Store store, {
+  required String accountId,
+  required String trailId,
+  required String waypointId,
+}) => store.runInTransaction(TxMode.write, () {
+  final box = store.box<TrailEntity>();
+  final query = box
+      .query(
+        TrailEntity_.owner.equals(accountId) &
+            TrailEntity_.id.equals(trailId) &
+            TrailEntity_.dbSyncState.notEquals(TrailSyncState.synced.index),
+      )
+      .build();
+  final captures = query.find();
+  query.close();
+  final removed = <({String localId, List<String> paths})>[];
+  for (final capture in captures) {
+    final localId = capture.localId;
+    if (localId == null) continue;
+    final points = capture.waypoints
+        .where((point) => point.id == waypointId)
+        .toList();
+    if (points.isEmpty) continue;
+    removed.add((
+      localId: localId,
+      paths: [for (final point in points) ...point.localPhotos],
+    ));
+    capture.waypoints.removeWhere((point) => point.id == waypointId);
+    box.put(capture);
+    store.box<WaypointEntity>().removeMany(
+      points.map((point) => point.obxId).toList(),
+    );
+  }
+  return removed;
+});
+
+/// Commits a durable journal cancellation to its account's capture row.
+void removeQueuedPhotoSources(
+  Store store, {
+  required String accountId,
+  required String kind,
+  required String targetId,
+  required List<String> paths,
+}) {
+  final removed = paths.map(resolveStoredPhotoPath).toSet();
+  store.runInTransaction(TxMode.write, () {
+    final box = store.box<TrailEntity>();
+    final query = box.query(TrailEntity_.owner.equals(accountId)).build();
+    final captures = query.find();
+    query.close();
+    for (final capture in captures) {
+      if (capture.localId == null) continue;
+      if (kind == 'trail' && capture.id == targetId) {
+        capture.localPhotos.removeWhere(
+          (path) => removed.contains(resolveStoredPhotoPath(path)),
+        );
+        box.put(capture);
+      }
+      if (kind == 'waypoint') {
+        for (final waypoint in capture.waypoints.where(
+          (point) => point.id == targetId,
+        )) {
+          waypoint.localPhotos.removeWhere(
+            (path) => removed.contains(resolveStoredPhotoPath(path)),
+          );
+          store.box<WaypointEntity>().put(waypoint);
+        }
+      }
+    }
   });
 }
 
@@ -823,14 +937,14 @@ void applyServerTrailToLibraryRow(
     entity.categoryRecordId ??= existing.categoryRecordId;
 
     if (trail.expand?.waypointsViaTrail != null) {
-      // Carry each existing child's downloaded photos onto its refreshed
-      // counterpart by id -- never touched over the network here.
-      final existingLocalPhotosById = {
-        for (final w in existing.waypoints) w.id: w.localPhotos,
-      };
+      final previousWaypoints = {for (final w in existing.waypoints) w.id: w};
       for (final waypointEntity in entity.waypoints) {
-        final photos = existingLocalPhotosById[waypointEntity.id];
-        if (photos != null) waypointEntity.localPhotos = photos;
+        final previous = previousWaypoints[waypointEntity.id];
+        if (previous == null) continue;
+        waypointEntity.obxId = previous.obxId;
+        waypointEntity.localKey = previous.localKey;
+        waypointEntity.localPhotos = previous.localPhotos;
+        waypointEntity.downloadedPhotos = previous.downloadedPhotos;
       }
 
       final newIds = entity.waypoints.map((w) => w.id).toSet();
@@ -841,7 +955,13 @@ void applyServerTrailToLibraryRow(
         final waypointBox = store.box<WaypointEntity>();
         for (final oldWaypoint in existing.waypoints) {
           if (!newIds.contains(oldWaypoint.id)) {
-            waypointBox.remove(oldWaypoint.obxId);
+            if (existing.localId != null &&
+                existing.syncState != TrailSyncState.synced &&
+                isLocalId(oldWaypoint.id)) {
+              entity.waypoints.add(oldWaypoint);
+            } else {
+              waypointBox.remove(oldWaypoint.obxId);
+            }
           }
         }
       } else {
@@ -1399,6 +1519,8 @@ void writeServerTrailId(
   required String localId,
   required String serverId,
   List<String>? serverPhotoFilenames,
+  List<String> completedPhotoPaths = const [],
+  List<Tag>? resolvedTags,
 }) {
   store.runInTransaction(TxMode.write, () {
     final box = store.box<TrailEntity>();
@@ -1408,6 +1530,16 @@ void writeServerTrailId(
     if (entity == null) return;
 
     entity.id = serverId;
+    if (resolvedTags != null) entity.tagsJson = encodeTrailTags(resolvedTags);
+    entity.localPhotos = entity.localPhotos
+        .where(
+          (path) => !completedPhotoPaths.any(
+            (completed) =>
+                resolveStoredPhotoPath(completed) ==
+                resolveStoredPhotoPath(path),
+          ),
+        )
+        .toList();
     if (serverPhotoFilenames != null) {
       entity.photos = serverPhotoFilenames;
     }
@@ -1419,20 +1551,15 @@ void writeServerTrailId(
 /// onto the child [WaypointEntity] identified by [waypointLocalKey] under
 /// the trail [localId].
 ///
-/// Deliberately does NOT clear `localPhotos`: the trail's upload as
-/// a whole is not complete the instant one waypoint's create succeeds -- a
-/// LATER waypoint in the same drain loop can still fail and park the row as
-/// `failed`, and a waypoint whose `localPhotos` was already wiped would then
-/// be unreachable through the model while its JPEGs still sit on disk under
-/// `unsynced/<localId>/waypoints/<key>/`. `retireUploadedLocalTrail` (full
-/// success) and `deleteUnsyncedPhotoDir` (delete) own reclaiming those files
-/// once the trail's fate is actually decided.
+/// Confirmed uploads are removed from `localPhotos` in the same transaction as
+/// the server ID. Pending paths stay reachable for a resumed photo upload.
 void writeServerWaypointId(
   Store store, {
   required String localId,
   required String waypointLocalKey,
   required String serverWaypointId,
   List<String> serverPhotoFilenames = const [],
+  List<String> completedPhotoPaths = const [],
 }) {
   store.runInTransaction(TxMode.write, () {
     final trailQuery = store
@@ -1445,7 +1572,7 @@ void writeServerWaypointId(
 
     WaypointEntity? target;
     for (final waypoint in trailEntity.waypoints) {
-      if (waypoint.localKey == waypointLocalKey) {
+      if ((waypoint.localKey ?? waypoint.id) == waypointLocalKey) {
         target = waypoint;
         break;
       }
@@ -1454,7 +1581,15 @@ void writeServerWaypointId(
 
     target.id = serverWaypointId;
     target.photos = serverPhotoFilenames;
-    // localPhotos deliberately retained -- see this function's doc comment
+    target.localPhotos = target.localPhotos
+        .where(
+          (path) => !completedPhotoPaths.any(
+            (completed) =>
+                resolveStoredPhotoPath(completed) ==
+                resolveStoredPhotoPath(path),
+          ),
+        )
+        .toList();
     store.box<WaypointEntity>().put(target);
   });
 }
@@ -1550,6 +1685,36 @@ void resetDrainBackoff(
     entity.syncState = TrailSyncState.pending;
     entity.syncAttempts = 0;
     entity.syncNextAttemptAt = null;
+    box.put(entity);
+  });
+}
+
+/// Pending photos remain automatic work. A pass that makes no progress waits
+/// on the persisted backoff instead of resetting the row on every foreground.
+void recordPendingPhotos(
+  Store store,
+  String localId, {
+  required String accountId,
+  required bool madeProgress,
+  required DateTime now,
+  required Duration Function(int attempts) backoff,
+}) {
+  store.runInTransaction(TxMode.write, () {
+    final box = store.box<TrailEntity>();
+    final query = box
+        .query(
+          TrailEntity_.localId.equals(localId) &
+              TrailEntity_.owner.equals(accountId),
+        )
+        .build();
+    final entity = query.findFirst();
+    query.close();
+    if (entity == null || entity.syncState == TrailSyncState.draft) return;
+    entity.syncState = TrailSyncState.pending;
+    entity.syncAttempts = madeProgress ? 0 : entity.syncAttempts + 1;
+    entity.syncNextAttemptAt = madeProgress
+        ? null
+        : now.add(backoff(entity.syncAttempts));
     box.put(entity);
   });
 }

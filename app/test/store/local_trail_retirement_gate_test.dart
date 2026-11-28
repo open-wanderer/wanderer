@@ -167,334 +167,326 @@ void main() {
     // EFFECT assertion: the captured server id must actually be
     // RETURNED from both exits, not merely computed and discarded -- the
     // whole fix depends on the caller receiving this value.
-    test(
-      'captures the server id once, before either exit mutates the row, '
-      'and returns it from BOTH exits',
-      () {
-        final body = retirementBody();
+    test('captures the server id once, before either exit mutates the row, '
+        'and returns it from BOTH exits', () {
+      final body = retirementBody();
 
-        final captureIdx = body.indexOf('final serverId =');
-        expect(
-          captureIdx,
-          isNot(-1),
-          reason:
-              'Could not find the `final serverId =` capture. Re-point '
-              'this gate rather than deleting it -- the invariant still '
-              'matters.',
-        );
+      final captureIdx = body.indexOf('final serverId =');
+      expect(
+        captureIdx,
+        isNot(-1),
+        reason:
+            'Could not find the `final serverId =` capture. Re-point '
+            'this gate rather than deleting it -- the invariant still '
+            'matters.',
+      );
 
-        // Both exits now return a record. The invariant is
-        // unchanged -- each must still carry the captured serverId -- so the
-        // gate matches `serverId: serverId` instead of `return serverId;`.
-        final returnCount = RegExp(
-          r'serverId:\s*serverId',
-        ).allMatches(body).length;
-        expect(
-          returnCount,
-          greaterThanOrEqualTo(2),
-          reason:
-              'retireUploadedLocalTrail has two exits (demote, delete) and '
-              'both must return the captured serverId -- discarding it on '
-              'either exit re-opens the dead end: the screen\'s trail.id stays '
-              '\'\' forever and every post-upload save fails for a trail '
-              'retired down that exit.',
-        );
+      // Both exits now return a record. The invariant is
+      // unchanged -- each must still carry the captured serverId -- so the
+      // gate matches `serverId: serverId` instead of `return serverId;`.
+      final returnCount = RegExp(r'serverId:\s*serverId')
+          .allMatches(body)
+          .length;
+      expect(
+        returnCount,
+        greaterThanOrEqualTo(2),
+        reason:
+            'retireUploadedLocalTrail has two exits (demote, delete) and '
+            'both must return the captured serverId -- discarding it on '
+            'either exit re-opens the dead end: the screen\'s trail.id stays '
+            '\'\' forever and every post-upload save fails for a trail '
+            'retired down that exit.',
+      );
 
-        // And they must disagree on rowRemoved, or the caller
-        // cannot tell which branch ran and the library/<serverId>/ reclaim
-        // either never fires or fires on the demote branch and deletes a
-        // still-held library entry's photos.
-        expect(
-          RegExp(r'rowRemoved:\s*false').allMatches(body).length,
-          greaterThanOrEqualTo(1),
-          reason: 'No exit reports rowRemoved: false -- the demote branch '
-              'would trigger the caller\'s library-directory reclaim.',
-        );
-        expect(
-          RegExp(r'rowRemoved:\s*true').allMatches(body).length,
-          greaterThanOrEqualTo(1),
-          reason: 'No exit reports rowRemoved: true -- the orphaned '
-              'library/<serverId>/ is never reclaimed.',
-        );
+      // And they must disagree on rowRemoved, or the caller
+      // cannot tell which branch ran and the library/<serverId>/ reclaim
+      // either never fires or fires on the demote branch and deletes a
+      // still-held library entry's photos.
+      expect(
+        RegExp(r'rowRemoved:\s*false').allMatches(body).length,
+        greaterThanOrEqualTo(1),
+        reason:
+            'No exit reports rowRemoved: false -- the demote branch '
+            'would trigger the caller\'s library-directory reclaim.',
+      );
+      expect(
+        RegExp(r'rowRemoved:\s*true').allMatches(body).length,
+        greaterThanOrEqualTo(1),
+        reason:
+            'No exit reports rowRemoved: true -- the orphaned '
+            'library/<serverId>/ is never reclaimed.',
+      );
 
-        final ownerNullIdx = body.indexOf('entity.owner = null');
-        final removeIdx = body.indexOf('trailBox.remove(');
-        expect(ownerNullIdx, isNot(-1));
-        expect(removeIdx, isNot(-1));
-        expect(
-          captureIdx < ownerNullIdx && captureIdx < removeIdx,
-          isTrue,
-          reason:
-              'serverId must be captured BEFORE either exit mutates or '
-              'removes the row -- capturing after `entity.owner = null` or '
-              '`trailBox.remove(` reads a value the row no longer reliably '
-              'carries.',
-        );
-      },
-    );
+      final ownerNullIdx = body.indexOf('entity.owner = null');
+      final removeIdx = body.indexOf('trailBox.remove(');
+      expect(ownerNullIdx, isNot(-1));
+      expect(removeIdx, isNot(-1));
+      expect(
+        captureIdx < ownerNullIdx && captureIdx < removeIdx,
+        isTrue,
+        reason:
+            'serverId must be captured BEFORE either exit mutates or '
+            'removes the row -- capturing after `entity.owner = null` or '
+            '`trailBox.remove(` reads a value the row no longer reliably '
+            'carries.',
+      );
+    });
   });
 
-  group(
-    'the drain -- ordering and absence facts a call-site grep cannot see',
-    () {
-      /// The comment-stripped contents of every `.dart` file under `lib/`,
-      /// keyed by path.
-      Map<String, String> allLibSourcesCodeOnly() {
-        expect(
-          libDir.existsSync(),
-          isTrue,
-          reason:
-              'This test must be run with `flutter test`\'s working '
-              'directory set to `app/` (e.g. "cd app && flutter test").',
-        );
+  group('the drain -- ordering and absence facts a call-site grep cannot see', () {
+    /// The comment-stripped contents of every `.dart` file under `lib/`,
+    /// keyed by path.
+    Map<String, String> allLibSourcesCodeOnly() {
+      expect(
+        libDir.existsSync(),
+        isTrue,
+        reason:
+            'This test must be run with `flutter test`\'s working '
+            'directory set to `app/` (e.g. "cd app && flutter test").',
+      );
 
-        final sources = <String, String>{};
-        for (final entity in libDir.listSync(recursive: true)) {
-          if (entity is! File || !entity.path.endsWith('.dart')) continue;
-          final codeOnly = entity
-              .readAsStringSync()
-              .split('\n')
-              .where((line) => !RegExp(r'^\s*//').hasMatch(line))
-              .join('\n');
-          sources[entity.path] = codeOnly;
-        }
-        return sources;
-      }
-
-      /// `_drainOne`'s body, comment-stripped, isolated from the rest of the
-      /// file.
-      String drainOneBody() {
-        final source = File(
-          'lib/provider/trail/trail_sync_provider.dart',
-        ).readAsStringSync();
-        final codeOnly = source
+      final sources = <String, String>{};
+      for (final entity in libDir.listSync(recursive: true)) {
+        if (entity is! File || !entity.path.endsWith('.dart')) continue;
+        final codeOnly = entity
+            .readAsStringSync()
             .split('\n')
             .where((line) => !RegExp(r'^\s*//').hasMatch(line))
             .join('\n');
-
-        final sigStart = codeOnly.indexOf('Future<void> _drainOne(');
-        expect(
-          sigStart,
-          isNot(-1),
-          reason:
-              '_drainOne was renamed or its signature changed. Re-point this '
-              'gate rather than deleting it -- the invariant still matters.',
-        );
-
-        final bodyEnd = codeOnly.indexOf('\n  }', sigStart);
-        expect(
-          bodyEnd,
-          isNot(-1),
-          reason: 'Could not find the end of _drainOne\'s body.',
-        );
-
-        return codeOnly.substring(sigStart, bodyEnd);
+        sources[entity.path] = codeOnly;
       }
+      return sources;
+    }
 
-      test('markTrailSynced is gone from app/lib entirely', () {
-        final sources = allLibSourcesCodeOnly();
+    /// `_drainOne`'s body, comment-stripped, isolated from the rest of the
+    /// file.
+    String drainOneBody() {
+      final source = File('lib/provider/trail/trail_sync_provider.dart')
+          .readAsStringSync();
+      final codeOnly = source
+          .split('\n')
+          .where((line) => !RegExp(r'^\s*//').hasMatch(line))
+          .join('\n');
 
-        for (final entry in sources.entries) {
-          expect(
-            entry.value.contains('markTrailSynced'),
-            isFalse,
-            reason:
-                'markTrailSynced still appears in ${entry.key}. Its return '
-                'means a row survives its own upload as '
-                '`owner != null && syncState == synced`, which '
-                'readOwnLocalTrails re-emits forever and no delete affordance '
-                'in the app can remove.',
-          );
-        }
-      });
+      final sigStart = codeOnly.indexOf('Future<void> _drainOne(');
+      expect(
+        sigStart,
+        isNot(-1),
+        reason:
+            '_drainOne was renamed or its signature changed. Re-point this '
+            'gate rather than deleting it -- the invariant still matters.',
+      );
 
-      test('retirement happens after the waypoint loop', () {
-        final body = drainOneBody();
+      final bodyEnd = codeOnly.indexOf('\n  }', sigStart);
+      expect(
+        bodyEnd,
+        isNot(-1),
+        reason: 'Could not find the end of _drainOne\'s body.',
+      );
 
-        final loopIdx = body.indexOf(
-          'for (final waypointEntity in entity.waypoints) {',
-        );
-        final retireIdx = body.indexOf('retireUploadedLocalTrail(');
+      return codeOnly.substring(sigStart, bodyEnd);
+    }
 
-        expect(loopIdx, isNot(-1));
-        expect(retireIdx, isNot(-1));
+    test('markTrailSynced is gone from app/lib entirely', () {
+      final sources = allLibSourcesCodeOnly();
+
+      for (final entry in sources.entries) {
         expect(
-          loopIdx < retireIdx,
-          isTrue,
-          reason:
-              'Retiring before every waypoint is created destroys the '
-              'resume state the drain depends on -- the trail would exist '
-              'server-side with missing waypoints and no local row to '
-              'retry from.',
-        );
-      });
-
-      test('retirement happens inside the try, not the catch', () {
-        final body = drainOneBody();
-
-        final retireIdx = body.indexOf('retireUploadedLocalTrail(');
-        final catchIdx = body.indexOf('} catch (e, st) {');
-
-        expect(retireIdx, isNot(-1));
-        expect(catchIdx, isNot(-1));
-        expect(
-          retireIdx < catchIdx,
-          isTrue,
-          reason:
-              'A retirement reachable from the failure handler deletes the '
-              'hiker\'s only copy of a trail whose upload did not complete.',
-        );
-      });
-
-      test('files are swept after the row is retired', () {
-        final body = drainOneBody();
-
-        final retireIdx = body.indexOf('retireUploadedLocalTrail(');
-        final sweepIdx = body.indexOf(
-          '_deletePhotoDirBestEffort(accountId, localId)',
-        );
-
-        expect(retireIdx, isNot(-1));
-        expect(sweepIdx, isNot(-1));
-        expect(
-          retireIdx < sweepIdx,
-          isTrue,
-          reason:
-              '`unsyncedLocalIds` cannot see a retired row, so the startup '
-              'sweep reclaims a directory orphaned by a crash between the '
-              'two, whereas the reverse order leaves a live row pointing at '
-              'files that are gone.',
-        );
-      });
-
-      test('hasKeylessPendingWaypoint( is checked before the in-flight set '
-          'is joined -- an invariant break must not record a failed '
-          'attempt', () {
-        final body = drainOneBody();
-
-        final guardIdx = body.indexOf('hasKeylessPendingWaypoint(');
-        final joinIdx = body.indexOf('state = {...state, localId};');
-
-        expect(guardIdx, isNot(-1));
-        expect(joinIdx, isNot(-1));
-        expect(
-          guardIdx < joinIdx,
-          isTrue,
-          reason:
-              'A waypoint that is still a local sentinel with no localKey '
-              'to record the server\'s returned id against is a corrupt '
-              'row, not a network condition -- no retry will ever fix it. '
-              'Checking this only after the row joins the in-flight set '
-              'and enters the try lets four fast passes (a lifecycle or '
-              'connectivity flurry produces these within seconds) park an '
-              'otherwise-healthy trail as `failed`, after which isDrainDue '
-              'never picks it up again.',
-        );
-      });
-
-      test('the body contains no StateError( -- the keyless-waypoint '
-          'throw is gone, so it can no longer reach recordDrainFailure', () {
-        final body = drainOneBody();
-
-        expect(
-          body.contains('StateError('),
+          entry.value.contains('markTrailSynced'),
           isFalse,
           reason:
-              'A StateError thrown from inside the try lands in the '
-              'generic failure handler and consumes one of the four '
-              'kMaxSyncAttempts for an invariant break no retry could '
-              'ever fix -- the hasKeylessPendingWaypoint guard above '
-              'must be what prevents reaching this point instead.',
+              'markTrailSynced still appears in ${entry.key}. Its return '
+              'means a row survives its own upload as '
+              '`owner != null && syncState == synced`, which '
+              'readOwnLocalTrails re-emits forever and no delete affordance '
+              'in the app can remove.',
         );
-      });
+      }
+    });
 
-      // EFFECT assertion: the retirement return value
-      // must be ASSIGNED (not discarded) and CONSUMED by the memo before the
-      // detail/create screen's only other handle on the trail (the memo
-      // itself) can exist.
-      test(
-        'assigns retireUploadedLocalTrail\'s return value -- it is never '
-        'discarded',
-        () {
-          final body = drainOneBody();
+    test('retirement happens after the waypoint loop', () {
+      final body = drainOneBody();
 
-          expect(
-            body.contains('= retireUploadedLocalTrail('),
-            isTrue,
-            reason:
-                'Calling retireUploadedLocalTrail( for its side effect '
-                'alone and discarding the return value re-opens the dead end: the '
-                'screen\'s trail.id snapshot stays the blank local-'
-                'sentinel value forever (there are no ObjectBox '
-                'Query.watch() streams anywhere in this app), and every '
-                'post-upload save from that screen hits the dead POST.',
-          );
-        },
+      final loopIdx =
+          RegExp(
+            r'for\s*\(final waypointEntity in entity\.waypoints(?:\.toList\(\))?\)\s*\{',
+          ).firstMatch(body)?.start ??
+          -1;
+      final retireIdx = body.indexOf('retireUploadedLocalTrail(');
+
+      expect(loopIdx, isNot(-1));
+      expect(retireIdx, isNot(-1));
+      expect(
+        loopIdx < retireIdx,
+        isTrue,
+        reason:
+            'Retiring before every waypoint is created destroys the '
+            'resume state the drain depends on -- the trail would exist '
+            'server-side with missing waypoints and no local row to '
+            'retry from.',
+      );
+    });
+
+    test('retirement happens inside the try, not the catch', () {
+      final body = drainOneBody();
+
+      final retireIdx = body.indexOf('retireUploadedLocalTrail(');
+      final catchIdx = body.indexOf('} catch (e, st) {');
+
+      expect(retireIdx, isNot(-1));
+      expect(catchIdx, isNot(-1));
+      expect(
+        retireIdx < catchIdx,
+        isTrue,
+        reason:
+            'A retirement reachable from the failure handler deletes the '
+            'hiker\'s only copy of a trail whose upload did not complete.',
+      );
+    });
+
+    test('files are swept after the row is retired', () {
+      final body = drainOneBody();
+
+      final retireIdx = body.indexOf('retireUploadedLocalTrail(');
+      final sweepIdx = body.indexOf(
+        '_deletePhotoDirBestEffort(accountId, localId)',
       );
 
-      test(
-        '_rememberRetiredServerId( runs after the retirement return value '
-        'is captured, not before',
-        () {
-          final body = drainOneBody();
-
-          final captureIdx = body.indexOf('= retireUploadedLocalTrail(');
-          final rememberIdx = body.indexOf('_rememberRetiredServerId(');
-          expect(captureIdx, isNot(-1));
-          expect(
-            rememberIdx,
-            isNot(-1),
-            reason:
-                '_rememberRetiredServerId is gone from _drainOne. Without '
-                'it, retireUploadedLocalTrail\'s return value is captured '
-                'but never memoized, so serverIdForRetired can never '
-                'resolve it for a still-mounted screen.',
-          );
-          expect(
-            captureIdx < rememberIdx,
-            isTrue,
-            reason:
-                '_rememberRetiredServerId must run AFTER the return value '
-                'is captured into a local variable -- calling it before '
-                'the capture line exists would memoize a stale or '
-                'undefined value.',
-          );
-        },
+      expect(retireIdx, isNot(-1));
+      expect(sweepIdx, isNot(-1));
+      expect(
+        retireIdx < sweepIdx,
+        isTrue,
+        reason:
+            '`unsyncedLocalIds` cannot see a retired row, so the startup '
+            'sweep reclaims a directory orphaned by a crash between the '
+            'two, whereas the reverse order leaves a live row pointing at '
+            'files that are gone.',
       );
+    });
 
-      test(
-        'invalidates localTrailProvider(localId) AFTER retirement runs, so '
-        'a mounted detail screen re-reads instead of rendering a dead row',
-        () {
-          final body = drainOneBody();
+    test('hasKeylessPendingWaypoint( is checked before the in-flight set '
+        'is joined -- an invariant break must not record a failed '
+        'attempt', () {
+      final body = drainOneBody();
 
-          final retireIdx = body.indexOf('retireUploadedLocalTrail(');
-          final invalidateIdx = body.indexOf(
-            'invalidate(localTrailProvider(localId))',
-          );
-          expect(retireIdx, isNot(-1));
-          expect(
-            invalidateIdx,
-            isNot(-1),
-            reason:
-                'localTrailProvider(localId) is no longer invalidated in '
-                '_drainOne. A hiker sitting on /trail/local/<localId> '
-                'while the upload completes keeps rendering a row that no '
-                'longer exists, with a live Edit button that walks '
-                'straight into that dead end.',
-          );
-          expect(
-            retireIdx < invalidateIdx,
-            isTrue,
-            reason:
-                'The invalidation must run AFTER retireUploadedLocalTrail, '
-                'or the still-mounted provider re-reads a row that has not '
-                'been retired yet and observes no change.',
-          );
-        },
+      final guardIdx = body.indexOf('hasKeylessPendingWaypoint(');
+      final joinIdx = body.indexOf('state = {...state, localId};');
+
+      expect(guardIdx, isNot(-1));
+      expect(joinIdx, isNot(-1));
+      expect(
+        guardIdx < joinIdx,
+        isTrue,
+        reason:
+            'A waypoint that is still a local sentinel with no localKey '
+            'to record the server\'s returned id against is a corrupt '
+            'row, not a network condition -- no retry will ever fix it. '
+            'Checking this only after the row joins the in-flight set '
+            'and enters the try lets four fast passes (a lifecycle or '
+            'connectivity flurry produces these within seconds) park an '
+            'otherwise-healthy trail as `failed`, after which isDrainDue '
+            'never picks it up again.',
       );
-    },
-  );
+    });
+
+    test('the keyless-waypoint guard returns before upload work begins', () {
+      final body = drainOneBody();
+      final guard = body.indexOf('if (hasKeylessPendingWaypoint(');
+      final join = body.indexOf('state = {...state, localId};');
+      expect(guard, isNot(-1));
+      expect(join, greaterThan(guard));
+      final invalidWaypointBranch = body.substring(guard, join);
+      expect(invalidWaypointBranch, contains('return;'));
+      expect(
+        invalidWaypointBranch,
+        isNot(contains('throw ')),
+        reason:
+            'An invalid local waypoint must return before the upload try. '
+            'Target failures during real upload work may record a retry.',
+      );
+    });
+
+    // EFFECT assertion: the retirement return value
+    // must be ASSIGNED (not discarded) and CONSUMED by the memo before the
+    // detail/create screen's only other handle on the trail (the memo
+    // itself) can exist.
+    test('assigns retireUploadedLocalTrail\'s return value -- it is never '
+        'discarded', () {
+      final body = drainOneBody();
+
+      expect(
+        body.contains('= retireUploadedLocalTrail('),
+        isTrue,
+        reason:
+            'Calling retireUploadedLocalTrail( for its side effect '
+            'alone and discarding the return value re-opens the dead end: the '
+            'screen\'s trail.id snapshot stays the blank local-'
+            'sentinel value forever (there are no ObjectBox '
+            'Query.watch() streams anywhere in this app), and every '
+            'post-upload save from that screen hits the dead POST.',
+      );
+    });
+
+    test('_rememberRetiredServerId( runs after the retirement return value '
+        'is captured, not before', () {
+      final body = drainOneBody();
+
+      final captureIdx = body.indexOf('= retireUploadedLocalTrail(');
+      final rememberIdx = body.indexOf('_rememberRetiredServerId(');
+      expect(captureIdx, isNot(-1));
+      expect(
+        rememberIdx,
+        isNot(-1),
+        reason:
+            '_rememberRetiredServerId is gone from _drainOne. Without '
+            'it, retireUploadedLocalTrail\'s return value is captured '
+            'but never memoized, so serverIdForRetired can never '
+            'resolve it for a still-mounted screen.',
+      );
+      expect(
+        captureIdx < rememberIdx,
+        isTrue,
+        reason:
+            '_rememberRetiredServerId must run AFTER the return value '
+            'is captured into a local variable -- calling it before '
+            'the capture line exists would memoize a stale or '
+            'undefined value.',
+      );
+    });
+
+    test('invalidates localTrailProvider(localId) AFTER retirement runs, so '
+        'a mounted detail screen re-reads instead of rendering a dead row', () {
+      final body = drainOneBody();
+
+      final retireIdx = body.indexOf('retireUploadedLocalTrail(');
+      expect(retireIdx, isNot(-1));
+      // Pending photo saves also invalidate their retained row. Check the
+      // completed upload's invalidation after the retirement boundary.
+      final invalidateIdx = body.indexOf(
+        'invalidate(localTrailProvider(localId))',
+        retireIdx,
+      );
+      expect(
+        invalidateIdx,
+        isNot(-1),
+        reason:
+            'localTrailProvider(localId) is no longer invalidated in '
+            '_drainOne. A hiker sitting on /trail/local/<localId> '
+            'while the upload completes keeps rendering a row that no '
+            'longer exists, with a live Edit button that walks '
+            'straight into that dead end.',
+      );
+      expect(
+        retireIdx < invalidateIdx,
+        isTrue,
+        reason:
+            'The invalidation must run AFTER retireUploadedLocalTrail, '
+            'or the still-mounted provider re-reads a row that has not '
+            'been retired yet and observes no change.',
+      );
+    });
+  });
 
   // Both an EFFECT assertion (the account comparison actually gates the
   // return, not merely appears somewhere in the body) and a threat-model
@@ -508,9 +500,8 @@ void main() {
     /// from the rest of the file. Built the same way as [drainOneBody]
     /// above.
     String serverIdForRetiredBody() {
-      final source = File(
-        'lib/provider/trail/trail_sync_provider.dart',
-      ).readAsStringSync();
+      final source = File('lib/provider/trail/trail_sync_provider.dart')
+          .readAsStringSync();
       final codeOnly = source
           .split('\n')
           .where((line) => !RegExp(r'^\s*//').hasMatch(line))
@@ -552,66 +543,62 @@ void main() {
       );
     });
 
-    test(
-      'never returns the memoized server id except from inside an account '
-      'comparison',
-      () {
-        final body = serverIdForRetiredBody();
+    test('never returns the memoized server id except from inside an account '
+        'comparison', () {
+      final body = serverIdForRetiredBody();
 
-        final entryIdx = body.indexOf('_retiredServerIds[localId]');
-        expect(
-          entryIdx,
-          isNot(-1),
-          reason:
-              'Could not find the memo lookup. Re-point this gate rather '
-              'than deleting it -- the invariant still matters.',
-        );
+      final entryIdx = body.indexOf('_retiredServerIds[localId]');
+      expect(
+        entryIdx,
+        isNot(-1),
+        reason:
+            'Could not find the memo lookup. Re-point this gate rather '
+            'than deleting it -- the invariant still matters.',
+      );
 
-        final returnIdx = body.lastIndexOf('return entry.serverId;');
-        expect(
-          returnIdx,
-          isNot(-1),
-          reason:
-              'Could not find the final `return entry.serverId;`. '
-              'Re-point this gate rather than deleting it -- the '
-              'invariant still matters.',
-        );
-        expect(
-          entryIdx < returnIdx,
-          isTrue,
-          reason:
-              'The memo lookup must precede the value it returns.',
-        );
+      final returnIdx = body.lastIndexOf('return entry.serverId;');
+      expect(
+        returnIdx,
+        isNot(-1),
+        reason:
+            'Could not find the final `return entry.serverId;`. '
+            'Re-point this gate rather than deleting it -- the '
+            'invariant still matters.',
+      );
+      expect(
+        entryIdx < returnIdx,
+        isTrue,
+        reason: 'The memo lookup must precede the value it returns.',
+      );
 
-        // Everything between the memo lookup and the eventual return is the
-        // region that MUST contain the account comparison -- removing it
-        // (the falsifying rewrite: delete the
-        // `if (entry.accountId != accountId) { ...; return null; }` block)
-        // collapses this slice to nothing but the null-check, and the
-        // assertions below fail.
-        final guardSlice = body.substring(entryIdx, returnIdx);
-        expect(
-          guardSlice.contains('accountId'),
-          isTrue,
-          reason:
-              'trailSyncProvider is deliberately excluded from '
-              'accountScopedProviders (account_scope_invalidation.dart), '
-              'so this memo survives an account switch. Without a '
-              'per-entry account comparison between the memo lookup and '
-              'the return, account B could resolve account A\'s retired '
-              'server id through a stale localId and post an edit to '
-              'A\'s trail.',
-        );
-        expect(
-          guardSlice.contains('!='),
-          isTrue,
-          reason:
-              'The account check must be a COMPARISON (entry.accountId != '
-              'accountId), not merely a mention of the word "accountId" '
-              'somewhere in the slice (e.g. in an unrelated debugPrint).',
-        );
-      },
-    );
+      // Everything between the memo lookup and the eventual return is the
+      // region that MUST contain the account comparison -- removing it
+      // (the falsifying rewrite: delete the
+      // `if (entry.accountId != accountId) { ...; return null; }` block)
+      // collapses this slice to nothing but the null-check, and the
+      // assertions below fail.
+      final guardSlice = body.substring(entryIdx, returnIdx);
+      expect(
+        guardSlice.contains('accountId'),
+        isTrue,
+        reason:
+            'trailSyncProvider is deliberately excluded from '
+            'accountScopedProviders (account_scope_invalidation.dart), '
+            'so this memo survives an account switch. Without a '
+            'per-entry account comparison between the memo lookup and '
+            'the return, account B could resolve account A\'s retired '
+            'server id through a stale localId and post an edit to '
+            'A\'s trail.',
+      );
+      expect(
+        guardSlice.contains('!='),
+        isTrue,
+        reason:
+            'The account check must be a COMPARISON (entry.accountId != '
+            'accountId), not merely a mention of the word "accountId" '
+            'somewhere in the slice (e.g. in an unrelated debugPrint).',
+      );
+    });
   });
 
   group('deleteUnsynced -- a row with a server id gets a real server '
@@ -633,9 +620,8 @@ void main() {
             'directory set to `app/` (e.g. "cd app && flutter test").',
       );
 
-      final source = File(
-        'lib/provider/trail/trail_sync_provider.dart',
-      ).readAsStringSync();
+      final source = File('lib/provider/trail/trail_sync_provider.dart')
+          .readAsStringSync();
       final codeOnly = source
           .split('\n')
           .where((line) => !RegExp(r'^\s*//').hasMatch(line))
@@ -779,9 +765,8 @@ void main() {
       () {
         final body = deleteUnsyncedBody();
 
-        final assignMatch = RegExp(
-          r'(\w+)\s*=\s*deleteLocalTrailRow\(',
-        ).firstMatch(body);
+        final assignMatch = RegExp(r'(\w+)\s*=\s*deleteLocalTrailRow\(')
+            .firstMatch(body);
         expect(
           assignMatch,
           isNotNull,
@@ -823,159 +808,148 @@ void main() {
       },
     );
 
-    test(
-      'a no-op row delete returns UnsyncedDeleteResult.failed, never '
-      '.deleted -- reporting success for a delete that never happened '
-      'produces a success toast, a popped route and a map-provider '
-      'announcement for nothing',
-      () {
-        final body = deleteUnsyncedBody();
+    test('a no-op row delete returns UnsyncedDeleteResult.failed, never '
+        '.deleted -- reporting success for a delete that never happened '
+        'produces a success toast, a popped route and a map-provider '
+        'announcement for nothing', () {
+      final body = deleteUnsyncedBody();
 
-        final assignMatch = RegExp(
-          r'(\w+)\s*=\s*deleteLocalTrailRow\(',
-        ).firstMatch(body);
-        expect(assignMatch, isNotNull);
-        final resultVar = assignMatch!.group(1)!;
+      final assignMatch = RegExp(r'(\w+)\s*=\s*deleteLocalTrailRow\(')
+          .firstMatch(body);
+      expect(assignMatch, isNotNull);
+      final resultVar = assignMatch!.group(1)!;
 
-        final guardIdx = body.indexOf(
-          'if ($resultVar == LocalRowDeleteOutcome.noMatch)',
-        );
-        expect(guardIdx, isNot(-1));
+      final guardIdx = body.indexOf(
+        'if ($resultVar == LocalRowDeleteOutcome.noMatch)',
+      );
+      expect(guardIdx, isNot(-1));
 
-        final guardEnd = body.indexOf('}', guardIdx);
+      final guardEnd = body.indexOf('}', guardIdx);
+      expect(
+        guardEnd,
+        isNot(-1),
+        reason: 'Could not find the end of the no-op-row-delete guard.',
+      );
+      final guardBlock = body.substring(guardIdx, guardEnd);
+
+      expect(
+        guardBlock.contains('UnsyncedDeleteResult.failed'),
+        isTrue,
+        reason:
+            'Reporting UnsyncedDeleteResult.deleted for an operation '
+            'that matched no row produces a success toast, a popped '
+            'route and a map-provider announcement for a delete that '
+            'never happened.',
+      );
+
+      // `deleted` is reachable from this branch, but ONLY
+      // when gated on `serverCopyDeleted`. An ungated `deleted` here is the
+      // exact regression this gate exists to catch.
+      if (guardBlock.contains('UnsyncedDeleteResult.deleted')) {
         expect(
-          guardEnd,
-          isNot(-1),
-          reason: 'Could not find the end of the no-op-row-delete guard.',
-        );
-        final guardBlock = body.substring(guardIdx, guardEnd);
-
-        expect(
-          guardBlock.contains('UnsyncedDeleteResult.failed'),
+          guardBlock.contains('serverCopyDeleted'),
           isTrue,
           reason:
-              'Reporting UnsyncedDeleteResult.deleted for an operation '
-              'that matched no row produces a success toast, a popped '
-              'route and a map-provider announcement for a delete that '
-              'never happened.',
+              'The no-match branch may only report .deleted when '
+              'serverCopyDeleted proves we owned the row and the server '
+              'copy is gone. An unconditional .deleted here reports '
+              'success for a delete that touched nothing.',
         );
+      }
+    });
 
-        // `deleted` is reachable from this branch, but ONLY
-        // when gated on `serverCopyDeleted`. An ungated `deleted` here is the
-        // exact regression this gate exists to catch.
-        if (guardBlock.contains('UnsyncedDeleteResult.deleted')) {
-          expect(
-            guardBlock.contains('serverCopyDeleted'),
-            isTrue,
-            reason:
-                'The no-match branch may only report .deleted when '
-                'serverCopyDeleted proves we owned the row and the server '
-                'copy is gone. An unconditional .deleted here reports '
-                'success for a delete that touched nothing.',
-          );
-        }
-      },
-    );
+    test('serverCopyDeleted can only be set inside the owner-scoped serverId '
+        'branch -- otherwise the overlap gets a success '
+        'result for another account\'s row', () {
+      final body = deleteUnsyncedBody();
 
-    test(
-      'serverCopyDeleted can only be set inside the owner-scoped serverId '
-      'branch -- otherwise the overlap gets a success '
-      'result for another account\'s row',
-      () {
-        final body = deleteUnsyncedBody();
+      final serverIdGuardIdx = body.indexOf('if (serverId != null)');
+      expect(
+        serverIdGuardIdx,
+        isNot(-1),
+        reason: 'Could not find the serverId != null guard.',
+      );
 
-        final serverIdGuardIdx = body.indexOf('if (serverId != null)');
+      // Every assignment that sets the flag true must appear after the
+      // owner-scoped `readLocalTrailServerId` result has been proven
+      // non-null. `readLocalTrailServerId` is owner-scoped, so in the
+      // overlap it returns null, this block never runs, and the flag stays
+      // false -- keeping the no-match branch on `failed`.
+      final assignments = RegExp(r'serverCopyDeleted\s*=\s*true')
+          .allMatches(body)
+          .toList();
+      expect(
+        assignments,
+        isNotEmpty,
+        reason: 'serverCopyDeleted is never set -- this has regressed.',
+      );
+      for (final m in assignments) {
         expect(
-          serverIdGuardIdx,
-          isNot(-1),
-          reason: 'Could not find the serverId != null guard.',
+          m.start,
+          greaterThan(serverIdGuardIdx),
+          reason:
+              'serverCopyDeleted is set outside the `serverId != null` '
+              'branch. That lets a non-owning account reach a .deleted '
+              'result for a row it never owned.',
         );
-
-        // Every assignment that sets the flag true must appear after the
-        // owner-scoped `readLocalTrailServerId` result has been proven
-        // non-null. `readLocalTrailServerId` is owner-scoped, so in the
-        // overlap it returns null, this block never runs, and the flag stays
-        // false -- keeping the no-match branch on `failed`.
-        final assignments = RegExp(
-          r'serverCopyDeleted\s*=\s*true',
-        ).allMatches(body).toList();
-        expect(
-          assignments,
-          isNotEmpty,
-          reason: 'serverCopyDeleted is never set -- this has regressed.',
-        );
-        for (final m in assignments) {
-          expect(
-            m.start,
-            greaterThan(serverIdGuardIdx),
-            reason:
-                'serverCopyDeleted is set outside the `serverId != null` '
-                'branch. That lets a non-owning account reach a .deleted '
-                'result for a row it never owned.',
-          );
-        }
-      },
-    );
+      }
+    });
   });
 
-  group(
-    'writeServerWaypointId -- localPhotos survive until the trail is '
-    'retired',
-    () {
-      /// [writeServerWaypointId]'s body, comment-stripped, isolated from
-      /// the rest of the file.
-      String writeServerWaypointIdBody() {
-        expect(
-          libDir.existsSync(),
-          isTrue,
-          reason:
-              'This test must be run with `flutter test`\'s working '
-              'directory set to `app/` (e.g. "cd app && flutter test").',
-        );
+  group('writeServerWaypointId -- localPhotos survive until the trail is '
+      'retired', () {
+    /// [writeServerWaypointId]'s body, comment-stripped, isolated from
+    /// the rest of the file.
+    String writeServerWaypointIdBody() {
+      expect(
+        libDir.existsSync(),
+        isTrue,
+        reason:
+            'This test must be run with `flutter test`\'s working '
+            'directory set to `app/` (e.g. "cd app && flutter test").',
+      );
 
-        final source = File(
-          'lib/store/local_trail_store.dart',
-        ).readAsStringSync();
-        final codeOnly = source
-            .split('\n')
-            .where((line) => !RegExp(r'^\s*//').hasMatch(line))
-            .join('\n');
+      final source = File('lib/store/local_trail_store.dart')
+          .readAsStringSync();
+      final codeOnly = source
+          .split('\n')
+          .where((line) => !RegExp(r'^\s*//').hasMatch(line))
+          .join('\n');
 
-        final sigStart = codeOnly.indexOf('void writeServerWaypointId(');
-        expect(
-          sigStart,
-          isNot(-1),
-          reason:
-              'writeServerWaypointId was renamed or its signature '
-              'changed. Re-point this gate rather than deleting it -- the '
-              'invariant still matters.',
-        );
+      final sigStart = codeOnly.indexOf('void writeServerWaypointId(');
+      expect(
+        sigStart,
+        isNot(-1),
+        reason:
+            'writeServerWaypointId was renamed or its signature '
+            'changed. Re-point this gate rather than deleting it -- the '
+            'invariant still matters.',
+      );
 
-        final bodyEnd = codeOnly.indexOf('\n}', sigStart);
-        expect(
-          bodyEnd,
-          isNot(-1),
-          reason: 'Could not find the end of writeServerWaypointId\'s body.',
-        );
+      final bodyEnd = codeOnly.indexOf('\n}', sigStart);
+      expect(
+        bodyEnd,
+        isNot(-1),
+        reason: 'Could not find the end of writeServerWaypointId\'s body.',
+      );
 
-        return codeOnly.substring(sigStart, bodyEnd);
-      }
+      return codeOnly.substring(sigStart, bodyEnd);
+    }
 
-      test('never clears localPhotos', () {
-        final body = writeServerWaypointIdBody();
+    test('never clears localPhotos', () {
+      final body = writeServerWaypointIdBody();
 
-        expect(
-          body.contains('localPhotos = []'),
-          isFalse,
-          reason:
-              'Clearing localPhotos the instant one waypoint\'s create '
-              'succeeds orphans its JPEGs on disk the moment a LATER '
-              'waypoint in the same drain loop fails and the trail parks '
-              'as `failed` -- the model can no longer reach files that '
-              'still sit under unsynced/<localId>/waypoints/<key>/ until '
-              'the trail is retired or deleted.',
-        );
-      });
-    },
-  );
+      expect(
+        body.contains('localPhotos = []'),
+        isFalse,
+        reason:
+            'Clearing localPhotos the instant one waypoint\'s create '
+            'succeeds orphans its JPEGs on disk the moment a LATER '
+            'waypoint in the same drain loop fails and the trail parks '
+            'as `failed` -- the model can no longer reach files that '
+            'still sit under unsynced/<localId>/waypoints/<key>/ until '
+            'the trail is retired or deleted.',
+      );
+    });
+  });
 }

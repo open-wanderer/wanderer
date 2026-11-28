@@ -28,18 +28,11 @@ class WaypointSheet extends ConsumerWidget {
     final localizations = AppLocalizations.of(context)!;
     final unit = ref.watch(unitProvider);
 
-    // A waypoint whose photos have been downloaded for offline use (library)
-    // carries BOTH `photos` (server filenames) and `localPhotos` (downloaded
-    // file paths) at the same time -- unlike `Trail`, which leaves `photos`
-    // empty for any DB-backed row. When local copies exist, prefer them
-    // exclusively: building network URLs alongside them would duplicate every
-    // photo in PhotoCollage (network copy first, local copy second) and,
-    // offline, the leading network copies fail to load while the trailing
-    // local ones succeed -- showing placeholders for photos that are in fact
-    // available on-device. This also sidesteps `user!` below when `user` is
-    // null but local copies already make the collage worth showing.
+    // Downloaded server photos and pending local picks have separate storage.
+    final localPhotos = [...waypoint.downloadedPhotos, ...waypoint.localPhotos];
     final currentUser = user;
-    final webPhotos = waypoint.localPhotos.isNotEmpty || currentUser == null
+    final webPhotos =
+        waypoint.downloadedPhotos.isNotEmpty || currentUser == null
         ? const <String>[]
         : waypoint.photos
               .map(
@@ -85,14 +78,14 @@ class WaypointSheet extends ConsumerWidget {
               children: [
                 Stack(
                   children: [
-                    if (waypoint.localPhotos.isNotEmpty ||
+                    if (localPhotos.isNotEmpty ||
                         waypoint.photos.isNotEmpty && user != null)
                       ClipRRect(
                         borderRadius: const BorderRadius.vertical(
                           top: Radius.circular(16),
                         ),
                         child: PhotoCollage(
-                          localPhotos: waypoint.localPhotos,
+                          localPhotos: localPhotos,
                           webPhotos: webPhotos,
                         ),
                       ),
@@ -196,9 +189,8 @@ class WaypointSheet extends ConsumerWidget {
                       waypoint.description!,
                       style: theme.textTheme.bodyMedium?.copyWith(
                         height: 1.5,
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.onSurface.withValues(alpha: 0.8),
+                        color: Theme.of(context).colorScheme.onSurface
+                            .withValues(alpha: 0.8),
                       ),
                     ),
                   ),

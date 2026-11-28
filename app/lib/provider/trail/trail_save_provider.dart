@@ -7,6 +7,10 @@ import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/models/waypoint.dart';
 import 'package:wanderer/provider/api_provider.dart';
 import 'package:wanderer/provider/auth_provider.dart';
+import 'package:wanderer/provider/objectbox_store_provider.dart';
+import 'package:wanderer/store/current_account.dart';
+import 'package:wanderer/store/local_trail_store.dart';
+import 'package:wanderer/store/local_photo_store.dart';
 import 'package:wanderer/provider/server_capabilities_provider.dart';
 import 'package:wanderer/provider/photo_api_provider.dart';
 import 'package:wanderer/services/asset_photo_client.dart';
@@ -392,6 +396,24 @@ class TrailSave extends _$TrailSave {
       session.check();
       try {
         await waypointNotifier.delete(wp);
+        session.check();
+        final store = ref.read(objectBoxProvider);
+        final accountId = currentAccountId(store);
+        if (accountId != null) {
+          final removed = removeQueuedWaypoint(
+            store,
+            accountId: accountId,
+            trailId: newTrail.id,
+            waypointId: wp.id,
+          );
+          for (final sources in removed) {
+            await deleteUnsyncedPhotoFiles(
+              accountId,
+              sources.localId,
+              sources.paths,
+            );
+          }
+        }
       } catch (_) {
         hadFailures = true;
       }

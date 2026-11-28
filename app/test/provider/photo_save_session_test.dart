@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -91,6 +92,48 @@ void main() {
       expect(saved.expand?.photoAssets?.single.asset, 'asset0000000001');
     },
   );
+
+  test('the queue resumes photos for an already-created waypoint', () async {
+    final directory = Directory.systemTemp.createTempSync('waypoint-resume');
+    addTearDown(() => directory.deleteSync(recursive: true));
+    final source = File('${directory.path}/photo.jpg')..writeAsBytesSync([1]);
+    final api = _Api()..acceptPendingUpload = true;
+    final container = ProviderContainer(
+      overrides: [
+        apiProvider.overrideWith(() => api),
+        photoMutationServiceProvider.overrideWith(
+          (ref) => PhotoMutationService(
+            api: ref.read(apiProvider),
+            resolveMode: () async => PhotoApiMode.legacy,
+            documentsDirectory: () async => directory,
+          ),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    final saved = await container
+        .read(waypointSaveProvider.notifier)
+        .saveQueuedWaypoint(
+          Waypoint(
+            id: 'waypoint0000001',
+            lat: 1,
+            lon: 1,
+            created: DateTime(2026),
+            updated: DateTime(2026),
+            localPhotos: [source.path],
+          ),
+          authorId: 'actor0000000001',
+          trailId: 'trail0000000001',
+        );
+    expect(saved.photos, ['uploaded.jpg']);
+    expect(saved.localPhotos, isEmpty);
+    expect(api.requests, hasLength(1));
+    expect(api.requests.single.method, 'POST');
+    expect(
+      api.requests.single.uri.path,
+      '/api/v1/waypoint/waypoint0000001/file',
+    );
+  });
 
   for (final target in ['trail', 'waypoint']) {
     for (final switchServer in [false, true]) {

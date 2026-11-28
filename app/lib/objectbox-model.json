@@ -97,7 +97,7 @@
     },
     {
       "id": "3:7655646596805638170",
-      "lastPropertyId": "15:5363316924739740034",
+      "lastPropertyId": "16:5466563172868676489",
       "name": "WaypointEntity",
       "properties": [
         {
@@ -180,6 +180,11 @@
           "id": "15:5363316924739740034",
           "name": "localKey",
           "type": 9
+        },
+        {
+          "id": "16:5466563172868676489",
+          "name": "downloadedPhotos",
+          "type": 30
         }
       ],
       "relations": []

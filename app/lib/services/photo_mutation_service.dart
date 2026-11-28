@@ -17,6 +17,7 @@ import 'package:wanderer/provider/server_capabilities_provider.dart';
 import 'package:wanderer/services/asset_photo_client.dart';
 import 'package:wanderer/store/app_photo_paths.dart';
 import 'package:wanderer/store/current_account.dart';
+import 'package:wanderer/store/local_trail_store.dart';
 import 'package:wanderer/util/local/id.dart';
 
 final photoMutationServiceProvider = Provider<PhotoMutationService>((ref) {
@@ -31,6 +32,35 @@ final photoMutationServiceProvider = Provider<PhotoMutationService>((ref) {
     onSessionInvalid: (error) async {
       if (ref.mounted)
         await ref.read(authProvider.notifier).signOutIfSessionInvalid(error);
+    },
+    hasQueuedTarget: (target, actor, base) {
+      final store = ref.read(objectBoxProvider);
+      final user = store.box<UserEntity>().getAll().firstOrNull;
+      if (user == null ||
+          user.actorId != actor ||
+          '${user.serverUrl.replaceAll(RegExp(r'/+$'), '')}/api/v1' != base)
+        return true;
+      return hasQueuedPhotoTarget(
+        store,
+        accountId: user.id,
+        kind: target.kind,
+        targetId: target.id,
+      );
+    },
+    onCancelledSources: (target, actor, base, paths) {
+      final store = ref.read(objectBoxProvider);
+      final user = store.box<UserEntity>().getAll().firstOrNull;
+      if (user == null ||
+          user.actorId != actor ||
+          '${user.serverUrl.replaceAll(RegExp(r'/+$'), '')}/api/v1' != base)
+        return;
+      removeQueuedPhotoSources(
+        store,
+        accountId: user.id,
+        kind: target.kind,
+        targetId: target.id,
+        paths: paths,
+      );
     },
     canSend: (base, actor) {
       if (!ref.mounted || ref.read(apiProvider).options.baseUrl != base)
@@ -93,6 +123,8 @@ class PhotoMutationService {
   static final _locks = <String, Future<void>>{};
   static final _scopeEpoch = <String, int>{};
   static final _closedScopes = <String>{};
+  final bool Function(PhotoTarget, String actorId, String baseUrl)?
+  hasQueuedTarget;
   final _assetServers = <String>{};
 
   PhotoMutationService({
@@ -105,6 +137,7 @@ class PhotoMutationService {
     this.onSessionInvalid,
     this.markAssetApi,
     this.onCancelledSources,
+    this.hasQueuedTarget,
     this.now = DateTime.now,
   });
 
@@ -151,6 +184,13 @@ class PhotoMutationService {
       entry['photo'] == null &&
       entry['rejected'] != true &&
       entry['cancelled'] != true;
+  bool _queueOwned(Map<String, dynamic> job) =>
+      job['queueOwned'] == true ||
+      _files(job).any(
+        (entry) =>
+            entry['source'] is String &&
+            p.split(entry['source'] as String).contains('unsynced'),
+      );
   bool _pending(Map<String, dynamic> job) =>
       _files(job).any(_waiting) ||
       (job['removed'] as List).isNotEmpty ||
@@ -188,7 +228,7 @@ class PhotoMutationService {
   }
 
   Future<void> _write(File file, Map<String, dynamic> job) async {
-    if (_closedScopes.contains(file.parent.path))
+    if (_closedScopes.contains(file.parent.path) && !_queueOwned(job))
       throw StateError('Photo scope removed');
     await file.parent.create(recursive: true);
     final temporary = File('${file.path}.tmp');
@@ -255,6 +295,11 @@ class PhotoMutationService {
         _cancelCover(job);
       if (!_waiting(entry)) await _delete(entry['path'] as String?, docs);
     }
+    job['queueOwned'] ??= _files(job).any(
+      (entry) =>
+          entry['source'] is String &&
+          p.split(entry['source'] as String).firstOrNull == 'unsynced',
+    );
     await _write(file, job);
     return job;
   }
@@ -304,7 +349,9 @@ class PhotoMutationService {
             'photos': <dynamic>[],
           };
       final previousRejections = job['rejectedCount'] as int? ?? 0;
-      if (!_pending(job) && existingPhotosAreAuthoritative) {
+      if (!_pending(job) &&
+          existingPhotosAreAuthoritative &&
+          !_queueOwned(job)) {
         job['photos'] = List<String>.of(existingPhotos);
         job['removed'] = <String>[];
         job['deleted'] = <String>[];
@@ -321,6 +368,31 @@ class PhotoMutationService {
             ),
           )
           .toList();
+      for (final source in cancelled) {
+        String storedSource;
+        try {
+          storedSource = storePhotoPath(docs, source);
+        } on ArgumentError {
+          continue;
+        }
+        if (p.split(storedSource).firstOrNull != 'unsynced' ||
+            files.any(
+              (entry) =>
+                  entry['source'] is String &&
+                  resolvePhotoPath(docs, entry['source'] as String) == source,
+            ))
+          continue;
+        final receipt = <String, dynamic>{
+          'key': _hash('cancelled:$storedSource'),
+          'source': storedSource,
+          'sourceKey': _hash(source),
+          'name': p.basename(source),
+          'cancelled': true,
+        };
+        files.add(receipt);
+        discarded.add(receipt);
+        job['queueOwned'] = true;
+      }
       for (final entry in discarded) {
         final photo = entry['photo'];
         if (photo is String && !(job['removed'] as List).contains(photo))
@@ -328,7 +400,11 @@ class PhotoMutationService {
       }
       if (discarded.any((entry) => job['cover'] == 'pending:${entry['key']}'))
         _cancelCover(job);
-      files.removeWhere(discarded.contains);
+      if (_queueOwned(job)) {
+        for (final entry in discarded) entry['cancelled'] = true;
+      } else {
+        files.removeWhere(discarded.contains);
+      }
       job['files'] = files;
       await _write(file, job);
       if (discarded.isNotEmpty)
@@ -372,6 +448,9 @@ class PhotoMutationService {
         } on ArgumentError {
           /* Picker cache. */
         }
+        if (storedSource != null &&
+            p.split(storedSource).firstOrNull == 'unsynced')
+          job['queueOwned'] = true;
         final key = _hash(
           '${storedSource ?? source}\n${stat.size}\n${stat.modified.microsecondsSinceEpoch}',
         );
@@ -546,6 +625,7 @@ class PhotoMutationService {
     PhotoTarget target,
     String actorId, {
     String? serverBaseUrl,
+    bool queueReceiptsPersisted = false,
   }) async {
     final file = await _file(
       target,
@@ -555,7 +635,10 @@ class PhotoMutationService {
     await _locked(file, () async {
       final docs = (await documentsDirectory()).path;
       final job = await _read(file, docs);
-      if (job != null && !_pending(job)) await _dropFile(file, job, docs);
+      if (job != null &&
+          !_pending(job) &&
+          (queueReceiptsPersisted || !_queueOwned(job)))
+        await _dropFile(file, job, docs);
     });
   }
 
@@ -563,7 +646,12 @@ class PhotoMutationService {
     PhotoTarget target,
     String actorId, {
     String? serverBaseUrl,
-  }) => acknowledge(target, actorId, serverBaseUrl: serverBaseUrl);
+  }) => acknowledge(
+    target,
+    actorId,
+    serverBaseUrl: serverBaseUrl,
+    queueReceiptsPersisted: true,
+  );
   Future<void> dropScope(String actorId, {String? serverBaseUrl}) async {
     final base = serverBaseUrl ?? api.options.baseUrl;
     final dir = (await _file(
@@ -584,14 +672,18 @@ class PhotoMutationService {
               entry.value,
         ]);
         final docs = (await documentsDirectory()).path;
+        var retained = false;
         for (final file in await _jobs(actorId, base)) {
           final job = Map<String, dynamic>.from(
             jsonDecode(await file.readAsString()) as Map,
           );
-
+          if (_queueOwned(job)) {
+            retained = true;
+            continue;
+          }
           await _dropFile(file, job, docs);
         }
-        if (await dir.exists()) await dir.delete(recursive: true);
+        if (!retained && await dir.exists()) await dir.delete(recursive: true);
       } finally {
         _closedScopes.remove(dir.path);
       }
@@ -613,9 +705,19 @@ class PhotoMutationService {
       final result = await _locked(file, () async {
         final docs = (await documentsDirectory()).path;
         final job = await _read(file, docs);
-        return job == null
-            ? const PhotoMutationResult([], pending: false)
-            : await _flush(file, job, docs, mode: selected);
+        if (job == null) return const PhotoMutationResult([], pending: false);
+        final queued = _queueOwned(job);
+        if (queued &&
+            hasQueuedTarget?.call(
+                  PhotoTarget(job['kind'] as String, job['id'] as String),
+                  actorId,
+                  base,
+                ) !=
+                false)
+          return const PhotoMutationResult([], pending: false);
+        final result = await _flush(file, job, docs, mode: selected);
+        if (queued && !result.pending) await _dropFile(file, job, docs);
+        return result;
       });
       pending |= result.pending;
       progress |= result.madeProgress;
