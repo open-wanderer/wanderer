@@ -2,7 +2,7 @@
 
 ## Breaking Changes
 
-- Search and reverse geocoding now run on `db`. Upgrade `web` and `db` together and keep `POCKETBASE_PROXY_SECRET` identical on both. Before upgrading, move any private `NOMINATIM_URL` (or legacy `PUBLIC_NOMINATIM_URL`) set only on `web` to `NOMINATIM_URL` on `db`. This includes deployments that still use a customized v0.21.2 Compose file. Until you migrate the setting, geocoding returns HTTP 502 rather than sending search terms or coordinates to public Nominatim, even if `db` explicitly selects the public service. A private URL in the `.env` shared with `db` by the new Compose file already works. To intentionally use public Nominatim, remove the obsolete custom setting from `web`. See the [environment configuration](https://wanderer.to/run/environment-configuration#geocoding--routing).
+- Search and reverse geocoding now run on `db`. Before upgrading, move any private `NOMINATIM_URL` (or legacy `PUBLIC_NOMINATIM_URL`) set only on `web` to `NOMINATIM_URL` on `db`. This includes deployments that still use a customized v0.21.2 Compose file. Until you migrate the setting, geocoding returns HTTP 502 rather than sending search terms or coordinates to public Nominatim, even if `db` explicitly selects the public service. A private URL in the `.env` shared with `db` by the new Compose file already works. To intentionally use public Nominatim, remove the obsolete custom setting from `web`. See the [environment configuration](https://wanderer.to/run/environment-configuration#geocoding--routing).
 
 # 0.21.2
 
