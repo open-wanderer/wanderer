@@ -40,7 +40,7 @@
             ],
             tags: [...new Set(data.trail.expand?.tags?.map((t) => t.name) ?? [])],
         },
-        images: data.trail.photos
+        images: (data.trail.photos ?? [])
             // Link previews can't show SVG, like the generated route image.
             .filter((p) => !p.endsWith(".svg"))
             .map((p) => ({

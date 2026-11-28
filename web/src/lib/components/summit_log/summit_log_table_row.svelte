@@ -113,7 +113,7 @@
         <td>
             {#if imgSrc.length}
                 <PhotoGallery
-                    photos={log.photos.map((p) => getFileURL(log, p))}
+                    photos={(log.photos ?? []).map((p) => getFileURL(log, p))}
                     bind:this={gallery}
                 ></PhotoGallery>
                 <button

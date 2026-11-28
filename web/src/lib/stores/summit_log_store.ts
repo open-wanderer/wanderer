@@ -98,7 +98,8 @@ export async function summit_logs_update(oldSummitLog: SummitLog, newSummitLog: 
         formData.append("photos", photo)
     }
 
-    const deletedPhotos = oldSummitLog.photos.filter(oldPhoto => !newSummitLog.photos.find(newPhoto => newPhoto === oldPhoto));
+    const nextPhotos = newSummitLog.photos;
+    const deletedPhotos = nextPhotos === undefined ? [] : (oldSummitLog.photos ?? []).filter(photo => !nextPhotos.includes(photo));
 
     for (const deletedPhoto of deletedPhotos) {
         formData.append("photos-", deletedPhoto.replace(/^.*[\\/]/, ''));

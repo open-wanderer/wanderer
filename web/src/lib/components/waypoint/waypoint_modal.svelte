@@ -152,7 +152,7 @@
                     id="waypoint-photo-input"
                     parent={$data}
                     onexif={(src) => getCoordinatesFromPhoto(src)}
-                    bind:photos={$data.photos}
+                    bind:photos={() => $data.photos ?? [], (value) => $data.photos = value}
                     bind:photoFiles={$data._photos}
                     showThumbnailControls={false}
                     showExifControls={true}

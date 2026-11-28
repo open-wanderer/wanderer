@@ -215,6 +215,7 @@
   "error-saving-list": "Fehler beim Speichern der Liste",
   "error-saving-settings": "Fehler beim Speichern der Einstellungen",
   "error-saving-trail": "Fehler beim Speichern der Route",
+  "legacy-editor-photo-upload-unavailable": "Für diese Route können noch keine Fotos hochgeladen werden. Entferne die ausgewählten Dateien, um deine anderen Änderungen zu speichern.",
   "error-setting-up-plugin": "Fehler beim Einrichten des {provider}-Plugins",
   "error-starting-oauth": "Fehler beim Starten der OAuth-Verbindung",
   "error-updating-avatar": "Der Avatar konnte nicht aktualisiert werden. Bitte versuche es erneut.",

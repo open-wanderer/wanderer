@@ -26,7 +26,7 @@ import (
 	"pocketbase/routes"
 	"pocketbase/services/regions"
 
-	_ "pocketbase/migrations"
+	"pocketbase/migrations"
 	"pocketbase/util"
 )
 
@@ -328,6 +328,19 @@ func setupEventHandlers(app *pocketbase.PocketBase, client meilisearch.ServiceMa
 	app.OnRecordValidate().BindFunc(util.SanitizeHTML())
 
 	app.OnServe().BindFunc(onBeforeServeHandler(client))
+	app.OnServe().BindFunc(func(event *core.ServeEvent) error {
+		ctx, cancel := context.WithCancel(context.Background())
+		app.OnTerminate().BindFunc(func(event *core.TerminateEvent) error {
+			cancel()
+			return event.Next()
+		})
+		go func() {
+			if err := migrations.RunPhotoMigrationCleanup(ctx, event.App); err != nil && ctx.Err() == nil {
+				event.App.Logger().Warn("photo migration cleanup requires retry", "error", err)
+			}
+		}()
+		return event.Next()
+	})
 
 	app.OnBootstrap().BindFunc(hooks.OnBootstrapHandler())
 }
@@ -359,6 +372,7 @@ func onBeforeServeHandler(client meilisearch.ServiceManager) func(se *core.Serve
 }
 
 func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
+	se.Router.BindFunc(routes.LegacyPhotoFileRedirect)
 	se.Router.GET("/health", routes.Health)
 	se.Router.GET("/trail/gpx-limit", routes.TrailGpxLimit)
 

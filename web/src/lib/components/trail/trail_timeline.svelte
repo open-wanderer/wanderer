@@ -42,24 +42,24 @@
         </div>
 
         <div class="border border-input-border rounded-xl overflow-hidden">
-            {#if wp.photos.length}
+            {#if (wp.photos ?? []).length}
                 <PhotoGallery
-                    photos={wp.photos.map((p) => getFileURL(wp, p))}
+                    photos={(wp.photos ?? []).map((p) => getFileURL(wp, p))}
                     bind:this={gallery[i]}
                 ></PhotoGallery>
                 <div
-                    class="grid gap-[1px] {wp.photos.length > 1
+                    class="grid gap-[1px] {(wp.photos ?? []).length > 1
                         ? 'grid-cols-[8fr_5fr]'
                         : 'grid-cols-1'} cursor-pointer"
                 >
-                    {#each wp.photos.slice(0,3) as photo, j}
+                    {#each (wp.photos ?? []).slice(0,3) as photo, j}
                         {#if isVideoURL(photo)}
                             <!-- svelte-ignore a11y_media_has_caption -->
                             <video
                                 controls={false}
                                 loop
                                 class="w-full object-cover {j == 0 &&
-                                wp.photos.length > 2
+                                (wp.photos ?? []).length > 2
                                     ? 'row-span-2 h-80'
                                     : 'h-[159.5px]'}"
                                 onclick={() => gallery[i].openGallery(j)}
@@ -72,7 +72,7 @@
                                 onclick={() => gallery[i].openGallery(j)}
                                 role="presentation"
                                 class="w-full object-cover {j == 0 &&
-                                wp.photos.length > 2
+                                (wp.photos ?? []).length > 2
                                     ? 'row-span-2 h-80'
                                     : 'h-[159.5px]'}"
                                 src={getFileURL(wp, photo, "600x0")}

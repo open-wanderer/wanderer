@@ -243,8 +243,8 @@
     }
 
     function getHeaderPhotos() {
-        if (trail.photos.length) {
-            return trail.photos.slice(0, 3).map((p) => getFileURL(trail, p, "600x0"));
+        if ((trail.photos ?? []).length) {
+            return (trail.photos ?? []).slice(0, 3).map((p) => getFileURL(trail, p, "600x0"));
         } else {
             return $theme === "light"
                 ? [emptyStateTrailLight]
@@ -511,7 +511,7 @@
                     : 'grid-cols-1'} h-80 rounded-t-3xl overflow-hidden cursor-pointer"
             >
                 <PhotoGallery
-                    photos={trail.photos.map((p) => getFileURL(trail, p))}
+                    photos={(trail.photos ?? []).map((p) => getFileURL(trail, p))}
                     bind:this={gallery}
                 ></PhotoGallery>
                 {#each headerPhotos as photo, i}
@@ -519,7 +519,7 @@
                         <!-- svelte-ignore a11y_media_has_caption -->
                         <video
                             class="object-cover h-full w-full"
-                            onclick={trail.photos.length
+                            onclick={(trail.photos ?? []).length
                                 ? () => gallery.openGallery(i)
                                 : null}
                             loop
@@ -530,7 +530,7 @@
                         <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
                         <img
                             class="object-cover h-full w-full"
-                            onclick={trail.photos.length
+                            onclick={(trail.photos ?? []).length
                                 ? () => gallery.openGallery(i)
                                 : null}
                             class:row-span-2={i == 0 && headerPhotos.length > 2}
@@ -925,7 +925,7 @@
                     </div>
                 {/if}
                 {#if activeTab == 1}
-                    {#if trail.photos.length}
+                    {#if (trail.photos ?? []).length}
                         <div
                             id="photo-gallery"
                             class="grid grid-cols-1 {mode == 'overview'
@@ -1047,7 +1047,10 @@
     </section>
 </div>
 
-<SummitLogModal bind:this={summitLogModal} onsave={(log) => saveSummitLog(log)}
+<SummitLogModal
+    bind:this={summitLogModal}
+    onsave={(log) => saveSummitLog(log)}
+    photoUploadsUnavailable={!Array.isArray(trail.photos)}
 ></SummitLogModal>
 
 <ConfirmModal

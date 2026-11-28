@@ -81,7 +81,7 @@
 <table class="w-full table-auto">
     <thead class="text-left text-gray-500">
         <tr class="text-sm">
-            {#if showPhotos && summitLogs.some((l) => l.photos.length)}
+            {#if showPhotos && summitLogs.some((l) => l.photos?.length)}
                 <th class="w-24"></th>
             {/if}
             <th>{$_("date")}</th>
@@ -168,7 +168,7 @@
                 {showAuthor}
                 {categoryColorMap}
                 showPhotos={showPhotos &&
-                    summitLogs.some((l) => l.photos.length)}
+                    summitLogs.some((l) => l.photos?.length)}
                 showDescription={summitLogs.some((l) => l.text?.length)}
                 showRoute={showRoute && summitLogs.some((l) => l.gpx)}
                 showMenu={showMenu && log.author == $currentUser?.actor}

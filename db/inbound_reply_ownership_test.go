@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	pub "github.com/go-ap/activitypub"
+	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tools/filesystem"
@@ -41,15 +42,22 @@ func TestSignedInboxKeepsPrivateEntryParentAndPhotos(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				entry := save("summit_logs", map[string]any{"author": entryAuthor.Id, "trail": private.Id, "text": "Private entry", "photos": []*filesystem.File{file}})
+				entry := save("summit_logs", map[string]any{"author": entryAuthor.Id, "trail": private.Id, "text": "Private entry"})
 				entry.Set("iri", origin+"/api/v1/summit-log/"+entry.Id)
 				if err := f.app.Save(entry); err != nil {
 					t.Fatal(err)
 				}
-				photos := slices.Clone(entry.GetStringSlice("photos"))
-				if len(photos) != 1 {
-					t.Fatalf("stored photos=%v, want one", photos)
+				photoFields := map[string]any{
+					"author": entryAuthor.Id, "type": "photo", "storage_mode": "copy",
+					"remote_status": "available", "file": file,
 				}
+				if scenario == "sender-entry" {
+					photoFields["external_provider"] = "federation"
+					photoFields["external_id"] = origin + "/api/v1/assets/entryphoto"
+				}
+				asset := save("assets", photoFields)
+				save("summit_log_assets", map[string]any{"summit_log": entry.Id, "asset": asset.Id})
+				wantPhotos := []inboundSummitLogPhoto{{id: asset.Id, filename: asset.GetString("file")}}
 				control := save("summit_logs", map[string]any{"author": sender.Id, "trail": public.Id, "text": "Original", "iri": "https://remote.example/api/v1/summit-log/control"})
 				setupEventHandlers(&pocketbase.PocketBase{App: f.app}, newInboundSearchClient(t))
 				assertPrivate := func() {
@@ -58,8 +66,9 @@ func TestSignedInboxKeepsPrivateEntryParentAndPhotos(t *testing.T) {
 					if err != nil {
 						t.Fatal(err)
 					}
-					if current.GetString("author") != entryAuthor.Id || current.GetString("trail") != private.Id || current.GetString("text") != "Private entry" || !slices.Equal(current.GetStringSlice("photos"), photos) {
-						t.Fatalf("private entry changed: author=%s trail=%s text=%q photos=%v", current.GetString("author"), current.GetString("trail"), current.GetString("text"), current.GetStringSlice("photos"))
+					photos := inboundSummitLogPhotos(t, f.app, current.Id)
+					if current.GetString("author") != entryAuthor.Id || current.GetString("trail") != private.Id || current.GetString("text") != "Private entry" || !slices.Equal(photos, wantPhotos) {
+						t.Fatalf("private entry changed: author=%s trail=%s text=%q photos=%+v, want photos=%+v", current.GetString("author"), current.GetString("trail"), current.GetString("text"), photos, wantPhotos)
 					}
 					event := &core.RequestEvent{App: f.app}
 					event.Request, event.Response = httptest.NewRequest(http.MethodGet, "/api/collections/summit_logs/records/"+entry.Id, nil), httptest.NewRecorder()
@@ -107,4 +116,39 @@ func TestSignedInboxKeepsPrivateEntryParentAndPhotos(t *testing.T) {
 			})
 		}
 	}
+}
+
+type inboundSummitLogPhoto struct {
+	id       string
+	filename string
+}
+
+func inboundSummitLogPhotos(t *testing.T, app core.App, summitLogID string) []inboundSummitLogPhoto {
+	t.Helper()
+	links, err := app.FindRecordsByFilter("summit_log_assets", "summit_log={:id}", "", -1, 0, dbx.Params{"id": summitLogID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	storage, err := app.NewFilesystem()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer storage.Close()
+
+	photos := make([]inboundSummitLogPhoto, 0, len(links))
+	for _, link := range links {
+		asset, err := app.FindRecordById("assets", link.GetString("asset"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		name := asset.GetString("file")
+		if asset.GetString("type") != "photo" || asset.GetString("storage_mode") != "copy" || asset.GetString("remote_status") != "available" || name == "" {
+			t.Fatalf("summit log %s links to asset %s without an available copied photo", summitLogID, asset.Id)
+		}
+		if exists, err := storage.Exists(asset.BaseFilesPath() + "/" + name); err != nil || !exists {
+			t.Fatalf("summit log %s photo %s file %q: exists=%t, err=%v", summitLogID, asset.Id, name, exists, err)
+		}
+		photos = append(photos, inboundSummitLogPhoto{id: asset.Id, filename: name})
+	}
+	return photos
 }

@@ -529,7 +529,8 @@ export async function trails_update(oldTrail: Trail, newTrail: Trail, photos?: F
         }
     }
 
-    const deletedPhotos = oldTrail.photos.filter(oldPhoto => !newTrail.photos.find(newPhoto => newPhoto === oldPhoto));
+    const nextPhotos = newTrail.photos;
+    const deletedPhotos = nextPhotos === undefined ? [] : (oldTrail.photos ?? []).filter(photo => !nextPhotos.includes(photo));
 
     for (const deletedPhoto of deletedPhotos) {
         formData.append("photos-", deletedPhoto.replace(/^.*[\\/]/, ''));

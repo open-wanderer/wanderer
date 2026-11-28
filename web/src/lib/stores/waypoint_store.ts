@@ -74,7 +74,8 @@ export async function waypoints_update(oldWaypoint: Waypoint, newWaypoint: Waypo
         formData.append("photos", photo)
     }
 
-    const deletedPhotos = oldWaypoint.photos.filter(oldPhoto => !newWaypoint.photos.find(newPhoto => newPhoto === oldPhoto));
+    const nextPhotos = newWaypoint.photos;
+    const deletedPhotos = nextPhotos === undefined ? [] : (oldWaypoint.photos ?? []).filter(photo => !nextPhotos.includes(photo));
 
     for (const deletedPhoto of deletedPhotos) {
         formData.append("photos-", deletedPhoto.replace(/^.*[\\/]/, ''));

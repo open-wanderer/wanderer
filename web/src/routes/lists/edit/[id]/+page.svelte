@@ -375,11 +375,11 @@
                     <div class="shrink-0">
                         <img
                             class="h-12 w-12 object-cover rounded-xl"
-                            src={trail.photos.length
+                            src={(trail.photos ?? []).length
                                 ? getFileURL(
                                       trail,
-                                      trail.photos.at(trail.thumbnail ?? 0) ??
-                                          trail.photos[0],
+                                      (trail.photos ?? []).at(trail.thumbnail ?? 0) ??
+                                          (trail.photos ?? [])[0],
                                       "600x0",
                                   )
                                 : $theme === "light"

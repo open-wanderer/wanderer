@@ -49,7 +49,7 @@ services:
       test: ["CMD", "/curl", "--fail", "http://localhost:8090/health"]
       interval: 15s
       retries: 10
-      start_period: 20s
+      start_period: 24h
       timeout: 10s
   web:
     container_name: wanderer-web

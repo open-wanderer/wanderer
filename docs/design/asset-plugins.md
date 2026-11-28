@@ -37,6 +37,14 @@ Uploaded photos receive a SHA-256 hash when written. A transient file identity a
 
 Lifecycle hooks collect photo links before deleting a trail, waypoint or summit log, then delete photos without remaining links. This also covers cascades and deletes that committed before an after-delete hook reported an error. Photos linked elsewhere survive.
 
+## Existing photos and target permissions
+
+The upgrade keeps existing trail, waypoint and summit-log photos as assets, with legacy URLs resolved under the current access rules. Migrated waypoint photos belong to the waypoint's trail author when that owner resolves; otherwise they keep the waypoint author's ownership.
+
+Trail and waypoint photo links can be edited by the trail's author or a user with a current edit share. Creating a waypoint does not grant separate photo rights after the share ends. Summit-log photo links can be edited only by the entry's author or the trail's author. Asset authors can still withdraw their own photos by unlinking or deleting them.
+
+Server-generated route-placeholder SVGs are generated assets. Real photos take precedence in thumbnails and previews, and a trail with only its placeholder still shows it. Placeholders are not attached to outgoing federation activities.
+
 ## Contributed photos
 
 A photo belongs to its contributor, who may withdraw it by unlinking or deleting it. Before that contributor's account is deleted, photos still linked to another actor's target move to the owner of the oldest surviving link to another owner's target. A trail or waypoint uses the trail's author as owner; a summit-log entry uses its own author. Other links remain intact. If the recipient already owns the same external identity and both photos have the same nonempty content hash, links are moved to that existing asset, duplicate links are combined and thumbnail marks are retained. Otherwise the contributed photo itself changes owner and keeps its bytes and links. A conflicting external identity is retained only in hidden provenance. Photos linked only to the deleted actor's own targets cascade normally.
