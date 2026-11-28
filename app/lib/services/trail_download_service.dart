@@ -2,7 +2,9 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
+import 'package:dio_cookie_manager/dio_cookie_manager.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -12,6 +14,7 @@ import 'package:wanderer/models/subcategory.dart';
 import 'package:wanderer/models/trail.dart';
 import 'package:wanderer/objectbox.g.dart';
 import 'package:wanderer/util/gpx/gpx.dart';
+import 'package:wanderer/util/image_cache.dart';
 import 'package:wanderer/util/local/library_membership.dart';
 import 'package:wanderer/util/local/id.dart';
 import 'package:wanderer/util/route/valhalla.dart';
@@ -19,6 +22,7 @@ import 'package:wanderer/util/route/valhalla.dart';
 class TrailDownloadService {
   final Store _store;
   final Dio _api;
+  final Dio _photoApi;
 
   // Progress is tracked in fractional "points" per unit (photo) so a
   // download can report smooth incremental movement instead of jumping in
@@ -31,7 +35,11 @@ class TrailDownloadService {
   // freezing, then jump to 100% the instant the download actually completes.
   static const _fakeDownloadDuration = Duration(seconds: 5);
 
-  TrailDownloadService(this._store, this._api);
+  TrailDownloadService(this._store, Dio api, {Dio? photoApi})
+    : _api = api,
+      _photoApi =
+          photoApi ??
+          Dio(BaseOptions(connectTimeout: api.options.connectTimeout));
 
   /// Downloads [trail] for offline use.
   ///
@@ -62,12 +70,20 @@ class TrailDownloadService {
     final trailDir = Directory(
       p.join(appDir.path, 'library', recordIdDirSegment(trailId)),
     );
-    final baseUrl = Uri.parse(_api.options.baseUrl).origin;
+    final apiBase = _api.options.baseUrl;
+    final baseUrl = apiBase.endsWith('/api/v1')
+        ? apiBase.substring(0, apiBase.length - '/api/v1'.length)
+        : apiBase;
     if (!await trailDir.exists()) {
       await trailDir.create(recursive: true);
     }
 
-    final trailPhotoUrls = trail.photos
+    // Offline rows use their first local photo as the cover.
+    final orderedPhotos = List<String>.of(trail.photos);
+    if (trail.thumbnail > 0 && trail.thumbnail < orderedPhotos.length) {
+      orderedPhotos.insert(0, orderedPhotos.removeAt(trail.thumbnail));
+    }
+    final trailPhotoUrls = orderedPhotos
         .map((p) => trail.getFileUrl(baseUrl, p))
         .whereType<String>()
         .toList();
@@ -135,14 +151,7 @@ class TrailDownloadService {
       }(),
     ];
 
-    try {
-      await Future.wait(futures);
-    } catch (e) {
-      if (await trailDir.exists()) {
-        await trailDir.delete(recursive: true);
-      }
-      rethrow;
-    }
+    await Future.wait(futures);
 
     final entity = TrailEntity.fromModel(trail, store: _store);
     entity.photos = localPaths;
@@ -216,6 +225,21 @@ class TrailDownloadService {
 
       box.put(entity);
     });
+
+    await _cleanupPhotos(trailDir, {
+      ...localPaths,
+      for (final paths in waypointLocalPhotos.values) ...paths,
+    });
+  }
+
+  Future<void> _cleanupPhotos(Directory trailDir, Set<String> retained) async {
+    await for (final entry in trailDir.list(recursive: true, followLinks: false)) {
+      if (entry is! File ||
+          !p.split(p.relative(entry.path, from: trailDir.path)).contains('photos') ||
+          retained.contains(entry.path)) continue;
+      await FileImage(entry).evict();
+      await entry.delete();
+    }
   }
 
   /// Wraps a Dio `.download` call so progress is reported continuously even
@@ -242,20 +266,59 @@ class TrailDownloadService {
       },
     );
 
+    final temporary = File('$savePath.${mintLocalId()}.part');
     try {
-      await _api.download(
-        url,
-        savePath,
-        cancelToken: cancelToken,
-        onReceiveProgress: (received, total) {
-          if (total <= 0) return;
-          sawRealProgress = true;
-          onFraction((received / total).clamp(0.0, 1.0));
-        },
-      );
+      var uri = Uri.parse(url);
+      for (var redirects = 0; ; redirects++) {
+        final headers = <String, String>{};
+        final jar = WandererImageCacheManager.cookieJar;
+        if (jar != null && uri.host == WandererImageCacheManager.serverHost) {
+          final cookies = (await jar.loadForRequest(uri))
+              .where((cookie) => !cookie.secure || uri.isScheme('https'))
+              .toList();
+          if (cookies.isNotEmpty) {
+            headers['cookie'] = CookieManager.getCookies(cookies);
+          }
+        }
+        final response = await _photoApi.download(
+          uri.toString(),
+          temporary.path,
+          cancelToken: cancelToken,
+          options: Options(
+            headers: headers,
+            followRedirects: false,
+            validateStatus: (status) =>
+                status != null && status >= 200 && status < 400,
+          ),
+          onReceiveProgress: (received, total) {
+            if (total <= 0) return;
+            sawRealProgress = true;
+            onFraction((received / total).clamp(0.0, 1.0));
+          },
+        );
+        final location = response.headers.value('location');
+        if (![301, 302, 303, 307, 308].contains(response.statusCode) ||
+            location == null) {
+          final status = response.statusCode;
+          if (status == null || status < 200 || status >= 300) {
+            throw DioException.badResponse(
+              statusCode: status ?? 0,
+              requestOptions: response.requestOptions,
+              response: response,
+            );
+          }
+          break;
+        }
+        if (redirects >= 5) throw StateError('Too many photo redirects');
+        uri = uri.resolve(location);
+      }
+      final replaced = await File(savePath).exists();
+      await temporary.rename(savePath);
+      if (replaced) await FileImage(File(savePath)).evict();
       onFraction(1.0);
     } finally {
       fakeProgressTimer.cancel();
+      if (await temporary.exists()) await temporary.delete();
     }
   }
 
@@ -286,7 +349,11 @@ class TrailDownloadService {
         // ever fail this one photo (the general catch below) rather than
         // writing outside `photos/`.
         final fileName = fileNameSegment(p.basename(Uri.parse(url).path));
-        final savePath = p.join(photoDir.path, fileName);
+        final extension = p.extension(fileName);
+        final suffix = RegExp(r'^\.[a-zA-Z0-9]{1,10}$').hasMatch(extension)
+            ? extension : '';
+        final hash = sha256.convert(utf8.encode(url)).toString().substring(0, 24);
+        final savePath = p.join(photoDir.path, '$hash$suffix');
         await _downloadTracked(
           url,
           savePath,

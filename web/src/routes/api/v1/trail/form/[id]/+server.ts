@@ -1,9 +1,13 @@
+import { assetResponseJson as json } from "#lib/server/asset_response_json.ts";
+import { committedAssetResponseError } from "#lib/server/committed_asset_response.ts";
 import type { Trail } from "#lib/models/trail.ts";
-import { elevationFetch, withParseSlot } from "#lib/server/parse_slot.ts";
+import { completeTrailAssetExpands } from "#lib/server/trail_asset_pagination.ts";
+import { enrichTrailResponse, withTrailAssetExpands } from "#lib/server/trail_response_util.ts";
 import { Collection, handleError, uploadUpdate } from "#lib/util/api_util.ts";
 import { applyGpxToForm, trailGpxFields } from "#lib/util/gpx_util.ts";
 import { RecordIdSchema } from "#lib/models/api/base_schema.ts";
-import type { RequestEvent } from "@sveltejs/kit";
+import { type RequestEvent } from "@sveltejs/kit";
+import { elevationFetch, withParseSlot } from "#lib/server/parse_slot.ts";
 
 /**
  * @swagger
@@ -43,32 +47,47 @@ import type { RequestEvent } from "@sveltejs/kit";
  *       413:
  *         description: The `gpx` file is too large to parse
  *       500:
- *         description: Internal Server Error
+ *         description: Save or response refresh failed; detail.recordCommitted and detail.savedRecord identify an already persisted record.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/AssetWriteError'
+ *       default:
+ *         description: Any error status may carry detail.recordCommitted and detail.savedRecord when the write succeeded before response refresh failed. Use the saved ID on retry to avoid creating a duplicate.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/AssetWriteError'
  *       503:
  *         description: Too many files are waiting to be parsed
  */
 export async function POST(event: RequestEvent) {
     if (!event.locals.user) {
-        return Response.json({ message: "Unauthorized" }, { status: 401 });
+        return json({ message: "Unauthorized" }, { status: 401 });
     }
+    let committedRecord: Trail | undefined;
     try {
         RecordIdSchema.parse(event.params);
         const data = await event.request.formData();
         if (data.has("gpx")) {
             await withParseSlot(() => applyGpxToForm(data, trailGpxFields, true, elevationFetch(event.fetch)));
         }
-        const r = await uploadUpdate<Trail>(event, Collection.trails, data)
+        let r = await uploadUpdate<Trail>(event, Collection.trails, data)
+        committedRecord = r;
+        r = await event.locals.pb.collection(Collection.trails).getOne<Trail>(r.id!, {
+            expand: withTrailAssetExpands({
+                expand: event.url.searchParams.get("expand") ?? undefined,
+            }).expand,
+        });
+        await completeTrailAssetExpands(event, [r]);
         enrichRecord(r);
-        return Response.json(r);
+        return json(r);
     } catch (e) {
-        return handleError(e)
+        return committedAssetResponseError(e, committedRecord)
     }
 }
 
 
 function enrichRecord(r: Trail) {
-    r.date = r.date?.substring(0, 10) ?? "";
-    for (const log of r.expand?.summit_logs_via_trail ?? []) {
-        log.date = log.date.substring(0, 10);
-    }
+    enrichTrailResponse(r);
 }

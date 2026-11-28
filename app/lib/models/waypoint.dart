@@ -2,6 +2,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:wanderer/models/converter/fa_icon_data_converter.dart';
 import 'package:wanderer/models/record.dart';
+import 'package:wanderer/models/photo_asset.dart';
 
 part 'waypoint.freezed.dart';
 part 'waypoint.g.dart';
@@ -22,6 +23,7 @@ abstract class Waypoint with _$Waypoint, RecordFunctions {
     @Default([]) List<String> photos,
     @Default("000000000000000") String author,
     String? trail,
+    WaypointExpand? expand,
     required DateTime created,
     required DateTime updated,
 
@@ -46,4 +48,15 @@ abstract class Waypoint with _$Waypoint, RecordFunctions {
 
   factory Waypoint.fromJson(Map<String, dynamic> json) =>
       _$WaypointFromJson(json);
+}
+
+@freezed
+abstract class WaypointExpand with _$WaypointExpand {
+  const factory WaypointExpand({
+    @JsonKey(name: 'waypoint_assets_via_waypoint')
+    List<PhotoAssetLink>? photoAssets,
+  }) = _WaypointExpand;
+
+  factory WaypointExpand.fromJson(Map<String, dynamic> json) =>
+      _$WaypointExpandFromJson(json);
 }

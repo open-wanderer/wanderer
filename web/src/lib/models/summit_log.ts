@@ -8,8 +8,9 @@ class SummitLog {
   text?: string;
   gpx?: string;
   _gpx?: File | Blob | null;
-  photos: string[];
+  photos?: string[];
   _photos?: File[];
+  _assetLinks?: string[];
   distance?: number
   elevation_gain?: number
   elevation_loss?: number

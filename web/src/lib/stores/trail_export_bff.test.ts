@@ -7,6 +7,7 @@ import { ownedTrailExportPages } from "./trail_export_store";
 import { trail2gpx } from "#lib/util/gpx_util.ts";
 import GPX from "#lib/models/gpx/gpx.ts";
 
+vi.mock("$env/dynamic/public", () => ({ env: {} }));
 afterEach(() => vi.unstubAllGlobals());
 const owner = "ownactor0000001";
 const foreign = "otheractor00001";
@@ -96,6 +97,17 @@ describe("owner export through actual BFF and PocketBase transport", () => {
         expect(names).toEqual(["Hidden own trail", "Visible own trail"]);
         expect(f.detailCalls).toEqual([]);
         expect(f.backendCalls.some((url) => url.pathname.includes("_assets") || (url.searchParams.get("expand") ?? "").includes("_assets"))).toBe(false);
+    });
+
+    it("retains the native canonical photo expands when photos are requested", async () => {
+        const f = exportFixture();
+        const pages = [];
+        for await (const page of ownedTrailExportPages(owner, true, f.request)) pages.push(...page);
+        const query = f.backendCalls.find((url) => url.pathname === "/api/collections/trails/records")!;
+        expect(query.searchParams.get("expand")).toContain("trail_assets_via_trail.asset");
+        expect(query.searchParams.get("expand")).toContain("waypoints_via_trail.waypoint_assets_via_waypoint.asset");
+        expect(pages[0].expand?.trail_assets_via_trail).toEqual([]);
+        expect(pages[1].expand?.waypoints_via_trail?.[0].expand?.waypoint_assets_via_waypoint).toEqual([]);
     });
 
     it("fails instead of exporting incomplete metadata when the child proof is unavailable", async () => {

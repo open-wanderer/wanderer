@@ -14,7 +14,10 @@ class SummitLogListNotifier extends _$SummitLogListNotifier {
 
       final response = await api.get(
         "/summit-log",
-        queryParameters: {"filter": "trail='$trailId'", "expand": "author"},
+        queryParameters: {
+          "filter": "trail='$trailId'",
+          "expand": "author,summit_log_assets_via_summit_log.asset",
+        },
       );
 
       if (response.data == null) {

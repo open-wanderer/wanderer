@@ -11,9 +11,10 @@ class Waypoint {
     distance_from_start?: number;
     icon?: typeof icons[number];
     marker?: M.Marker;
-    photos: string[];
+    photos?: string[];
     _photos?: File[];
     _time?: Date;
+    _assetLinks?: string[];
     author: string;
     trail?: string;
     expand?: {

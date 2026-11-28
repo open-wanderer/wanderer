@@ -634,3 +634,16 @@ describe("applyGpxToForm and moving_duration", () => {
         expect(form.has("moving_duration")).toBe(false);
     });
 });
+
+it("loads missing export GPX with the private share token", async () => {
+    const share = "a".repeat(32);
+    const trail = new Trail("Shared route", { id: "trail0000000001", gpx: "route.gpx" });
+    trail.expand = { author: { preferred_username: "walker" } as never };
+    vi.mocked(trails_show).mockImplementationOnce(async (_id, _handle, token, loadGPX) => {
+        if (token !== share || !loadGPX) throw new Error("Shared GPX needs its token");
+        return { ...trail, expand: { waypoints_via_trail: [], gpx_data: multiLegGpx } };
+    });
+    const exported = await trail2gpx(trail, undefined, share);
+    expect(exported).toContain('<trkpt lat="47" lon="11"');
+    expect(trails_show).toHaveBeenLastCalledWith(trail.id, "@walker", share, true);
+});

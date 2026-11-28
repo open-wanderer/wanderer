@@ -221,7 +221,6 @@
   "error-saving-list": "Error saving list",
   "error-saving-settings": "Error saving settings",
   "error-saving-trail": "Error saving trail",
-  "legacy-editor-photo-upload-unavailable": "Photo uploads aren't available for this trail yet. Remove the selected files to save your other changes.",
   "error-setting-up-plugin": "Error setting up {provider} plugin",
   "error-starting-oauth": "Error starting OAuth connection",
   "error-updating-avatar": "The avatar could not be updated. Please try again.",
@@ -789,5 +788,8 @@
   "upload-cancel": "Cancel upload",
   "upload-retry": "Re-upload",
   "upload-force": "Force upload",
-  "minimize": "Minimize"
+  "minimize": "Minimize",
+  "export-photo-name-unavailable": "photo name unavailable",
+  "photo-names-more": "and {n} more",
+  "export-photos-skipped": "The export is ready. {n, plural, one {# photo was skipped} other {# photos were skipped}}: {names}. See missing-photos.txt in the archive."
 }

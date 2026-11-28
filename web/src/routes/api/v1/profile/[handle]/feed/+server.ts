@@ -1,10 +1,12 @@
+import { assetResponseJson as json } from "#lib/server/asset_response_json.ts";
 import { RecordListOptionsSchema } from '#lib/models/api/base_schema.ts';
 import { type FeedItem } from '#lib/models/feed.ts';
-import type { Trail } from '#lib/models/trail.ts';
+import { enrichFeedItemAssetPhotos } from '#lib/server/profile_asset_util.ts';
 import { getActorResponseForHandle } from '#lib/util/activitypub_server_util.ts';
 import { Collection, handleError } from '#lib/util/api_util.ts';
-import { DownloadError, fetchExternalJson } from '#lib/util/secure_fetch_util.ts';
 import { error, type RequestEvent } from '@sveltejs/kit';
+import type { Trail } from '#lib/models/trail.ts';
+import { DownloadError, fetchExternalJson } from '#lib/util/secure_fetch_util.ts';
 import { ClientResponseError, type ListResult } from 'pocketbase';
 
 // A page of feed items, with their expanded trails and lists.
@@ -71,24 +73,18 @@ export async function GET(event: RequestEvent) {
                 throw new ClientResponseError({ status: response.status, response: response.json });
             }
             feed = response.json
-
-            feed.items.forEach(f => {
-                if (f.type == "trail") {
-                    const trail = f.expand.item as Trail
-                    trail.photos = trail.photos.map(p =>
-                        `${origin}/api/v1/files/trails/${f.item}/${p}`
-                    )
-                }
-
-            })
+            enrichFeedItemAssetPhotos(feed.items, origin, event.url.searchParams.get("share") ?? undefined);
         }
 
+        if (actor.is_local) {
+            enrichFeedItemAssetPhotos(feed.items, undefined, event.url.searchParams.get("share") ?? undefined);
+        }
 
-        return Response.json(feed)
+        return json(feed)
     } catch (e) {
         if (e instanceof DownloadError) {
             console.warn(`federated feed for ${handle} failed`, e);
-            return Response.json({ message: "remote_instance_unavailable" }, { status: 502 });
+            return json({ message: "remote_instance_unavailable" }, { status: 502 });
         }
         console.error(e)
         return handleError(e)

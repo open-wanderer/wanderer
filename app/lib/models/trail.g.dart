@@ -7,6 +7,9 @@ part of 'trail.dart';
 // **************************************************************************
 
 _TrailExpand _$TrailExpandFromJson(Map<String, dynamic> json) => _TrailExpand(
+  photoAssets: (json['trail_assets_via_trail'] as List<dynamic>?)
+      ?.map((e) => PhotoAssetLink.fromJson(e as Map<String, dynamic>))
+      .toList(),
   tags: (json['tags'] as List<dynamic>?)
       ?.map((e) => Tag.fromJson(e as Map<String, dynamic>))
       .toList(),
@@ -36,6 +39,7 @@ _TrailExpand _$TrailExpandFromJson(Map<String, dynamic> json) => _TrailExpand(
 
 Map<String, dynamic> _$TrailExpandToJson(_TrailExpand instance) =>
     <String, dynamic>{
+      'trail_assets_via_trail': instance.photoAssets,
       'tags': instance.tags,
       'category': instance.category,
       'waypoints_via_trail': instance.waypointsViaTrail,

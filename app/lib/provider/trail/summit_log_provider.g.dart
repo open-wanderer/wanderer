@@ -51,7 +51,7 @@ final class SummitLogListNotifierProvider
 }
 
 String _$summitLogListNotifierHash() =>
-    r'761ee458ca435b688265711c2115eccda8c3c24b';
+    r'5d2a24ce26c34575ac77c51efc7bf215449c6f65';
 
 final class SummitLogListNotifierFamily extends $Family
     with

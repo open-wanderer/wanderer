@@ -1,6 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:wanderer/models/actor.dart';
 import 'package:wanderer/models/record.dart';
+import 'package:wanderer/models/photo_asset.dart';
 import 'package:wanderer/models/trail.dart';
 
 part 'summit_log.freezed.dart';
@@ -38,6 +39,8 @@ abstract class SummitLog with _$SummitLog, RecordFunctions implements IRecord {
 @freezed
 abstract class SummitLogExpand with _$SummitLogExpand {
   const factory SummitLogExpand({
+    @JsonKey(name: 'summit_log_assets_via_summit_log')
+    List<PhotoAssetLink>? photoAssets,
     @JsonKey(name: 'gpx_data') String? gpxData,
     Trail? trail,
     Actor? author,

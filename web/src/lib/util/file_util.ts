@@ -1,14 +1,57 @@
-
+import { mediaFileExtensions } from "./media_filename";
 export function getFileURL(record: { [key: string]: any; }, filename?: string, thumb?: string) {
     if (!filename) {
         return "";
     }
     if (isURL(filename)) {
-        return filename;
+        return thumb && isWandererFileURL(filename) && !isVideoURL(filename) ? withFileURLParam(filename, "thumb", thumb) : filename;
+    }
+    if (filename.startsWith('/')) {
+        return thumb && !isVideoURL(filename) ? withFileURLParam(filename, "thumb", thumb) : filename;
     }
 
     const thumbQuery = thumb && !isVideoURL(filename) ? `?thumb=${thumb}` : '';
     return `/api/v1/files/${record.collectionId}/${record.id}/${filename}${thumbQuery}`;
+}
+
+export function photoExportFilename(photo: string, contentType?: string, usedNames?: Set<string>): string {
+    let filename: string;
+    try {
+        const url = new URL(photo, typeof window === "undefined" ? "http://a.example" : window.location.origin);
+        const asset = url.pathname.match(/\/api\/v1\/assets\/([a-z0-9]{15})\/file$/);
+        const extension = mediaFileExtensions[contentType?.split(";", 1)[0].trim().toLowerCase() ?? ""] ?? "bin";
+        filename = asset ? `${asset[1]}.${extension}` : decodeURIComponent(url.pathname.split("/").filter(Boolean).pop() ?? "photo");
+    } catch {
+        filename = photo.split(/[?#]/, 1)[0].split("/").filter(Boolean).pop() ?? "photo";
+    }
+    filename = filename.replace(/[\\/\x00-\x1f]/g, "_");
+    let unique = filename;
+    const dot = filename.lastIndexOf(".");
+    const stem = dot > 0 ? filename.slice(0, dot) : filename;
+    const extension = dot > 0 ? filename.slice(dot) : "";
+    for (let i = 2; usedNames?.has(unique); i++) unique = `${stem}-${i}${extension}`;
+    usedNames?.add(unique);
+    return unique;
+}
+
+export async function fetchPhotoForExport(photo: string, f: typeof fetch = fetch): Promise<Blob> {
+    const response = await f(photo);
+    if (!response.ok) throw new Error("Photo download failed");
+    return response.blob();
+}
+
+function withFileURLParam(url: string, key: string, value: string) {
+    const separator = url.includes("?") ? "&" : "?";
+    return `${url}${separator}${new URLSearchParams({ [key]: value })}`;
+}
+
+function isWandererFileURL(url: string) {
+    try {
+        const pathname = new URL(url, "http://a.example").pathname;
+        return pathname.startsWith("/api/v1/files/") || /^\/api\/v1\/assets\/[^/]+\/file$/.test(pathname);
+    } catch {
+        return false;
+    }
 }
 
 export function isURL(value: string) {

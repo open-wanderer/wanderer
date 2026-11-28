@@ -16,7 +16,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$TrailExpand {
 
- List<Tag>? get tags; Category? get category;@JsonKey(name: 'waypoints_via_trail') List<Waypoint>? get waypointsViaTrail;@JsonKey(name: 'summit_logs_via_trail') List<SummitLog>? get summitLogsViaTrail; Actor? get author;@JsonKey(name: 'comments_via_trail') List<Comment>? get commentsViaTrail;@JsonKey(name: 'gpx_data') String? get gpxData;@JsonKey(includeFromJson: false, includeToJson: false) Gpx? get gpx;@JsonKey(name: 'trail_share_via_trail') List<TrailShare>? get trailShareViaTrail;@JsonKey(name: 'trail_like_via_trail') List<TrailLike>? get trailLikeViaTrail;
+@JsonKey(name: 'trail_assets_via_trail') List<PhotoAssetLink>? get photoAssets; List<Tag>? get tags; Category? get category;@JsonKey(name: 'waypoints_via_trail') List<Waypoint>? get waypointsViaTrail;@JsonKey(name: 'summit_logs_via_trail') List<SummitLog>? get summitLogsViaTrail; Actor? get author;@JsonKey(name: 'comments_via_trail') List<Comment>? get commentsViaTrail;@JsonKey(name: 'gpx_data') String? get gpxData;@JsonKey(includeFromJson: false, includeToJson: false) Gpx? get gpx;@JsonKey(name: 'trail_share_via_trail') List<TrailShare>? get trailShareViaTrail;@JsonKey(name: 'trail_like_via_trail') List<TrailLike>? get trailLikeViaTrail;
 /// Create a copy of TrailExpand
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -30,20 +30,20 @@ $TrailExpandCopyWith<TrailExpand> get copyWith => _$TrailExpandCopyWithImpl<Trai
 @override
 bool operator ==(Object other) {
   final _this = this as TrailExpand;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is TrailExpand&&const DeepCollectionEquality().equals(other.tags, _this.tags)&&(identical(other.category, _this.category) || other.category == _this.category)&&const DeepCollectionEquality().equals(other.waypointsViaTrail, _this.waypointsViaTrail)&&const DeepCollectionEquality().equals(other.summitLogsViaTrail, _this.summitLogsViaTrail)&&(identical(other.author, _this.author) || other.author == _this.author)&&const DeepCollectionEquality().equals(other.commentsViaTrail, _this.commentsViaTrail)&&(identical(other.gpxData, _this.gpxData) || other.gpxData == _this.gpxData)&&(identical(other.gpx, _this.gpx) || other.gpx == _this.gpx)&&const DeepCollectionEquality().equals(other.trailShareViaTrail, _this.trailShareViaTrail)&&const DeepCollectionEquality().equals(other.trailLikeViaTrail, _this.trailLikeViaTrail));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is TrailExpand&&const DeepCollectionEquality().equals(other.photoAssets, _this.photoAssets)&&const DeepCollectionEquality().equals(other.tags, _this.tags)&&(identical(other.category, _this.category) || other.category == _this.category)&&const DeepCollectionEquality().equals(other.waypointsViaTrail, _this.waypointsViaTrail)&&const DeepCollectionEquality().equals(other.summitLogsViaTrail, _this.summitLogsViaTrail)&&(identical(other.author, _this.author) || other.author == _this.author)&&const DeepCollectionEquality().equals(other.commentsViaTrail, _this.commentsViaTrail)&&(identical(other.gpxData, _this.gpxData) || other.gpxData == _this.gpxData)&&(identical(other.gpx, _this.gpx) || other.gpx == _this.gpx)&&const DeepCollectionEquality().equals(other.trailShareViaTrail, _this.trailShareViaTrail)&&const DeepCollectionEquality().equals(other.trailLikeViaTrail, _this.trailLikeViaTrail));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as TrailExpand;
-  return Object.hash(runtimeType,const DeepCollectionEquality().hash(_this.tags),_this.category,const DeepCollectionEquality().hash(_this.waypointsViaTrail),const DeepCollectionEquality().hash(_this.summitLogsViaTrail),_this.author,const DeepCollectionEquality().hash(_this.commentsViaTrail),_this.gpxData,_this.gpx,const DeepCollectionEquality().hash(_this.trailShareViaTrail),const DeepCollectionEquality().hash(_this.trailLikeViaTrail));
+  return Object.hash(runtimeType,const DeepCollectionEquality().hash(_this.photoAssets),const DeepCollectionEquality().hash(_this.tags),_this.category,const DeepCollectionEquality().hash(_this.waypointsViaTrail),const DeepCollectionEquality().hash(_this.summitLogsViaTrail),_this.author,const DeepCollectionEquality().hash(_this.commentsViaTrail),_this.gpxData,_this.gpx,const DeepCollectionEquality().hash(_this.trailShareViaTrail),const DeepCollectionEquality().hash(_this.trailLikeViaTrail));
 }
 
 @override
 String toString() {
   final _this = this as TrailExpand;
-  return 'TrailExpand(tags: ${_this.tags}, category: ${_this.category}, waypointsViaTrail: ${_this.waypointsViaTrail}, summitLogsViaTrail: ${_this.summitLogsViaTrail}, author: ${_this.author}, commentsViaTrail: ${_this.commentsViaTrail}, gpxData: ${_this.gpxData}, gpx: ${_this.gpx}, trailShareViaTrail: ${_this.trailShareViaTrail}, trailLikeViaTrail: ${_this.trailLikeViaTrail})';
+  return 'TrailExpand(photoAssets: ${_this.photoAssets}, tags: ${_this.tags}, category: ${_this.category}, waypointsViaTrail: ${_this.waypointsViaTrail}, summitLogsViaTrail: ${_this.summitLogsViaTrail}, author: ${_this.author}, commentsViaTrail: ${_this.commentsViaTrail}, gpxData: ${_this.gpxData}, gpx: ${_this.gpx}, trailShareViaTrail: ${_this.trailShareViaTrail}, trailLikeViaTrail: ${_this.trailLikeViaTrail})';
 }
 
 
@@ -54,7 +54,7 @@ abstract mixin class $TrailExpandCopyWith<$Res>  {
   factory $TrailExpandCopyWith(TrailExpand value, $Res Function(TrailExpand) _then) = _$TrailExpandCopyWithImpl;
 @useResult
 $Res call({
- List<Tag>? tags, Category? category,@JsonKey(name: 'waypoints_via_trail') List<Waypoint>? waypointsViaTrail,@JsonKey(name: 'summit_logs_via_trail') List<SummitLog>? summitLogsViaTrail, Actor? author,@JsonKey(name: 'comments_via_trail') List<Comment>? commentsViaTrail,@JsonKey(name: 'gpx_data') String? gpxData,@JsonKey(includeFromJson: false, includeToJson: false) Gpx? gpx,@JsonKey(name: 'trail_share_via_trail') List<TrailShare>? trailShareViaTrail,@JsonKey(name: 'trail_like_via_trail') List<TrailLike>? trailLikeViaTrail
+@JsonKey(name: 'trail_assets_via_trail') List<PhotoAssetLink>? photoAssets, List<Tag>? tags, Category? category,@JsonKey(name: 'waypoints_via_trail') List<Waypoint>? waypointsViaTrail,@JsonKey(name: 'summit_logs_via_trail') List<SummitLog>? summitLogsViaTrail, Actor? author,@JsonKey(name: 'comments_via_trail') List<Comment>? commentsViaTrail,@JsonKey(name: 'gpx_data') String? gpxData,@JsonKey(includeFromJson: false, includeToJson: false) Gpx? gpx,@JsonKey(name: 'trail_share_via_trail') List<TrailShare>? trailShareViaTrail,@JsonKey(name: 'trail_like_via_trail') List<TrailLike>? trailLikeViaTrail
 });
 
 
@@ -71,9 +71,10 @@ class _$TrailExpandCopyWithImpl<$Res>
 
 /// Create a copy of TrailExpand
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? tags = freezed,Object? category = freezed,Object? waypointsViaTrail = freezed,Object? summitLogsViaTrail = freezed,Object? author = freezed,Object? commentsViaTrail = freezed,Object? gpxData = freezed,Object? gpx = freezed,Object? trailShareViaTrail = freezed,Object? trailLikeViaTrail = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? photoAssets = freezed,Object? tags = freezed,Object? category = freezed,Object? waypointsViaTrail = freezed,Object? summitLogsViaTrail = freezed,Object? author = freezed,Object? commentsViaTrail = freezed,Object? gpxData = freezed,Object? gpx = freezed,Object? trailShareViaTrail = freezed,Object? trailLikeViaTrail = freezed,}) {
   return _then(TrailExpand(
-tags: freezed == tags ? _self.tags : tags // ignore: cast_nullable_to_non_nullable
+photoAssets: freezed == photoAssets ? _self.photoAssets : photoAssets // ignore: cast_nullable_to_non_nullable
+as List<PhotoAssetLink>?,tags: freezed == tags ? _self.tags : tags // ignore: cast_nullable_to_non_nullable
 as List<Tag>?,category: freezed == category ? _self.category : category // ignore: cast_nullable_to_non_nullable
 as Category?,waypointsViaTrail: freezed == waypointsViaTrail ? _self.waypointsViaTrail : waypointsViaTrail // ignore: cast_nullable_to_non_nullable
 as List<Waypoint>?,summitLogsViaTrail: freezed == summitLogsViaTrail ? _self.summitLogsViaTrail : summitLogsViaTrail // ignore: cast_nullable_to_non_nullable
@@ -192,10 +193,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( List<Tag>? tags,  Category? category, @JsonKey(name: 'waypoints_via_trail')  List<Waypoint>? waypointsViaTrail, @JsonKey(name: 'summit_logs_via_trail')  List<SummitLog>? summitLogsViaTrail,  Actor? author, @JsonKey(name: 'comments_via_trail')  List<Comment>? commentsViaTrail, @JsonKey(name: 'gpx_data')  String? gpxData, @JsonKey(includeFromJson: false, includeToJson: false)  Gpx? gpx, @JsonKey(name: 'trail_share_via_trail')  List<TrailShare>? trailShareViaTrail, @JsonKey(name: 'trail_like_via_trail')  List<TrailLike>? trailLikeViaTrail)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function(@JsonKey(name: 'trail_assets_via_trail')  List<PhotoAssetLink>? photoAssets,  List<Tag>? tags,  Category? category, @JsonKey(name: 'waypoints_via_trail')  List<Waypoint>? waypointsViaTrail, @JsonKey(name: 'summit_logs_via_trail')  List<SummitLog>? summitLogsViaTrail,  Actor? author, @JsonKey(name: 'comments_via_trail')  List<Comment>? commentsViaTrail, @JsonKey(name: 'gpx_data')  String? gpxData, @JsonKey(includeFromJson: false, includeToJson: false)  Gpx? gpx, @JsonKey(name: 'trail_share_via_trail')  List<TrailShare>? trailShareViaTrail, @JsonKey(name: 'trail_like_via_trail')  List<TrailLike>? trailLikeViaTrail)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _TrailExpand() when $default != null:
-return $default(_that.tags,_that.category,_that.waypointsViaTrail,_that.summitLogsViaTrail,_that.author,_that.commentsViaTrail,_that.gpxData,_that.gpx,_that.trailShareViaTrail,_that.trailLikeViaTrail);case _:
+return $default(_that.photoAssets,_that.tags,_that.category,_that.waypointsViaTrail,_that.summitLogsViaTrail,_that.author,_that.commentsViaTrail,_that.gpxData,_that.gpx,_that.trailShareViaTrail,_that.trailLikeViaTrail);case _:
   return orElse();
 
 }
@@ -213,10 +214,10 @@ return $default(_that.tags,_that.category,_that.waypointsViaTrail,_that.summitLo
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( List<Tag>? tags,  Category? category, @JsonKey(name: 'waypoints_via_trail')  List<Waypoint>? waypointsViaTrail, @JsonKey(name: 'summit_logs_via_trail')  List<SummitLog>? summitLogsViaTrail,  Actor? author, @JsonKey(name: 'comments_via_trail')  List<Comment>? commentsViaTrail, @JsonKey(name: 'gpx_data')  String? gpxData, @JsonKey(includeFromJson: false, includeToJson: false)  Gpx? gpx, @JsonKey(name: 'trail_share_via_trail')  List<TrailShare>? trailShareViaTrail, @JsonKey(name: 'trail_like_via_trail')  List<TrailLike>? trailLikeViaTrail)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function(@JsonKey(name: 'trail_assets_via_trail')  List<PhotoAssetLink>? photoAssets,  List<Tag>? tags,  Category? category, @JsonKey(name: 'waypoints_via_trail')  List<Waypoint>? waypointsViaTrail, @JsonKey(name: 'summit_logs_via_trail')  List<SummitLog>? summitLogsViaTrail,  Actor? author, @JsonKey(name: 'comments_via_trail')  List<Comment>? commentsViaTrail, @JsonKey(name: 'gpx_data')  String? gpxData, @JsonKey(includeFromJson: false, includeToJson: false)  Gpx? gpx, @JsonKey(name: 'trail_share_via_trail')  List<TrailShare>? trailShareViaTrail, @JsonKey(name: 'trail_like_via_trail')  List<TrailLike>? trailLikeViaTrail)  $default,) {final _that = this;
 switch (_that) {
 case _TrailExpand():
-return $default(_that.tags,_that.category,_that.waypointsViaTrail,_that.summitLogsViaTrail,_that.author,_that.commentsViaTrail,_that.gpxData,_that.gpx,_that.trailShareViaTrail,_that.trailLikeViaTrail);case _:
+return $default(_that.photoAssets,_that.tags,_that.category,_that.waypointsViaTrail,_that.summitLogsViaTrail,_that.author,_that.commentsViaTrail,_that.gpxData,_that.gpx,_that.trailShareViaTrail,_that.trailLikeViaTrail);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -233,10 +234,10 @@ return $default(_that.tags,_that.category,_that.waypointsViaTrail,_that.summitLo
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( List<Tag>? tags,  Category? category, @JsonKey(name: 'waypoints_via_trail')  List<Waypoint>? waypointsViaTrail, @JsonKey(name: 'summit_logs_via_trail')  List<SummitLog>? summitLogsViaTrail,  Actor? author, @JsonKey(name: 'comments_via_trail')  List<Comment>? commentsViaTrail, @JsonKey(name: 'gpx_data')  String? gpxData, @JsonKey(includeFromJson: false, includeToJson: false)  Gpx? gpx, @JsonKey(name: 'trail_share_via_trail')  List<TrailShare>? trailShareViaTrail, @JsonKey(name: 'trail_like_via_trail')  List<TrailLike>? trailLikeViaTrail)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function(@JsonKey(name: 'trail_assets_via_trail')  List<PhotoAssetLink>? photoAssets,  List<Tag>? tags,  Category? category, @JsonKey(name: 'waypoints_via_trail')  List<Waypoint>? waypointsViaTrail, @JsonKey(name: 'summit_logs_via_trail')  List<SummitLog>? summitLogsViaTrail,  Actor? author, @JsonKey(name: 'comments_via_trail')  List<Comment>? commentsViaTrail, @JsonKey(name: 'gpx_data')  String? gpxData, @JsonKey(includeFromJson: false, includeToJson: false)  Gpx? gpx, @JsonKey(name: 'trail_share_via_trail')  List<TrailShare>? trailShareViaTrail, @JsonKey(name: 'trail_like_via_trail')  List<TrailLike>? trailLikeViaTrail)?  $default,) {final _that = this;
 switch (_that) {
 case _TrailExpand() when $default != null:
-return $default(_that.tags,_that.category,_that.waypointsViaTrail,_that.summitLogsViaTrail,_that.author,_that.commentsViaTrail,_that.gpxData,_that.gpx,_that.trailShareViaTrail,_that.trailLikeViaTrail);case _:
+return $default(_that.photoAssets,_that.tags,_that.category,_that.waypointsViaTrail,_that.summitLogsViaTrail,_that.author,_that.commentsViaTrail,_that.gpxData,_that.gpx,_that.trailShareViaTrail,_that.trailLikeViaTrail);case _:
   return null;
 
 }
@@ -248,8 +249,17 @@ return $default(_that.tags,_that.category,_that.waypointsViaTrail,_that.summitLo
 @JsonSerializable()
 
 class _TrailExpand implements TrailExpand {
-  const _TrailExpand({ List<Tag>? tags, this.category, @JsonKey(name: 'waypoints_via_trail')  List<Waypoint>? waypointsViaTrail, @JsonKey(name: 'summit_logs_via_trail')  List<SummitLog>? summitLogsViaTrail, this.author, @JsonKey(name: 'comments_via_trail')  List<Comment>? commentsViaTrail, @JsonKey(name: 'gpx_data') this.gpxData, @JsonKey(includeFromJson: false, includeToJson: false) this.gpx, @JsonKey(name: 'trail_share_via_trail')  List<TrailShare>? trailShareViaTrail, @JsonKey(name: 'trail_like_via_trail')  List<TrailLike>? trailLikeViaTrail}): _tags = tags,_waypointsViaTrail = waypointsViaTrail,_summitLogsViaTrail = summitLogsViaTrail,_commentsViaTrail = commentsViaTrail,_trailShareViaTrail = trailShareViaTrail,_trailLikeViaTrail = trailLikeViaTrail;
+  const _TrailExpand({@JsonKey(name: 'trail_assets_via_trail')  List<PhotoAssetLink>? photoAssets,  List<Tag>? tags, this.category, @JsonKey(name: 'waypoints_via_trail')  List<Waypoint>? waypointsViaTrail, @JsonKey(name: 'summit_logs_via_trail')  List<SummitLog>? summitLogsViaTrail, this.author, @JsonKey(name: 'comments_via_trail')  List<Comment>? commentsViaTrail, @JsonKey(name: 'gpx_data') this.gpxData, @JsonKey(includeFromJson: false, includeToJson: false) this.gpx, @JsonKey(name: 'trail_share_via_trail')  List<TrailShare>? trailShareViaTrail, @JsonKey(name: 'trail_like_via_trail')  List<TrailLike>? trailLikeViaTrail}): _photoAssets = photoAssets,_tags = tags,_waypointsViaTrail = waypointsViaTrail,_summitLogsViaTrail = summitLogsViaTrail,_commentsViaTrail = commentsViaTrail,_trailShareViaTrail = trailShareViaTrail,_trailLikeViaTrail = trailLikeViaTrail;
   factory _TrailExpand.fromJson(Map<String, dynamic> json) => _$TrailExpandFromJson(json);
+
+ final  List<PhotoAssetLink>? _photoAssets;
+@override@JsonKey(name: 'trail_assets_via_trail') List<PhotoAssetLink>? get photoAssets {
+  final value = _photoAssets;
+  if (value == null) return null;
+  if (_photoAssets is EqualUnmodifiableListView) return _photoAssets;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(value);
+}
 
  final  List<Tag>? _tags;
 @override List<Tag>? get tags {
@@ -323,18 +333,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _TrailExpand&&const DeepCollectionEquality().equals(other.tags, _tags)&&(identical(other.category, category) || other.category == category)&&const DeepCollectionEquality().equals(other.waypointsViaTrail, _waypointsViaTrail)&&const DeepCollectionEquality().equals(other.summitLogsViaTrail, _summitLogsViaTrail)&&(identical(other.author, author) || other.author == author)&&const DeepCollectionEquality().equals(other.commentsViaTrail, _commentsViaTrail)&&(identical(other.gpxData, gpxData) || other.gpxData == gpxData)&&(identical(other.gpx, gpx) || other.gpx == gpx)&&const DeepCollectionEquality().equals(other.trailShareViaTrail, _trailShareViaTrail)&&const DeepCollectionEquality().equals(other.trailLikeViaTrail, _trailLikeViaTrail));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _TrailExpand&&const DeepCollectionEquality().equals(other.photoAssets, _photoAssets)&&const DeepCollectionEquality().equals(other.tags, _tags)&&(identical(other.category, category) || other.category == category)&&const DeepCollectionEquality().equals(other.waypointsViaTrail, _waypointsViaTrail)&&const DeepCollectionEquality().equals(other.summitLogsViaTrail, _summitLogsViaTrail)&&(identical(other.author, author) || other.author == author)&&const DeepCollectionEquality().equals(other.commentsViaTrail, _commentsViaTrail)&&(identical(other.gpxData, gpxData) || other.gpxData == gpxData)&&(identical(other.gpx, gpx) || other.gpx == gpx)&&const DeepCollectionEquality().equals(other.trailShareViaTrail, _trailShareViaTrail)&&const DeepCollectionEquality().equals(other.trailLikeViaTrail, _trailLikeViaTrail));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hash(runtimeType,const DeepCollectionEquality().hash(_tags),category,const DeepCollectionEquality().hash(_waypointsViaTrail),const DeepCollectionEquality().hash(_summitLogsViaTrail),author,const DeepCollectionEquality().hash(_commentsViaTrail),gpxData,gpx,const DeepCollectionEquality().hash(_trailShareViaTrail),const DeepCollectionEquality().hash(_trailLikeViaTrail));
+    return Object.hash(runtimeType,const DeepCollectionEquality().hash(_photoAssets),const DeepCollectionEquality().hash(_tags),category,const DeepCollectionEquality().hash(_waypointsViaTrail),const DeepCollectionEquality().hash(_summitLogsViaTrail),author,const DeepCollectionEquality().hash(_commentsViaTrail),gpxData,gpx,const DeepCollectionEquality().hash(_trailShareViaTrail),const DeepCollectionEquality().hash(_trailLikeViaTrail));
 }
 
 @override
 String toString() {
-    return 'TrailExpand(tags: $tags, category: $category, waypointsViaTrail: $waypointsViaTrail, summitLogsViaTrail: $summitLogsViaTrail, author: $author, commentsViaTrail: $commentsViaTrail, gpxData: $gpxData, gpx: $gpx, trailShareViaTrail: $trailShareViaTrail, trailLikeViaTrail: $trailLikeViaTrail)';
+    return 'TrailExpand(photoAssets: $photoAssets, tags: $tags, category: $category, waypointsViaTrail: $waypointsViaTrail, summitLogsViaTrail: $summitLogsViaTrail, author: $author, commentsViaTrail: $commentsViaTrail, gpxData: $gpxData, gpx: $gpx, trailShareViaTrail: $trailShareViaTrail, trailLikeViaTrail: $trailLikeViaTrail)';
 }
 
 
@@ -345,7 +355,7 @@ abstract mixin class _$TrailExpandCopyWith<$Res> implements $TrailExpandCopyWith
   factory _$TrailExpandCopyWith(_TrailExpand value, $Res Function(_TrailExpand) _then) = __$TrailExpandCopyWithImpl;
 @override @useResult
 $Res call({
- List<Tag>? tags, Category? category,@JsonKey(name: 'waypoints_via_trail') List<Waypoint>? waypointsViaTrail,@JsonKey(name: 'summit_logs_via_trail') List<SummitLog>? summitLogsViaTrail, Actor? author,@JsonKey(name: 'comments_via_trail') List<Comment>? commentsViaTrail,@JsonKey(name: 'gpx_data') String? gpxData,@JsonKey(includeFromJson: false, includeToJson: false) Gpx? gpx,@JsonKey(name: 'trail_share_via_trail') List<TrailShare>? trailShareViaTrail,@JsonKey(name: 'trail_like_via_trail') List<TrailLike>? trailLikeViaTrail
+@JsonKey(name: 'trail_assets_via_trail') List<PhotoAssetLink>? photoAssets, List<Tag>? tags, Category? category,@JsonKey(name: 'waypoints_via_trail') List<Waypoint>? waypointsViaTrail,@JsonKey(name: 'summit_logs_via_trail') List<SummitLog>? summitLogsViaTrail, Actor? author,@JsonKey(name: 'comments_via_trail') List<Comment>? commentsViaTrail,@JsonKey(name: 'gpx_data') String? gpxData,@JsonKey(includeFromJson: false, includeToJson: false) Gpx? gpx,@JsonKey(name: 'trail_share_via_trail') List<TrailShare>? trailShareViaTrail,@JsonKey(name: 'trail_like_via_trail') List<TrailLike>? trailLikeViaTrail
 });
 
 
@@ -362,9 +372,10 @@ class __$TrailExpandCopyWithImpl<$Res>
 
 /// Create a copy of TrailExpand
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? tags = freezed,Object? category = freezed,Object? waypointsViaTrail = freezed,Object? summitLogsViaTrail = freezed,Object? author = freezed,Object? commentsViaTrail = freezed,Object? gpxData = freezed,Object? gpx = freezed,Object? trailShareViaTrail = freezed,Object? trailLikeViaTrail = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? photoAssets = freezed,Object? tags = freezed,Object? category = freezed,Object? waypointsViaTrail = freezed,Object? summitLogsViaTrail = freezed,Object? author = freezed,Object? commentsViaTrail = freezed,Object? gpxData = freezed,Object? gpx = freezed,Object? trailShareViaTrail = freezed,Object? trailLikeViaTrail = freezed,}) {
   return _then(_TrailExpand(
-tags: freezed == tags ? _self._tags : tags // ignore: cast_nullable_to_non_nullable
+photoAssets: freezed == photoAssets ? _self._photoAssets : photoAssets // ignore: cast_nullable_to_non_nullable
+as List<PhotoAssetLink>?,tags: freezed == tags ? _self._tags : tags // ignore: cast_nullable_to_non_nullable
 as List<Tag>?,category: freezed == category ? _self.category : category // ignore: cast_nullable_to_non_nullable
 as Category?,waypointsViaTrail: freezed == waypointsViaTrail ? _self._waypointsViaTrail : waypointsViaTrail // ignore: cast_nullable_to_non_nullable
 as List<Waypoint>?,summitLogsViaTrail: freezed == summitLogsViaTrail ? _self._summitLogsViaTrail : summitLogsViaTrail // ignore: cast_nullable_to_non_nullable

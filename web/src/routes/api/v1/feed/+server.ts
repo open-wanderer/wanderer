@@ -1,6 +1,8 @@
+import { assetResponseJson as json } from "#lib/server/asset_response_json.ts";
 import type { FeedItem } from "#lib/models/feed.ts";
+import { enrichFeedItemAssetPhotos } from "#lib/server/profile_asset_util.ts";
 import { Collection, handleError, list } from "#lib/util/api_util.ts";
-import type { RequestEvent } from "@sveltejs/kit";
+import { type RequestEvent } from "@sveltejs/kit";
 
 /**
  * @swagger
@@ -46,7 +48,8 @@ import type { RequestEvent } from "@sveltejs/kit";
 export async function GET(event: RequestEvent) {
     try {
         const r = await list<FeedItem>(event, Collection.feed);
-        return Response.json(r)
+        enrichFeedItemAssetPhotos(r.items, undefined, event.url.searchParams.get("share") ?? undefined);
+        return json(r)
     } catch (e) {
         return handleError(e)
     }

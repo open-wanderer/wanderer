@@ -9,7 +9,8 @@
     import { processUploadQueue, enqueueUpload, type Upload } from "#lib/stores/upload_store.svelte.ts";
     import { ownedTrailExportPages } from "#lib/stores/trail_export_store.ts";
     import { currentUser } from "#lib/stores/user_store.ts";
-    import { getFileURL, saveAs } from "#lib/util/file_util.ts";
+    import { saveAs } from "#lib/util/file_util.ts";
+    import { appendExportPhotos, addMissingPhotoReport, missingExportPhotoNames, type MissingExportPhoto } from "#lib/util/photo_export_archive.ts";
     import { trail2gpx } from "#lib/util/gpx_util.ts";
     import { gpx } from "#lib/vendor/toGeoJSON/toGeoJSON.js";
     import JSZip from "jszip";
@@ -71,6 +72,8 @@
             if (!$currentUser?.actor) throw new Error("Unauthenticated");
 
             const zip = new JSZip();
+            const photoNamesByFolder = new Map<string, Set<string>>();
+            const missing: MissingExportPhoto[] = [];
 
             for await (const trails of ownedTrailExportPages($currentUser.actor, exportSettings.photos)) {
             for (const trail of trails) {
@@ -97,14 +100,9 @@
                 );
                 if (exportSettings.photos) {
                     const photoFolder = trailFolder?.folder($_("photos"));
-                    for (const photo of trail.photos ?? []) {
-                        const photoURL = getFileURL(trail, photo);
-                        const photoBlob = await fetch(photoURL).then(
-                            (response) => response.blob(),
-                        );
-                        const photoData = new File([photoBlob], photo);
-                        photoFolder?.file(photo, photoData, { base64: true });
-                    }
+                    const photoNames = photoNamesByFolder.get(trail.name) ?? new Set<string>();
+                    photoNamesByFolder.set(trail.name, photoNames);
+                    missing.push(...await appendExportPhotos(photoFolder, trail, photoNames));
                 }
                 if (exportSettings.summitLog) {
                     let summitLogString = "";
@@ -120,8 +118,10 @@
 
             }
 
+            addMissingPhotoReport(zip, missing);
             const blob = await zip.generateAsync({ type: "blob" });
             saveAs(blob, `wanderer-export-${Date.now()}.zip`);
+            if (missing.length) show_toast({ type: "warning", icon: "warning", text: $_("export-photos-skipped", { values: { n: missing.length, names: missingExportPhotoNames(missing) } }) }, 10000);
         } catch (e) {
             console.error(e);
             show_toast({
@@ -131,6 +131,7 @@
             });
         }
     }
+
 </script>
 
 <svelte:head>

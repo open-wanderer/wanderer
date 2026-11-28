@@ -9,6 +9,7 @@ environment:
 dependencies:
   collection: ^1.19.1
   cookie_jar: ^4.0.9
+  crypto: ^3.0.7
   dio: ^5.9.2
   dio_cookie_manager: ^3.4.0
   disk_space_2: ^1.0.12
@@ -36,6 +37,7 @@ dependencies:
   go_router: ^17.2.1
   gpx: ^2.3.0
   html: ^0.15.6
+  http: ^1.6.0
   image_picker: ^1.2.2
   intl: any
   json_annotation: ^4.11.0
@@ -74,7 +76,6 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   freezed: ^4.0.3
-  http: ^1.6.0
   json_serializable: ^6.13.0
   json_to_arb: ^0.1.14
   objectbox_generator: 6.0.0-preview.5

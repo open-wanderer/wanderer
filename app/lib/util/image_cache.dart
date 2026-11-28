@@ -3,6 +3,7 @@ import 'package:cookie_jar/cookie_jar.dart';
 import 'package:dio_cookie_manager/dio_cookie_manager.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
+import 'package:http/http.dart' as http;
 
 /// Disk-cached image provider for every network image in the app.
 ///
@@ -29,6 +30,9 @@ class WandererImageCacheManager extends CacheManager with ImageCacheManager {
   /// cookie.
   static CookieJar? cookieJar;
 
+  /// Configured server host. Cookie domains may cover more than this host.
+  static String? serverHost;
+
   static final WandererImageCacheManager _instance =
       WandererImageCacheManager._();
 
@@ -38,35 +42,47 @@ class WandererImageCacheManager extends CacheManager with ImageCacheManager {
     : super(Config(DefaultCacheManager.key, fileService: CookieFileService()));
 }
 
-/// [HttpFileService] that adds the [WandererImageCacheManager.cookieJar]
-/// cookies matching each requested URL.
-class CookieFileService extends HttpFileService {
-  CookieFileService({super.httpClient});
+/// Image fetches authenticated only on the configured server's host.
+class CookieFileService extends FileService {
+  CookieFileService({http.Client? httpClient})
+    : _httpClient = httpClient ?? http.Client();
+
+  final http.Client _httpClient;
 
   @override
   Future<FileServiceResponse> get(
     String url, {
     Map<String, String>? headers,
   }) async {
-    final jar = WandererImageCacheManager.cookieJar;
-    if (jar == null) return super.get(url, headers: headers);
+    var uri = Uri.parse(url);
+    for (var redirects = 0; ; redirects++) {
+      final request = http.Request('GET', uri)..followRedirects = false;
+      request.headers.addAll({
+        for (final entry in (headers ?? const <String, String>{}).entries)
+          if (entry.key.toLowerCase() != 'cookie') entry.key: entry.value,
+      });
 
-    // The jar matches cookies by domain and path, so a remote actor's avatar
-    // or a DiceBear fallback never receives this instance's session token.
-    //
-    // It does not enforce `Secure` (cookie_jar 4.0.9 returns unexpired Secure
-    // cookies for http URLs), and image URLs are not all ours: a federated
-    // actor picks its own icon URL, and `http://<this host>/x.png` would
-    // otherwise put the session token on the wire in cleartext.
-    final uri = Uri.parse(url);
-    final cookies = (await jar.loadForRequest(uri))
-        .where((c) => !c.secure || uri.isScheme('https'))
-        .toList();
-    if (cookies.isEmpty) return super.get(url, headers: headers);
+      final jar = WandererImageCacheManager.cookieJar;
+      if (jar != null && uri.host == WandererImageCacheManager.serverHost) {
+        final cookies = (await jar.loadForRequest(uri))
+            .where((cookie) => !cookie.secure || uri.isScheme('https'))
+            .toList();
+        if (cookies.isNotEmpty) {
+          request.headers['cookie'] = CookieManager.getCookies(cookies);
+        }
+      }
 
-    return super.get(
-      url,
-      headers: {...?headers, 'cookie': CookieManager.getCookies(cookies)},
-    );
+      final response = await _httpClient.send(request);
+      final location = response.headers['location'];
+      if (![301, 302, 303, 307, 308].contains(response.statusCode) ||
+          location == null) {
+        return HttpGetResponse(response);
+      }
+      await response.stream.drain<void>();
+      if (redirects >= 5) {
+        throw http.ClientException('Too many image redirects', uri);
+      }
+      uri = uri.resolve(location);
+    }
   }
 }

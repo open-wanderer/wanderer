@@ -411,11 +411,21 @@
  *           description: Moving time in seconds, excluding accumulated pause time. Present only for trails recorded in the Wanderer app; absent otherwise, in which case `duration` (GPX-derived elapsed time) is displayed instead.
  *         photos:
  *           type: array
+ *           readOnly: true
+ *           description: >
+ *             Derived from the photo assets linked to the trail and not writable. Each entry is a file URL,
+ *             `/api/v1/files/{assetsCollectionId}/{assetId}/{file}` for a stored photo or
+ *             `/api/v1/assets/{assetId}/file` for a photo kept in a connected photo library.
+ *             Manage photos through `PUT /api/v1/assets` and `DELETE /api/v1/assets/{id}`, and choose the
+ *             thumbnail through `PATCH /api/v1/trail/{id}/thumbnail`.
  *           items:
  *             type: string
  *         thumbnail:
  *           type: integer
- *           description: Index of thumbnail photo
+ *           description: >
+ *             Index of the thumbnail in `photos`: the photo marked as thumbnail through
+ *             `PATCH /api/v1/trail/{id}/thumbnail` (`trail_assets.is_thumbnail`), or else the first photo. A generated
+ *             route preview counts only when the trail has no other photo.
  *         like_count:
  *           type: integer
  *           default: 0
@@ -662,6 +672,19 @@
  *           type: number
  *         photos:
  *           type: array
+ *           readOnly: true
+ *           description: >
+ *             Derived from the photo assets linked to the summit log and not writable. Each entry is a file URL,
+ *             `/api/v1/files/{assetsCollectionId}/{assetId}/{file}` for a stored photo or
+ *             `/api/v1/assets/{assetId}/file` for a photo kept in a connected photo library.
+ *             Filled only where the summit log comes with its photo links: embedded in a trail, for example from
+ *             `GET /api/v1/trail/{id}` or a trail listing with `expand=summit_logs_via_trail` (the nested photo
+ *             link expand is added automatically), in the feeds, in `GET /api/v1/summit-log`
+ *             with `expand=summit_log_assets_via_summit_log.asset` (omitted without it) and in
+ *             `GET /api/v1/profile/{handle}/stats` for `source: summit_log`. The feed and stats of a profile on
+ *             another instance give absolute URLs. Single read and update endpoints also include it when
+ *             `expand=summit_log_assets_via_summit_log.asset` is requested; saturated link expands are fully paginated.
+ *             Manage photos through `PUT /api/v1/assets` and `DELETE /api/v1/assets/{id}`.
  *           items:
  *             type: string
  *         created:
@@ -787,6 +810,16 @@
  *           description: Author user ID (15 chars)
  *         photos:
  *           type: array
+ *           readOnly: true
+ *           description: >
+ *             Derived from the photo assets linked to the waypoint and not writable. Each entry is a file URL,
+ *             `/api/v1/files/{assetsCollectionId}/{assetId}/{file}` for a stored photo or
+ *             `/api/v1/assets/{assetId}/file` for a photo kept in a connected photo library.
+ *             Filled only where the waypoint comes with its photo links, for example embedded in a trail from
+ *             `GET /api/v1/trail/{id}` or `GET /api/v1/trail` with `expand=waypoints_via_trail` (the nested photo
+ *             link expand is added automatically). Single read and update endpoints also include it when
+ *             `expand=waypoint_assets_via_waypoint.asset` is requested; saturated link expands are fully paginated.
+ *             Manage photos through `PUT /api/v1/assets` and `DELETE /api/v1/assets/{id}`.
  *           items:
  *             type: string
  *         trail:
