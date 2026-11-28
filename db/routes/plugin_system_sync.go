@@ -255,7 +255,10 @@ func syncPluginInstance(ctx context.Context, app core.App, client meilisearch.Se
 	}
 	auth, err = pluginsystem.RefreshOAuthAuthIfNeeded(ctx, app, plugin, instance, auth)
 	if err != nil {
-		setPluginInstanceStatus(app, instance, "needs_reauth", "auth_failed", err.Error())
+		// A changed connection already has the status the user's change gave it.
+		if !errors.Is(err, pluginsystem.ErrOAuthConnectionChanged) {
+			setPluginInstanceStatus(app, instance, "needs_reauth", "auth_failed", err.Error())
+		}
 		return nil, err
 	}
 	config := effectivePluginConfig(app, plugin.Manifest.ID, instance)
@@ -692,7 +695,8 @@ func setPluginInstanceStatusForError(app core.App, instance *core.Record, err er
 // a provider failure.
 func setPluginInstanceStatusAfterSyncError(ctx context.Context, app core.App, instance *core.Record, err error) {
 	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-		setPluginInstanceStatus(app, instance, "error", "sync_timeout", "the sync reached its time limit and was stopped")
+		// A timeout says nothing about the connection, so the instance stays configured.
+		setPluginInstanceStatus(app, instance, "configured", "sync_timeout", "the sync reached its time limit and was stopped")
 		return
 	}
 	setPluginInstanceStatusForError(app, instance, err)

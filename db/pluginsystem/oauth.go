@@ -5,8 +5,10 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -207,8 +209,13 @@ func OAuthTokenURLAllowed(manifest Manifest, tokenURL *url.URL) bool {
 	return false
 }
 
-// RefreshOAuthToken uses the stored refresh token, persists the refreshed auth
-// map, and keeps the plugin instance configured when refresh succeeds.
+// ErrOAuthConnectionChanged reports that the instance was disconnected,
+// reconnected or deleted while its token was being refreshed.
+var ErrOAuthConnectionChanged = errors.New("the plugin connection changed during the token refresh")
+
+// RefreshOAuthToken uses the stored refresh token and writes only the new
+// token fields onto a fresh copy of the instance, so a change the user made
+// during the token request is kept. An enabled instance is marked configured.
 func RefreshOAuthToken(ctx context.Context, app core.App, plugin LocalPlugin, instance *core.Record, auth map[string]any, contextName string) (map[string]any, error) {
 	_, authContext, err := OAuthContext(plugin, contextName)
 	if err != nil {
@@ -233,9 +240,34 @@ func RefreshOAuthToken(ctx context.Context, app core.App, plugin LocalPlugin, in
 		token.RefreshToken = refreshToken
 	}
 	StoreOAuthToken(auth, contextName, token)
-	instance.Set("auth", auth)
-	instance.Set("status", "configured")
-	if err := app.Save(instance); err != nil {
+	loadedRefreshToken := JSONMapFromRecord(instance, "auth")[AuthFieldRefreshToken]
+	err = app.RunInTransaction(func(txApp core.App) error {
+		fresh, err := txApp.FindRecordById("plugin_instances", instance.Id)
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrOAuthConnectionChanged
+		}
+		if err != nil {
+			return err
+		}
+		freshAuth := JSONMapFromRecord(fresh, "auth")
+		// Stored secrets are compared encrypted: a disconnect or reconnect
+		// replaces the ciphertext, other saves keep it.
+		if freshAuth[AuthFieldRefreshToken] != loadedRefreshToken {
+			return ErrOAuthConnectionChanged
+		}
+		StoreOAuthToken(freshAuth, contextName, token)
+		fresh.Set("auth", freshAuth)
+		if fresh.GetBool("enabled") && fresh.GetString("status") != "syncing" {
+			fresh.Set("status", "configured")
+		}
+		if err := txApp.Save(fresh); err != nil {
+			return err
+		}
+		// The caller's copy now holds the stored ciphertext of the new token.
+		instance.Set("auth", fresh.GetString("auth"))
+		return nil
+	})
+	if err != nil {
 		return auth, err
 	}
 	return auth, nil

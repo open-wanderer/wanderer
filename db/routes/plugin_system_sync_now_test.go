@@ -456,8 +456,13 @@ func TestManualSyncTimeoutStopsBetweenTrails(t *testing.T) {
 	if !errors.Is(err, context.DeadlineExceeded) || details != 1 {
 		t.Fatalf("sync went on after its time limit: %d detail calls, err=%v", details, err)
 	}
-	if code := pluginsystem.JSONMapFromRecord(f.stored(t, id), "last_error")["code"]; code != "sync_timeout" {
+	stored := f.stored(t, id)
+	if code := pluginsystem.JSONMapFromRecord(stored, "last_error")["code"]; code != "sync_timeout" {
 		t.Fatalf("last_error code = %v, want sync_timeout", code)
+	}
+	// The settings page treats any other status as a lost OAuth connection.
+	if status := stored.GetString("status"); status != "configured" {
+		t.Fatalf("status after a timeout = %q, want configured", status)
 	}
 }
 
