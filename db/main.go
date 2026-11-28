@@ -372,7 +372,13 @@ func onBeforeServeHandler(client meilisearch.ServiceManager) func(se *core.Serve
 }
 
 func registerRoutes(se *core.ServeEvent, client meilisearch.ServiceManager) {
+	se.Router.BindFunc(routes.ProjectAssetFileDownloadRecord)
 	se.Router.BindFunc(routes.LegacyPhotoFileRedirect)
+	se.Router.GET("/assets/trail-previews", routes.AssetTrailPreviews)
+	se.Router.DELETE("/assets/{id}", routes.AssetDelete)
+	se.Router.GET("/assets/{id}/file", routes.AssetFile)
+	se.Router.GET("/assets/{id}/owned-copy", routes.AssetOwnedCopy)
+
 	se.Router.GET("/health", routes.Health)
 	se.Router.GET("/trail/gpx-limit", routes.TrailGpxLimit)
 

@@ -1492,6 +1492,65 @@
  *           items:
  *             type: object
  *
+ *     Asset:
+ *       type: object
+ *       required:
+ *         - id
+ *         - type
+ *         - storage_mode
+ *         - author
+ *       properties:
+ *         id:
+ *           type: string
+ *         collectionId:
+ *           type: string
+ *         collectionName:
+ *           type: string
+ *         type:
+ *           type: string
+ *           enum: [photo]
+ *         file:
+ *           type: string
+ *         storage_mode:
+ *           type: string
+ *           enum: [copy, link_private]
+ *         remote_status:
+ *           type: string
+ *           enum: [available, missing, inaccessible]
+ *         remote_checked_at:
+ *           type: string
+ *           format: date-time
+ *         remote_missing_since:
+ *           type: string
+ *           format: date-time
+ *         remote_error:
+ *           type: string
+ *         author:
+ *           type: string
+ *         external_provider:
+ *           type: string
+ *         external_id:
+ *           type: string
+ *         taken_at:
+ *           type: string
+ *           format: date-time
+ *         lat:
+ *           type: number
+ *         lon:
+ *           type: number
+ *         metadata:
+ *           type: object
+ *
+ *     AttachedAsset:
+ *       allOf:
+ *         - $ref: '#/components/schemas/Asset'
+ *         - type: object
+ *           properties:
+ *             sourceAssetId:
+ *               type: string
+ *               pattern: ^[a-z0-9]{15}$
+ *               description: Selected foreign asset that this owned copy replaces.
+ *
  *     Error:
  *       type: object
  *       required:
@@ -1500,8 +1559,45 @@
  *         message:
  *           type: string
  *         code:
- *           type: integer
+ *           type: string
  *         data:
  *           type: object
+ *         detail:
+ *           description: Route-specific error information.
+ *
+ *     AssetWriteErrorDetail:
+ *       type: object
+ *       description: Partial progress is retained when a photo or response refresh fails after persistence. Retry from these completed writes to avoid duplicate uploads.
+ *       properties:
+ *         recordCommitted:
+ *           type: boolean
+ *           description: The record write succeeded before building the response failed.
+ *         savedRecord:
+ *           type: object
+ *           required: [id]
+ *           description: Persisted record fields, including its ID, without photos or incomplete expand relations.
+ *           properties:
+ *             id:
+ *               type: string
+ *         attachedAssets:
+ *           type: array
+ *           items:
+ *             $ref: '#/components/schemas/AttachedAsset'
+ *         uploadedAssets:
+ *           type: array
+ *           items:
+ *             $ref: '#/components/schemas/Asset'
+ *         completedFileCount:
+ *           type: integer
+ *           minimum: 0
+ *
+ *     AssetWriteError:
+ *       allOf:
+ *         - $ref: '#/components/schemas/Error'
+ *         - type: object
+ *           properties:
+ *             detail:
+ *               $ref: '#/components/schemas/AssetWriteErrorDetail'
+ *
  */
 export {};

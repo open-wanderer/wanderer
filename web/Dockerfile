@@ -23,6 +23,7 @@ COPY watcher.js server.js ./
 COPY src/lib/server/upload_body_limit.js ./src/lib/server/
 
 ENV \
+    BODY_SIZE_LIMIT=1G \
     MEILI_URL=http://127.0.0.1:7700 \
     PUBLIC_DISABLE_SIGNUP=false \
     PUBLIC_OVERPASS_API_URL= \
