@@ -6,6 +6,9 @@ description: How to install <span class="-tracking-[0.075em]">wanderer</span> fo
 If you would like to set up a development environment on your own machine to work on <span class="-tracking-[0.075em]">wanderer</span> please first follow the bare-metal installation steps in the [installation guide](/run/installation#from-source). We will slightly modify the launch script to launch a node server in development mode instead:
 
 ```bash
+# Local development only: generate a fresh secret and share it with db and web.
+POCKETBASE_PROXY_SECRET="$(openssl rand -hex 32)" || exit 1
+export POCKETBASE_PROXY_SECRET
 trap "kill 0" EXIT
 
 export ORIGIN=http://localhost:5173
@@ -23,6 +26,10 @@ wait
 ```
 
 This will bring up a `meilisearch` instance on `http://127.0.0.1:7700`, a `PocketBase` instance on `http://127.0.0.1:8090`, and a `vite` server for the <span class="-tracking-[0.075em]">wanderer</span> frontend on `http://localhost:5173`.
+
+Both `db` and `web` must receive the same `POCKETBASE_PROXY_SECRET`. This local
+script generates it once per launch. For a deployment, generate and store the
+secret once and reuse it on restarts instead.
 
 ## PocketBase dashboard
 
