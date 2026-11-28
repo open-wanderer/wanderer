@@ -258,14 +258,6 @@ function normalizeTrailDuplicateOptions(
     return normalized;
 }
 
-function hasDuplicatePhotos(options?: TrailDuplicateOptions) {
-    return Boolean(
-        options?.trailPhotos ||
-        options?.waypointPhotos ||
-        options?.summitLogPhotos,
-    );
-}
-
 function linkedAssetIds(links?: AssetLink[]): string[] | undefined {
     const ids = linkableAssetLinks(links, { includeGeneratedRoutePreview: false })
         .map((link) => link.asset)
@@ -423,7 +415,6 @@ export const defaultTrailSearchAttributes = [
 export {
     Trail,
     defaultTrailDuplicateOptions,
-    hasDuplicatePhotos,
     normalizeTrailDuplicateOptions,
 };
 

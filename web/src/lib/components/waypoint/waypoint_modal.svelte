@@ -6,7 +6,7 @@
     import { waypoint } from "#lib/stores/waypoint_store.ts";
     import { cloneDeep } from "#lib/util/deep_util.ts";
     import { icons } from "#lib/util/icon_util.ts";
-    import { extractGPSCoordinates } from "#lib/util/exif_util.ts";
+    import { extractGPSCoordinates, type GPSCoordinates } from "#lib/util/exif_util.ts";
     import { validator } from "#lib/vendor/felte-validator-zod/index.ts";
     import { createForm } from "felte";
     import { _ } from "svelte-i18n";
@@ -37,6 +37,8 @@
 
     const ClientWaypointCreateSchema = WaypointCreateSchema.extend({
         _photos: z.array(z.instanceof(File)).optional(),
+        photos: z.array(z.string()).optional(),
+        _assetLinks: z.array(z.string()).optional(),
     });
 
     const { form, errors, data, setFields } = createForm<
@@ -81,8 +83,8 @@
             : [],
     );
 
-    async function getCoordinatesFromPhoto(src: string) {
-        const coordinates = await extractGPSCoordinates(src);
+    async function getCoordinatesFromPhoto(src: string, existingCoordinates?: GPSCoordinates) {
+        const coordinates = existingCoordinates ?? await extractGPSCoordinates(src);
         if (coordinates) {
             setFields("lat", coordinates.lat);
             setFields("lon", coordinates.lon);
@@ -151,8 +153,8 @@
                 <PhotoPicker
                     id="waypoint-photo-input"
                     parent={$data}
-                    onexif={(src) => getCoordinatesFromPhoto(src)}
-                    bind:photos={$data.photos}
+                    onexif={(src, coordinates) => getCoordinatesFromPhoto(src, coordinates)}
+                    bind:photos={() => $data.photos ?? [], (value) => $data.photos = value}
                     bind:photoFiles={$data._photos}
                     showThumbnailControls={false}
                     showExifControls={true}

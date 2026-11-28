@@ -25,17 +25,12 @@
     let imgSrc: string[] = $state([]);
     $effect(() => {
         let cancelled = false;
-        if (waypoint.photos?.length) {
-            imgSrc = waypoint.photos
-                .filter((_, i) => i < 3)
-                .reverse()
-                .map((p) => getFileURL(waypoint, p, "300x300"));
-        } else if (waypoint._photos?.length && browser) {
+        const persistedPhotos = (waypoint.photos ?? []).map((p) => getFileURL(waypoint, p, "300x300"));
+        imgSrc = persistedPhotos.slice(-3).reverse();
+        if (waypoint._photos?.length && browser) {
             waypointFilePreviews(waypoint._photos).then((previews) => {
-                if (!cancelled) imgSrc = previews;
+                if (!cancelled) imgSrc = [...persistedPhotos, ...previews].slice(-3).reverse();
             }).catch(() => {});
-        } else {
-            imgSrc = [];
         }
         return () => { cancelled = true; };
     });

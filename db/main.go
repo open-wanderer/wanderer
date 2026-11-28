@@ -269,6 +269,12 @@ func setupEventHandlers(app *pocketbase.PocketBase, client meilisearch.ServiceMa
 		app.OnRecordUpdate(collection).BindFunc(hooks.RoutePlaceholderHandler())
 	}
 
+	for _, collection := range []string{"trail_assets", "summit_log_assets"} {
+		app.OnRecordCreate(collection).BindFunc(hooks.RoutePlaceholderLinkHandler())
+		app.OnRecordUpdate(collection).BindFunc(hooks.RoutePlaceholderLinkHandler())
+		app.OnRecordDelete(collection).BindFunc(hooks.RoutePlaceholderLinkHandler())
+	}
+
 	app.OnRecordCreateRequest("waypoints").BindFunc(hooks.CreateWaypointHandler())
 
 	app.OnRecordCreateRequest("comments").BindFunc(hooks.CreateCommentHandler())

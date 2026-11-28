@@ -27,80 +27,22 @@ func WithoutPlaceholder(photos []string) []string {
 	return slices.DeleteFunc(slices.Clone(photos), IsPlaceholder)
 }
 
-// Apply keeps the generated photo of a trail or summit log in step with its
-// route, before the record is written, so the image exists as soon as the
-// save returns.
-//
-// It drops the placeholder once the author adds photos of their own, and
-// renders one when the record has a route but no photos: on create, when
-// the route changes, and when the author removes the last photo. Records of
-// remote authors get one too: activities leave the placeholder out, because
-// other servers can't show SVG attachments, so every wanderer instance
-// renders its own from the federated route.
-func Apply(app core.App, record *core.Record) (err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			err = fmt.Errorf("panic: %v", r)
-		}
-	}()
-
-	DropPlaceholder(record)
-	if !needsPlaceholder(record) || !outdated(record) {
-		return nil
-	}
+// PlaceholderFile renders the current route. Routes without usable points do
+// not get an image. The caller owns the asset and target-link writes.
+func PlaceholderFile(app core.App, record *core.Record) (*filesystem.File, error) {
 	content, err := readGPX(app, record)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	data, err := gpx.ParseBytes(content)
 	if err != nil {
-		return fmt.Errorf("parse gpx: %w", err)
+		return nil, fmt.Errorf("parse gpx: %w", err)
 	}
 	segments := Segments(data)
 	if len(segments) == 0 {
-		return nil
+		return nil, nil
 	}
-
-	file, err := filesystem.NewFileFromBytes(Render(segments, seed(content)), placeholderName+".svg")
-	if err != nil {
-		return err
-	}
-	record.Set("photos", []any{file})
-	if hasThumbnail(record) {
-		record.Set("thumbnail", 0)
-	}
-	return nil
-}
-
-// needsPlaceholder is true when the record has a route and either no photos
-// or only an earlier placeholder.
-func needsPlaceholder(record *core.Record) bool {
-	if !hasGPX(record) {
-		return false
-	}
-	photos := photoEntries(record)
-	if len(photos) == 0 {
-		return true
-	}
-	name, ok := photos[0].(string)
-	return len(photos) == 1 && ok && IsPlaceholder(name)
-}
-
-// outdated is true when the record has no placeholder for its current route.
-// Other edits keep the one it has.
-func outdated(record *core.Record) bool {
-	if record.IsNew() || len(record.GetUnsavedFiles("gpx")) > 0 {
-		return true
-	}
-	original := record.Original()
-	if record.GetString("gpx") != original.GetString("gpx") {
-		return true
-	}
-	return len(photoEntries(record)) == 0
-}
-
-func hasGPX(record *core.Record) bool {
-	return record.GetString("gpx") != "" || len(record.GetUnsavedFiles("gpx")) > 0
+	return filesystem.NewFileFromBytes(Render(segments, seed(content)), placeholderName+".svg")
 }
 
 // readGPX reads the route uploaded with this save, or else the stored one.
@@ -131,60 +73,6 @@ func readGPX(app core.App, record *core.Record) ([]byte, error) {
 		return nil, fmt.Errorf("read gpx: %w", err)
 	}
 	return content, nil
-}
-
-// DropPlaceholder removes a generated photo once the author adds their own.
-// On trails the thumbnail keeps pointing at the same photo.
-func DropPlaceholder(record *core.Record) {
-	photos := photoEntries(record)
-	if len(photos) < 2 {
-		return
-	}
-	i := slices.IndexFunc(photos, func(p any) bool {
-		name, ok := p.(string)
-		return ok && IsPlaceholder(name)
-	})
-	if i < 0 {
-		return
-	}
-
-	record.Set("photos", slices.Delete(photos, i, i+1))
-	if !hasThumbnail(record) {
-		return
-	}
-	thumbnail := record.GetInt("thumbnail")
-	switch {
-	case thumbnail == i:
-		thumbnail = 0
-	case thumbnail > i:
-		thumbnail--
-	}
-	record.Set("thumbnail", thumbnail)
-}
-
-// hasThumbnail is true for trails, which pick their cover photo by index.
-func hasThumbnail(record *core.Record) bool {
-	return record.Collection().Fields.GetByName("thumbnail") != nil
-}
-
-// photoEntries lists the stored names and, before a save, the files uploaded
-// with it. GetStringSlice drops the whole list while it holds files.
-func photoEntries(record *core.Record) []any {
-	switch v := record.GetRaw("photos").(type) {
-	case []any:
-		return slices.Clone(v)
-	case []string:
-		entries := make([]any, len(v))
-		for i, name := range v {
-			entries[i] = name
-		}
-		return entries
-	case string:
-		if v != "" {
-			return []any{v}
-		}
-	}
-	return nil
 }
 
 // Segments returns the GPX tracks, or its routes if it has no track points.

@@ -31,49 +31,53 @@ type assetHandoverOwner struct {
 // HandOverActorAssets keeps contributed photos with the targets that survive
 // their author's deletion. The caller runs it with the delete in one transaction.
 func HandOverActorAssets(app core.App, actorID string) error {
-	ids := []string{}
-	if err := app.DB().Select("id").From("assets").Where(dbx.HashExp{"author": actorID}).Column(&ids); err != nil {
-		return err
-	}
-	for _, chunk := range stringChunks(ids, assetHandoverBatchSize) {
-		assets, err := recordsByIDs(app, "assets", chunk)
-		if err != nil {
+	// Flush while the actor and all target authors still exist, before the
+	// caller continues the delete cascade. One scope covers all merged assets.
+	return WithDeferredTargetSync(app, func() error {
+		ids := []string{}
+		if err := app.DB().Select("id").From("assets").Where(dbx.HashExp{"author": actorID}).Column(&ids); err != nil {
 			return err
 		}
-		owners, err := oldestForeignAssetOwners(app, actorID, recordIDs(assets))
-		if err != nil {
-			return err
-		}
-		for _, asset := range assets {
-			owner, found := owners[asset.Id]
-			if !found {
-				continue
-			}
-			existing, err := assetForHandoverIdentity(app, asset, owner.actor)
+		for _, chunk := range stringChunks(ids, assetHandoverBatchSize) {
+			assets, err := recordsByIDs(app, "assets", chunk)
 			if err != nil {
 				return err
 			}
-			if existing != nil && sameAssetHandoverPhoto(asset, existing) {
-				if err := moveAssetHandoverLinks(app, asset.Id, existing.Id); err != nil {
+			owners, err := oldestForeignAssetOwners(app, actorID, recordIDs(assets))
+			if err != nil {
+				return err
+			}
+			for _, asset := range assets {
+				owner, found := owners[asset.Id]
+				if !found {
+					continue
+				}
+				existing, err := assetForHandoverIdentity(app, asset, owner.actor)
+				if err != nil {
 					return err
 				}
-			} else {
-				if existing != nil {
-					metadata := AssetProvenanceMetadata(asset)
-					metadata["source_external_provider"] = asset.GetString("external_provider")
-					metadata["source_external_id"] = asset.GetString("external_id")
-					asset.Set(AssetProvenanceField, metadata)
-					asset.Set("external_provider", "")
-					asset.Set("external_id", "")
-				}
-				asset.Set("author", owner.actor)
-				if err := app.Save(asset); err != nil {
-					return err
+				if existing != nil && sameAssetHandoverPhoto(asset, existing) {
+					if err := moveAssetHandoverLinks(app, asset.Id, existing.Id); err != nil {
+						return err
+					}
+				} else {
+					if existing != nil {
+						metadata := AssetProvenanceMetadata(asset)
+						metadata["source_external_provider"] = asset.GetString("external_provider")
+						metadata["source_external_id"] = asset.GetString("external_id")
+						asset.Set(AssetProvenanceField, metadata)
+						asset.Set("external_provider", "")
+						asset.Set("external_id", "")
+					}
+					asset.Set("author", owner.actor)
+					if err := app.Save(asset); err != nil {
+						return err
+					}
 				}
 			}
 		}
-	}
-	return nil
+		return nil
+	})
 }
 
 func sameAssetHandoverPhoto(source, destination *core.Record) bool {

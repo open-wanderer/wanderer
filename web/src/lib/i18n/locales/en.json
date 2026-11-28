@@ -791,5 +791,9 @@
   "minimize": "Minimize",
   "export-photo-name-unavailable": "photo name unavailable",
   "photo-names-more": "and {n} more",
-  "export-photos-skipped": "The export is ready. {n, plural, one {# photo was skipped} other {# photos were skipped}}: {names}. See missing-photos.txt in the archive."
+  "export-photos-skipped": "The export is ready. {n, plural, one {# photo was skipped} other {# photos were skipped}}: {names}. See missing-photos.txt in the archive.",
+  "photo-file-type-not-supported": "The photo format of {file} is not supported. Choose JPEG, PNG, WebP, SVG, HEIC/HEIF, MP4, WebM, or OGG.",
+  "device-photo-file-type-not-supported": "The device photo {file} is not supported. Choose JPEG, PNG, APNG, WebP, HEIC or HEIF images.",
+  "photo-conversion-failed": "The photo {file} could not be converted. Other selected photos will still be processed.",
+  "photo-conversion-progress": "Processing photo {current} / {total}: {file}"
 }

@@ -21,7 +21,7 @@
     import GPX from "#lib/models/gpx/gpx.ts";
     import type { List } from "#lib/models/list.ts";
     import { SummitLog } from "#lib/models/summit_log.ts";
-    import { Trail, hasDuplicatePhotos } from "#lib/models/trail.ts";
+    import { Trail } from "#lib/models/trail.ts";
     import type { RoutingOptions, ValhallaAnchor } from "#lib/models/valhalla.ts";
     import type { OverpassPopupActionFactory } from "#lib/vendor/maplibre-layer-manager/overpass-layer.ts";
     import { type OverpassPopupAction } from "#lib/util/maplibre_util.ts";
@@ -36,6 +36,7 @@
         trail,
         trails_create,
         trails_update,
+        shownTrailPhotos,
     } from "#lib/stores/trail_store.ts";
     import {
         valhallaStore,
@@ -105,7 +106,10 @@
         renderValhallaAnchorMarker,
         valhallaAnchorTitle,
     } from "#lib/util/valhalla_anchor_util.ts";
-    import { extractDevicePhotoExif } from "#lib/util/exif_util.ts";
+    import { prepareWaypointDevicePhotos, DEVICE_PHOTO_ACCEPT } from "#lib/util/waypoint_device_photo_util.ts";
+    import { markAssetFileMetadata } from "#lib/stores/asset_store.ts";
+    import { APIError } from "#lib/util/api_util.ts";
+    import PhotoConversionProgress from "#lib/components/photo/photo_conversion_progress.svelte";
     import { MAX_PHOTO_SIZE_BYTES, MAX_WAYPOINT_PHOTOS } from "#lib/util/photo_limits.ts";
     import {
         haversineCumulatedDistanceWgs84,
@@ -212,18 +216,11 @@
     // $effect below.
     let cropPanelOpen = $state(false);
 
-    const PhotoCloneSourceSchema = z.object({
-        id: z.string(),
-        collectionId: z.string().optional(),
-        collectionName: z.string().optional(),
-        photos: z.array(z.string()).default([]),
-    });
-
     const ClientSummitLogCreateSchema = SummitLogCreateSchema.extend({
         photos: z.array(z.string()).optional(),
         _photos: z.array(z.instanceof(File)).optional(),
         _gpx: z.instanceof(Blob).optional().nullable(),
-        _duplicatePhotoSource: PhotoCloneSourceSchema.optional(),
+        _assetLinks: z.array(z.string()).optional(),
         expand: z
             .object({
                 gpx_data: z.string().optional(),
@@ -234,22 +231,11 @@
     const ClientWaypointCreateSchema = WaypointCreateSchema.extend({
         photos: z.array(z.string()).optional(),
         _photos: z.array(z.instanceof(File)).optional(),
-        _duplicatePhotoSource: PhotoCloneSourceSchema.optional(),
+        _assetLinks: z.array(z.string()).optional(),
     });
 
-    type PhotoCloneSource = z.infer<typeof PhotoCloneSourceSchema>;
-    type PhotoCloneTarget = {
-        _duplicatePhotoSource?: PhotoCloneSource;
-        _photos?: File[];
-    };
-    type PhotoCloneEntry = [string, File[]];
-    type DuplicateLegacyPhotoClones = {
-        trailPhotos: File[];
-        waypointPhotosById: Map<string, File[]>;
-        summitLogPhotosById: Map<string, File[]>;
-    };
-
     const ClientTrailCreateSchema = TrailCreateSchema.extend({
+        _assetLinks: z.array(z.string()).optional(),
         photos: z.array(z.string()).optional(),
         expand: z
             .object({
@@ -278,7 +264,7 @@
     let routeSegments = $state<TrackSegment[]>([]);
 
     let savedAtLeastOnce = $state(false);
-    let duplicateLegacyPhotosPromise: Promise<DuplicateLegacyPhotoClones> | undefined;
+    let waypointPhotoProgress: { file: string; current: number; total: number } | undefined = $state();
 
     let tagItems: ComboboxItem[] = $state([]);
 
@@ -338,10 +324,6 @@
                 form.photos = (form.photos ?? []).filter(
                     (p) => !p.startsWith("data:image/svg+xml;base64"),
                 );
-                Object.assign(
-                    form,
-                    await prepareDuplicateLegacyPhotos(form as Trail),
-                );
 
                 form.expand!.gpx_data = routeToStoredGpx(valhallaStore.route);
                 if (
@@ -377,6 +359,8 @@
                         form as Trail,
                         photoFiles,
                         gpxFile,
+                        undefined,
+                        true,
                     );
                     setFields({
                         ...copyTrailEditorValues(updatedTrail),
@@ -394,6 +378,15 @@
                     text: $_("trail-saved-successfully"),
                 });
             } catch (e) {
+                const savedTrail = e instanceof APIError ? e.detail?.savedTrail as Trail | undefined : undefined;
+                if (savedTrail?.id) {
+                    form.id = savedTrail.id;
+                    $formData.id = savedTrail.id;
+                    trail.set(savedTrail);
+                    savedAtLeastOnce = true;
+                }
+                form.photos = shownTrailPhotos(form as Trail);
+                setFields(copyTrailEditorValues(form));
                 console.error(e);
 
                 show_toast({
@@ -446,9 +439,6 @@
             }
         }
 
-        void prepareDuplicateLegacyPhotos($formData as Trail, {
-            syncFormData: true,
-        });
     });
 
     function fitCurrentRoute() {
@@ -1707,216 +1697,6 @@
         return valhallaStore.route.flatten().length > 0;
     }
 
-    async function prepareDuplicateLegacyPhotos(
-        target: Trail,
-        options: { syncFormData?: boolean } = {},
-    ) {
-        if (
-            !isNewTrail ||
-            savedAtLeastOnce ||
-            !hasDuplicatePhotos(data.duplicateOptions) ||
-            !data.duplicateSourceTrail
-        ) {
-            return target;
-        }
-        duplicateLegacyPhotosPromise ??= cloneDuplicateLegacyPhotos(target);
-        const clonedPhotos = await duplicateLegacyPhotosPromise;
-        appendDuplicateTrailPhotoFiles(clonedPhotos.trailPhotos);
-
-        if (options.syncFormData) {
-            formData.set(
-                applyDuplicateLegacyPhotoClones(
-                    $formData as Trail,
-                    clonedPhotos,
-                ),
-            );
-        }
-
-        return applyDuplicateLegacyPhotoClones(target, clonedPhotos);
-    }
-
-    async function cloneDuplicateLegacyPhotos(
-        target: Trail,
-    ): Promise<DuplicateLegacyPhotoClones> {
-        const duplicateSourceTrail = data.duplicateSourceTrail;
-        if (!duplicateSourceTrail) {
-            return emptyDuplicateLegacyPhotoClones();
-        }
-
-        const [trailPhotos, waypointEntries, summitLogEntries] =
-            await Promise.all([
-                data.duplicateOptions?.trailPhotos
-                    ? clonePhotoFiles(photoCloneSourceFromRecord(duplicateSourceTrail))
-                    : Promise.resolve([]),
-                data.duplicateOptions?.waypointPhotos
-                    ? clonePhotoFilesByTargetId(
-                          target.expand?.waypoints_via_trail ?? [],
-                      )
-                    : Promise.resolve([]),
-                data.duplicateOptions?.summitLogPhotos
-                    ? clonePhotoFilesByTargetId(
-                          target.expand?.summit_logs_via_trail ?? [],
-                      )
-                    : Promise.resolve([]),
-            ]);
-
-        return {
-            trailPhotos,
-            waypointPhotosById: new Map(waypointEntries),
-            summitLogPhotosById: new Map(summitLogEntries),
-        };
-    }
-
-    function emptyDuplicateLegacyPhotoClones(): DuplicateLegacyPhotoClones {
-        return {
-            trailPhotos: [],
-            waypointPhotosById: new Map(),
-            summitLogPhotosById: new Map(),
-        };
-    }
-
-    function appendDuplicateTrailPhotoFiles(clonedPhotos: File[]) {
-        const missingPhotos = clonedPhotos.filter(
-            (photo) => !photoFiles.includes(photo),
-        );
-        if (missingPhotos.length) {
-            photoFiles = [...photoFiles, ...missingPhotos];
-        }
-    }
-
-    async function clonePhotoFilesByTargetId(
-        targets: ({ id?: string } & PhotoCloneTarget)[],
-    ): Promise<PhotoCloneEntry[]> {
-        const entries = await Promise.all(
-            targets.map(async (target) => {
-                const clonedPhotos = await clonePhotoFiles(
-                    target._duplicatePhotoSource,
-                );
-                if (!target.id || !clonedPhotos.length) {
-                    return undefined;
-                }
-                return [target.id, clonedPhotos] as PhotoCloneEntry;
-            }),
-        );
-
-        return entries.filter((entry): entry is PhotoCloneEntry =>
-            Boolean(entry),
-        );
-    }
-
-    function applyDuplicateLegacyPhotoClones(
-        target: Trail,
-        clonedPhotos: DuplicateLegacyPhotoClones,
-    ): Trail {
-        return {
-            ...target,
-            expand: {
-                ...target.expand,
-                waypoints_via_trail: mergeDuplicatePhotoClones(
-                    target.expand?.waypoints_via_trail ?? [],
-                    clonedPhotos.waypointPhotosById,
-                ),
-                summit_logs_via_trail: mergeDuplicatePhotoClones(
-                    target.expand?.summit_logs_via_trail ?? [],
-                    clonedPhotos.summitLogPhotosById,
-                ),
-            },
-        };
-    }
-
-    function mergeDuplicatePhotoClones<T extends { id?: string } & PhotoCloneTarget>(
-        targets: T[],
-        clonedPhotosById: Map<string, File[]>,
-    ): T[] {
-        return targets.map((target) =>
-            withMergedDuplicatePhotos(
-                target,
-                target.id ? clonedPhotosById.get(target.id) : undefined,
-            ),
-        );
-    }
-
-    function withMergedDuplicatePhotos<T extends PhotoCloneTarget>(
-        target: T,
-        clonedPhotos?: File[],
-    ): T {
-        if (!clonedPhotos?.length) {
-            return target;
-        }
-        const existingPhotos = target._photos ?? [];
-        const missingPhotos = clonedPhotos.filter(
-            (photo) => !existingPhotos.includes(photo),
-        );
-        if (!missingPhotos.length) {
-            return target;
-        }
-
-        return {
-            ...target,
-            _photos: [...existingPhotos, ...missingPhotos],
-        };
-    }
-
-    async function clonePhotoFiles(source?: PhotoCloneSource): Promise<File[]> {
-        if (!source?.photos.length) {
-            return [];
-        }
-
-        const files: File[] = [];
-        for (const photo of source.photos) {
-            try {
-                const response = await fetch(photoCloneURL(source, photo));
-                if (!response.ok) {
-                    console.warn(`Unable to clone photo ${photo}: ${response.status}`);
-                    continue;
-                }
-                const blob = await response.blob();
-                files.push(
-                    new File([blob], photoCloneFileName(photo), {
-                        type: blob.type || "application/octet-stream",
-                    }),
-                );
-            } catch (error) {
-                console.warn(`Unable to clone photo ${photo}`, error);
-            }
-        }
-        return files;
-    }
-
-    function photoCloneSourceFromRecord(record: {
-        id?: string;
-        collectionId?: string;
-        collectionName?: string;
-        photos?: string[];
-    }): PhotoCloneSource | undefined {
-        if (!record.id || !record.photos?.length) {
-            return undefined;
-        }
-        return {
-            id: record.id,
-            collectionId: record.collectionId,
-            collectionName: record.collectionName,
-            photos: record.photos,
-        };
-    }
-
-    function photoCloneURL(source: PhotoCloneSource, photo: string) {
-        if (photo.startsWith("http://") || photo.startsWith("https://")) {
-            return photo;
-        }
-        const collection = source.collectionId ?? source.collectionName;
-        if (!collection) {
-            throw new Error("Unable to clone photo without collection");
-        }
-        return `/api/v1/files/${collection}/${source.id}/${photo}`;
-    }
-
-    function photoCloneFileName(photo: string) {
-        return decodeURIComponent(
-            photo.split("?")[0].split("/").pop() || "photo",
-        );
-    }
-
     function handleSearchClick(item: SearchItem) {
         map?.flyTo({
             center: [item.value.lon, item.value.lat],
@@ -2073,35 +1853,26 @@
             }, 10000);
         };
 
-        for (const [index, file] of Array.from(files).entries()) {
-            if (file.size > MAX_PHOTO_SIZE_BYTES) {
-                skippedPhotos++;
-                continue;
-            }
-            const { coordinates, fileType } = await extractDevicePhotoExif(file);
-            // These EXIF-bearing formats are accepted by waypoints.photos.
-            const supported = ["jpeg", "png", "webp"].includes(fileType ?? "");
-            const coords: GPXCoord | undefined = coordinates && supported ? {
-                id: index.toString(),
-                latitude: coordinates.lat,
-                longitude: coordinates.lon,
-                time: coordinates.time,
-                file,
-            } : undefined;
-
-            if (!coords) {
-                show_toast(
-                    {
-                        type: "warning",
-                        icon: "warning",
-                        text: `${file.name}: ${$_("no-gps-data-in-image")}`,
-                    },
-                    10000,
-                );
-                continue;
-            }
-
-            photoCoords.push(coords);
+        if (waypointPhotoProgress) return;
+        const deviceFiles = Array.from(files);
+        const supportedFiles = deviceFiles.filter((file) => {
+            if (file.size <= MAX_PHOTO_SIZE_BYTES) return true;
+            skippedPhotos++;
+            return false;
+        });
+        const preparedPhotos = await prepareWaypointDevicePhotos(supportedFiles, (file, reason) => {
+            const text = reason === "unsupported"
+                ? $_("device-photo-file-type-not-supported", { values: { file: file.name } })
+                : reason === "conversion"
+                    ? $_("photo-conversion-failed", { values: { file: file.name } })
+                    : `${file.name}: ${$_("no-gps-data-in-image")}`;
+            show_toast({ type: reason === "missing_gps" ? "warning" : "error", icon: "warning", text }, 10000);
+        }, (file, current, total) => { waypointPhotoProgress = { file: file.name, current, total }; })
+            .finally(() => { waypointPhotoProgress = undefined; });
+        for (const prepared of preparedPhotos) {
+            const { coordinates } = prepared;
+            photoCoords.push({ id: deviceFiles.indexOf(supportedFiles[prepared.index]).toString(), latitude: coordinates.lat, longitude: coordinates.lon,
+                time: coordinates.time, file: markAssetFileMetadata(prepared.file, prepared.metadata) });
         }
 
         if (!photoCoords.length) {
@@ -2533,11 +2304,12 @@
         <input
             type="file"
             id="waypoint-photo-input"
-            accept="image/*"
+            accept={DEVICE_PHOTO_ACCEPT}
             multiple={true}
             style="display: none;"
             onchange={() => handleWaypointPhotoSelection()}
         />
+        <PhotoConversionProgress progress={waypointPhotoProgress} />
         <hr class="border-separator" />
         <h3 class="text-xl font-semibold">{$_("photos")}</h3>
         <PhotoPicker

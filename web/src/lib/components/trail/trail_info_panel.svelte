@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { APIError } from "#lib/util/api_util.ts";
     import { sanitizeHTML } from "#lib/util/sanitize_html.ts";
     import { goto } from "$app/navigation";
     import { page } from "$app/state";
@@ -135,6 +136,8 @@
 
     let summitLogsLoading: boolean = $state(untrack(() => activeTab == 0));
     let summitLogCreateLoading: boolean = $state(false);
+    let pendingSummitLogCompletionID: string | undefined;
+    let summitLogModalGeneration = 0;
 
     let fullDescription: boolean = $state(false);
 
@@ -283,6 +286,8 @@
     }
 
     function beforeSummitLogModalOpen(currentSummitLog?: SummitLog) {
+        summitLogModalGeneration++;
+        pendingSummitLogCompletionID = undefined;
         currentSummitLog ??= new SummitLog(
             new Date().toISOString().split("T")[0],
         );
@@ -292,30 +297,40 @@
     }
 
     async function saveSummitLog(log: SummitLog) {
+        const generation = summitLogModalGeneration;
+        const creating = !log.id;
+        if (pendingSummitLogCompletionID !== log.id) pendingSummitLogCompletionID = undefined;
         summitLogCreateLoading = true;
-        if (log.id) {
-            let oldLogIndex = $summitLogs.findIndex((l) => l.id === log.id);
-            if (oldLogIndex < 0) {
-                return;
+        try {
+            if (log.id) {
+                const oldLogIndex = $summitLogs.findIndex((item) => item.id === log.id);
+                if (oldLogIndex < 0) return false;
+                $summitLogs[oldLogIndex] = await summit_logs_update($summitLogs[oldLogIndex], log);
+            } else {
+                log.trail = trail.id;
+                const newLog = await summit_logs_create(log);
+                summitLogs.set([...$summitLogs, newLog]);
             }
-            const updatedLog = await summit_logs_update(
-                $summitLogs[oldLogIndex],
-                log,
-            );
-            $summitLogs[oldLogIndex] = updatedLog;
-        } else {
-            log.trail = trail.id;
-            const newLog = await summit_logs_create(log);
-            summitLogs.set([...$summitLogs, newLog]);
-            if (
-                $summitLogs.length == 1 &&
-                trail.author == $currentUser?.actor &&
-                !trail.completed
-            ) {
-                markTrailAsCompletedModal.openModal();
+            if (generation === summitLogModalGeneration) {
+                if ((creating || pendingSummitLogCompletionID === log.id) &&
+                    $summitLogs.length === 1 && trail.author === $currentUser?.actor && !trail.completed) {
+                    markTrailAsCompletedModal.openModal();
+                }
+                pendingSummitLogCompletionID = undefined;
             }
+        } catch (error) {
+            const saved = error instanceof APIError ? error.detail?.savedSummitLog as SummitLog | undefined : undefined;
+            if (saved?.id) {
+                if (creating && generation === summitLogModalGeneration) pendingSummitLogCompletionID = saved.id;
+                const index = $summitLogs.findIndex((item) => item.id === saved.id);
+                if (index < 0) summitLogs.set([...$summitLogs, saved]);
+                else $summitLogs[index] = saved;
+            }
+            show_toast({ type: "error", icon: "close", text: "Error saving summit log." });
+            return false;
+        } finally {
+            summitLogCreateLoading = false;
         }
-        summitLogCreateLoading = false;
     }
 
     function beforeConfirmModalOpen(currentSummitLog: SummitLog) {

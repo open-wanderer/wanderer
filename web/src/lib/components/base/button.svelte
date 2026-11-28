@@ -14,6 +14,8 @@
         tooltip?: string | undefined;
         form?: string;
         id?: string | undefined;
+        "aria-label"?: string;
+        "aria-busy"?: boolean;
         children?: Snippet;
         onclick?: MouseEventHandler<HTMLButtonElement>;
     }
@@ -29,6 +31,8 @@
         disabled = false,
         tooltip = undefined,
         id = undefined,
+        "aria-label": ariaLabel = undefined,
+        "aria-busy": ariaBusy = undefined,
         form,
         children,
         onclick = undefined,
@@ -48,6 +52,8 @@
     {onclick}
     {type}
     {id}
+    aria-label={ariaLabel}
+    aria-busy={ariaBusy}
 >
     <div class:invisible={loading}>
         {#if icon}

@@ -18,6 +18,7 @@ export async function withFederationSaveBatch<T>(
     f: SaveFetch = fetch,
     batchId = federationSaveBatchID(),
     alreadyBegun = false,
+    deferComplete?: (complete: () => Promise<void>) => void,
 ): Promise<T> {
     if (!id) throw new Error("Missing federation save target");
     const request = async (action: "begin" | "complete") => {
@@ -55,10 +56,14 @@ export async function withFederationSaveBatch<T>(
     try {
         return await save();
     } finally {
-        clearInterval(timer);
-        await renewal;
-        // The server's deadline remains the fallback if completion cannot
-        // reach it. A saved record does not become an unsaved editor draft.
-        await request("complete").catch(() => {});
+        const complete = async () => {
+            clearInterval(timer);
+            await renewal;
+            // The server's deadline remains the fallback if completion cannot
+            // reach it. A saved record does not become an unsaved editor draft.
+            await request("complete").catch(() => {});
+        };
+        if (deferComplete) deferComplete(complete);
+        else await complete();
     }
 }

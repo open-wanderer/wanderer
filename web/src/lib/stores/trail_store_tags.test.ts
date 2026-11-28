@@ -25,11 +25,26 @@ async function saveTrail(mode: string, trail: Trail, request: typeof fetch) {
 }
 
 function expectLookup(input: RequestInfo | URL, options?: RequestInit) {
-    const url = new URL(String(input), "https://wanderer.test");
+    const url = new URL(String(input), "https://a.example");
     expect(url.pathname).toBe("/api/v1/tag/lookup");
     expect(url.search).toBe("");
     expect(options?.method).toBe("POST");
     expect(JSON.parse(String(options?.body))).toEqual({ name: "Grü nezi" });
+}
+
+// After the form request, saving reloads the trail and may reset its thumbnail.
+// These follow-ups are answered here and kept out of the tag request checks.
+const savedTrailPath = "/api/v1/trail/createdtrail001";
+
+function trailFollowUp(path: string, options: RequestInit | undefined, saved: () => unknown) {
+    if (path === savedTrailPath && (options?.method ?? "GET") === "GET") return Response.json(saved());
+    if (path === `${savedTrailPath}/thumbnail` && options?.method === "PATCH") return Response.json({});
+}
+
+function tagAndFormPaths(calls: [RequestInfo | URL, RequestInit?][]) {
+    return calls
+        .map(([input]) => new URL(String(input), "https://a.example").pathname)
+        .filter((path) => path !== savedTrailPath && path !== `${savedTrailPath}/thumbnail`);
 }
 
 describe("saving trails with pasted tag names", () => {
@@ -37,7 +52,7 @@ describe("saving trails with pasted tag names", () => {
         const trail = taggedTrail(mode);
         const tagID = "createdtag00001";
         const request = vi.fn(async (input: RequestInfo | URL, options?: RequestInit) => {
-            const path = new URL(String(input), "https://wanderer.test").pathname;
+            const path = new URL(String(input), "https://a.example").pathname;
             if (path === "/api/v1/tag/lookup") {
                 expectLookup(input, options);
                 return Response.json({ items: [] });
@@ -48,6 +63,8 @@ describe("saving trails with pasted tag names", () => {
                 expect(payload.name).toBe("Grü nezi");
                 return Response.json({ ...payload, id: tagID });
             }
+            const followUp = trailFollowUp(path, options, () => ({ ...trail, id: "createdtrail001", expand: { tags: [{ id: tagID, name: "Grü nezi" }] } }));
+            if (followUp) return followUp;
             expect(path).toBe(mode === "create" ? "/api/v1/trail/form" : "/api/v1/trail/form/createdtrail001");
             expect(options?.method).toBe(mode === "create" ? "PUT" : "POST");
             expect(options?.body).toBeInstanceOf(FormData);
@@ -58,7 +75,11 @@ describe("saving trails with pasted tag names", () => {
 
         const result = await saveTrail(mode, trail, request);
 
-        expect(request).toHaveBeenCalledTimes(3);
+        expect(tagAndFormPaths(request.mock.calls)).toEqual([
+            "/api/v1/tag/lookup",
+            "/api/v1/tag",
+            mode === "create" ? "/api/v1/trail/form" : "/api/v1/trail/form/createdtrail001",
+        ]);
         expectLookup(...request.mock.calls[0]);
         expect(result.tags).toEqual([tagID]);
         expect(result.expand?.tags?.[0].name).toBe("Grü nezi");
@@ -68,11 +89,13 @@ describe("saving trails with pasted tag names", () => {
         const trail = taggedTrail(mode);
         const canonical = { id: "000000000000001", name: "Grü nezi" };
         const request = vi.fn(async (input: RequestInfo | URL, options?: RequestInit) => {
-            const path = new URL(String(input), "https://wanderer.test").pathname;
+            const path = new URL(String(input), "https://a.example").pathname;
             if (path === "/api/v1/tag/lookup") {
                 expectLookup(input, options);
                 return Response.json({ items: [canonical] });
             }
+            const followUp = trailFollowUp(path, options, () => ({ ...trail, id: "createdtrail001", expand: { tags: [canonical] } }));
+            if (followUp) return followUp;
             expect(path).toBe(mode === "create" ? "/api/v1/trail/form" : "/api/v1/trail/form/createdtrail001");
             expect(options?.method).toBe(mode === "create" ? "PUT" : "POST");
             expect((options!.body as FormData).getAll("tags")).toEqual([canonical.id]);
@@ -82,7 +105,10 @@ describe("saving trails with pasted tag names", () => {
 
         const result = await saveTrail(mode, trail, request);
 
-        expect(request).toHaveBeenCalledTimes(2);
+        expect(tagAndFormPaths(request.mock.calls)).toEqual([
+            "/api/v1/tag/lookup",
+            mode === "create" ? "/api/v1/trail/form" : "/api/v1/trail/form/createdtrail001",
+        ]);
         expect(result.tags).toEqual([canonical.id]);
         expect(result.expand?.tags).toEqual([canonical]);
     });

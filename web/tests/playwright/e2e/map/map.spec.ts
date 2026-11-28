@@ -33,7 +33,18 @@ async function openMap(page: Page) {
 }
 async function settledMapLayout(page: Page) {
     await expect(page.locator('#trail-map .maplibregl-ctrl-top-right .reset-map-view')).toBeVisible();
-
+    // The control survives hiding the map; its canvas catches up on the resize observer.
+    await expect.poll(() => page.locator('#trail-map .maplibregl-canvas').evaluate(element => {
+        const canvas = element as HTMLCanvasElement;
+        const container = canvas.closest<HTMLElement>('.maplibregl-map')!;
+        const { width, height } = canvas.getBoundingClientRect();
+        const ratio = window.devicePixelRatio;
+        return container.clientWidth > 0 && container.clientHeight > 0
+            && Math.abs(width - container.clientWidth) <= 1 / ratio
+            && Math.abs(height - container.clientHeight) <= 1 / ratio
+            && canvas.width === Math.round(container.clientWidth * ratio)
+            && canvas.height === Math.round(container.clientHeight * ratio);
+    }), { message: 'Map canvas matches its visible container at the device pixel ratio' }).toBe(true);
 }
 
 async function enterSearch(page: Page, query: string) {
@@ -251,18 +262,24 @@ test('restores multi-select, loaded-result selection and bulk edits in every res
             totalHits: empty ? 0 : 4, totalPages: empty ? 0 : 2, page: options.page, hitsPerPage: options.hitsPerPage,
         } });
     });
-    // Hovering also preloads the linked detail route through SvelteKit.
-    await context.route(/\/api\/v1\/trail\/selection-\d+\?/, route => route.fulfill({ json: {
-        id: new URL(route.request().url()).pathname.split('/').at(-1),
-        name: 'Selection trail', author: actor, photos: [], tags: [], public: true,
-        completed: false, difficulty: 'easy', expand: {},
-    } }));
+    const editedDifficulty = new Map<string, string>();
+    // Hovering and the save refresh read the same stored detail response.
+    await context.route(/\/api\/v1\/trail\/selection-\d+\?/, route => {
+        const id = new URL(route.request().url()).pathname.split('/').at(-1)!;
+        return route.fulfill({ json: {
+            id, name: 'Selection trail', author: actor, photos: [], tags: [], public: true,
+            completed: false, difficulty: editedDifficulty.get(id) ?? 'easy', expand: {},
+        } });
+    });
+    await context.route(/\/api\/v1\/federation\/trail\/selection-\d+\/save\/(?:begin|complete)$/, route =>
+        route.fulfill({ json: { status: 'ok' } }));
     const updates: string[] = [];
     await context.route('**/api/v1/trail/form/selection-*', route => {
         const id = new URL(route.request().url()).pathname.split('/').at(-1)!;
         expect(route.request().postData()).toContain('difficult');
         updates.push(id);
-        return route.fulfill({ json: { id, difficulty: 'difficult', author: actor, photos: [], tags: [] } });
+        editedDifficulty.set(id, 'difficult');
+        return route.fulfill({ json: { id, difficulty: 'difficult', author: actor, photos: [], tags: [], public: true, completed: false, expand: {} } });
     });
     await openMap(page);
     const cards = page.locator('.trail-list .trail-card');

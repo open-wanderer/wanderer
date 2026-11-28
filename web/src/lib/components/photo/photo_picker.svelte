@@ -1,43 +1,61 @@
 <script lang="ts">
+    import type { Asset } from "#lib/models/asset.ts";
+    import { assetFileCoordinatesFor, markAssetFileMetadata } from "#lib/stores/asset_store.ts";
     import { show_toast } from "#lib/stores/toast_store.svelte.ts";
+    import { assetIdFromPhotoURL, expandedPhotoAssets, isGeneratedRoutePreviewAsset } from "#lib/util/asset_link_util.ts";
+    import { ASSET_UPLOAD_ACCEPT, convertAssetUploadFile, isAssetUploadImage, isSupportedAssetUpload } from "#lib/util/asset_upload_util.ts";
+    import { extractPhotoExifMetadata, type GPSCoordinates, type PhotoExifMetadata } from "#lib/util/exif_util.ts";
     import { getFileURL } from "#lib/util/file_util.ts";
     import { photoFilePreview } from "#lib/util/photo_preview_util.ts";
-    import { MAX_PHOTO_SIZE_BYTES } from "#lib/util/photo_limits.ts";
     import { _ } from "svelte-i18n";
     import PhotoCard from "./photo_card.svelte";
 
     interface Props {
         id: string;
-        photos: string[];
+        photos?: string[];
         photoFiles: File[] | undefined;
         parent: { [key: string]: any };
         thumbnail?: number;
         showThumbnailControls?: boolean;
         showExifControls?: boolean;
         maxSizeBytes?: number;
-        onexif?: (src: string) => void;
+        onexif?: (src: string, coordinates?: GPSCoordinates) => void | Promise<void>;
     }
 
     let {
         id,
-        photos = $bindable(),
+        photos = $bindable(undefined),
         photoFiles = $bindable(),
         parent,
         thumbnail = $bindable(0),
         showThumbnailControls = true,
         showExifControls = false,
-        maxSizeBytes = MAX_PHOTO_SIZE_BYTES,
+        maxSizeBytes = 20971520,
         onexif,
     }: Props = $props();
 
     let photoPreviews: string[] = $state([]);
 
+    // A generated route preview is only the thumbnail of a trail without other
+    // photos (thumbnailPhotoIndex in asset_link_util.ts). While the editor
+    // holds a real photo, saved or pending, the preview is not offered as one.
+    let routePreviews = $derived(routePreviewPhotos(photos ?? [], expandedPhotoAssets(parent, "trail")));
+    let hasRealPhoto = $derived(
+        (photos ?? []).some((photo) => !routePreviews.has(photo)) ||
+            Boolean(photoFiles?.length),
+    );
+
+    function routePreviewPhotos(shown: string[], assets: Asset[]): Set<string> {
+        const previewIds = new Set(assets.filter((asset) => isGeneratedRoutePreviewAsset(asset)).map((asset) => asset.id));
+        return new Set(shown.filter((photo) => previewIds.has(assetIdFromPhotoURL(photo) ?? "")));
+    }
+
     $effect(() => {
-        let cancelled = false;
-        Promise.all((photoFiles ?? []).map(photoFilePreview)).then((v) => {
-            if (!cancelled) photoPreviews = v;
+        let canceled = false;
+        Promise.all((photoFiles ?? []).map(photoFilePreview)).then((previews) => {
+            if (!canceled) photoPreviews = previews;
         }).catch(() => {});
-        return () => { cancelled = true; };
+        return () => { canceled = true; };
     });
 
     let offerUpload: boolean = $state(false);
@@ -53,7 +71,6 @@
 
     function handlePhotoDrop(e: DragEvent) {
         e.preventDefault();
-
         offerUpload = false;
         handlePhotoSelection(e.dataTransfer?.files);
     }
@@ -84,28 +101,26 @@
                 });
                 continue;
             }
-            let photoFile = file;
-            if (
-                !file.type.startsWith("image") &&
-                !["video/mp4", "video/ogg", "video/webm"].includes(file.type)
-            ) {
+            if (!isSupportedAssetUpload(file)) {
+                show_toast({ type: "error", text: $_("photo-file-type-not-supported", { values: { file: file.name } }), icon: "close" });
                 continue;
-            } else if (file.type === "image/heic") {
-                const heic2any = (await import("heic2any")).default;
-                photoFile = new File(
-                    [
-                        (await heic2any({
-                            blob: file,
-                            toType: "image/jpeg",
-                        })) as Blob,
-                    ],
-                    file.name,
-                );
             }
-            if (!photoFiles) {
-                photoFiles = [];
+
+            try {
+                let metadata: PhotoExifMetadata | undefined;
+                if (isAssetUploadImage(file)) {
+                    metadata = await extractPhotoExifMetadata(file);
+                }
+
+                const photoFile = await convertAssetUploadFile(file);
+                markAssetFileMetadata(photoFile, metadata);
+                if (!photoFiles) {
+                    photoFiles = [];
+                }
+                photoFiles = [...photoFiles, photoFile];
+            } catch {
+                show_toast({ type: "error", text: $_("photo-conversion-failed", { values: { file: file.name } }), icon: "close" });
             }
-            photoFiles = [...photoFiles, photoFile];
         }
     }
 
@@ -116,19 +131,29 @@
     function handlePhotoDelete(index: number) {
         if (thumbnail == index) {
             thumbnail = 0;
+        } else if (thumbnail > index) {
+            thumbnail -= 1;
         }
 
-        if (index >= photos.length) {
+        if (index >= (photos?.length ?? 0)) {
             if (!photoFiles) {
                 photoFiles = [];
             }
-            const adjustedIndex = index - photos.length;
+            const adjustedIndex = index - (photos?.length ?? 0);
             photoFiles = photoFiles.filter((_, i) => i !== adjustedIndex);
             photoPreviews = photoPreviews.filter((_, i) => i !== adjustedIndex);
         } else {
-            photos = photos.filter((_, i) => i !== index);
+            photos = photos?.filter((_, i) => i !== index);
         }
     }
+
+    function handlePhotoExif(index: number, src: string) {
+        const fileIndex = index - (photos?.length ?? 0);
+        const coordinates = fileIndex >= 0 ? assetFileCoordinatesFor(photoFiles?.[fileIndex]) : undefined;
+        // Thumbnails carry no EXIF data, so saved photos are read from the original file.
+        onexif?.(fileIndex >= 0 ? src : getFileURL(parent, (photos ?? [])[index]), coordinates);
+    }
+
 </script>
 
 <div
@@ -141,16 +166,11 @@
     ondragleave={handlePhotoDragLeave}
     ondrop={handlePhotoDrop}
 >
-    <button
-        aria-label="Open photo browser"
-        class="btn-secondary h-32 w-32 shrink-0 grow-0 basis-auto"
-        type="button"
-        onclick={openPhotoBrowser}><i class="fa fa-plus"></i></button
-    >
+    <button aria-label="Open photo browser" class="btn-secondary h-32 w-32 shrink-0 grow-0 basis-auto" type="button" onclick={openPhotoBrowser}><i class="fa fa-plus"></i></button>
     <input
         type="file"
         id="{id}-photo-input"
-        accept="image/*,video/mp4"
+        accept={ASSET_UPLOAD_ACCEPT}
         multiple={true}
         style="display: none;"
         onchange={() => handlePhotoSelection()}
@@ -159,12 +179,12 @@
         {#each (photos ?? []).concat(photoPreviews) as photo, i}
             <div class="shrink-0 grow-0 basis-auto">
                 <PhotoCard
-                    src={i >= photos.length ? photo : getFileURL(parent, photo, "600x0")}
+                    src={i >= (photos?.length ?? 0) ? photo : getFileURL(parent, photo, "600x0")}
                     ondelete={() => handlePhotoDelete(i)}
                     isThumbnail={thumbnail === i}
                     onthumbnail={() => makePhotoThumbnail(i)}
-                    {onexif}
-                    {showThumbnailControls}
+                    onexif={(src) => handlePhotoExif(i, src)}
+                    showThumbnailControls={showThumbnailControls && !(hasRealPhoto && routePreviews.has(photo))}
                     {showExifControls}
                 ></PhotoCard>
             </div>

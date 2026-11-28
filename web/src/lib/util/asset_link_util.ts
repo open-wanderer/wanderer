@@ -1,8 +1,49 @@
+import type { AttachedAsset } from "#lib/models/attached_asset.ts";
 import type { Asset, AssetLink } from "#lib/models/asset.ts";
 import type { SummitLog } from "#lib/models/summit_log.ts";
 import type { Trail } from "#lib/models/trail.ts";
 import type { Waypoint } from "#lib/models/waypoint.ts";
 import { isURL } from "#lib/util/file_util.ts";
+
+// A duplicate links its copied photos by ID, and removing one in the editor or
+// a photo dialog only takes it out of `photos`. So only the IDs whose photo is
+// still there are linked. The editor and the photo dialogs add the photos
+// linked by ID (duplicated photos) to `photos` on save, so these stay.
+export function shownAssetLinks(assetIds: string[] | undefined, photos: string[] | undefined): string[] | undefined {
+    const shown = new Set(photos?.map(assetIdFromPhotoURL));
+    return assetIds?.filter((id) => shown.has(id));
+}
+
+export function replaceCopiedAssets(record: Trail | Waypoint | SummitLog, assets: AttachedAsset[]) {
+    const copies = new Map(assets.filter((asset) => asset.sourceAssetId)
+        .map((asset) => [asset.sourceAssetId!, asset]));
+    if (!copies.size) return;
+    record.photos = record.photos?.map((photo) => {
+        const copy = copies.get(assetIdFromPhotoURL(photo) ?? "");
+        return copy ? assetPhotoURL(copy) : photo;
+    });
+    // Copies already attached before a later request fails must not be copied
+    // again on retry. Their URLs now identify the stored local files.
+    record._assetLinks = record._assetLinks?.filter((id) => !copies.has(id));
+    // These expanded assets identify the copied photos already shown in the
+    // editor; duplicated photos linked by ID remain pending until attachment.
+    if (record.expand && "assets_via_trail" in record.expand) {
+        record.expand.assets_via_trail = record.expand.assets_via_trail?.map((asset) => copies.get(asset.id) ?? asset);
+    }
+    if (record.expand && "assets_via_waypoint" in record.expand) {
+        record.expand.assets_via_waypoint = record.expand.assets_via_waypoint?.map((asset) => copies.get(asset.id) ?? asset);
+    }
+    if (record.expand && "assets_via_summit_log" in record.expand) {
+        record.expand.assets_via_summit_log = record.expand.assets_via_summit_log?.map((asset) => copies.get(asset.id) ?? asset);
+    }
+}
+
+// Wire responses retain the canonical link expand instead of a second asset copy.
+export function expandedPhotoAssets(record: { expand?: unknown }, kind: "trail" | "waypoint" | "summit_log"): Asset[] {
+    const expand = record.expand as Record<string, unknown> | undefined;
+    const existing = expand?.[`assets_via_${kind}`] as Asset[] | undefined;
+    return existing ?? assetsFromLinks(expand?.[`${kind}_assets_via_${kind}`] as AssetLink[] | undefined);
+}
 
 interface AssetPhotoOptions {
     share?: string;

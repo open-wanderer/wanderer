@@ -11,6 +11,10 @@ export interface GPSCoordinatesWithTime extends GPSCoordinates {
     time?: Date;
 }
 
+export interface PhotoExifMetadata {
+    coordinates?: GPSCoordinates;
+}
+
 type ExifLoadOptions = {
     expanded: true;
     includeTags?: {
@@ -60,20 +64,20 @@ export async function extractGPSCoordinates(
     }
 }
 
-export async function extractDevicePhotoExif(source: Blob): Promise<{
-    coordinates?: GPSCoordinatesWithTime;
-    fileType?: string;
-}> {
+export async function extractPhotoExifMetadata(source: Blob | string | ArrayBuffer | SharedArrayBuffer): Promise<PhotoExifMetadata> {
+    return { coordinates: await extractGPSCoordinates(source) };
+}
+
+export async function extractDevicePhotoExif(source: Blob): Promise<{ coordinates?: GPSCoordinatesWithTime; metadata: PhotoExifMetadata; fileType?: string }> {
     try {
         const tags = await loadExifTags(source, DEVICE_OPTIONS);
         const coordinates = gpsCoordinatesFromExpandedTags(tags);
         return {
             coordinates: coordinates ? { ...coordinates, time: exactTimeFromExpandedTags(tags) } : undefined,
+            metadata: { coordinates },
             fileType: tags.file?.FileType?.value,
         };
-    } catch {
-        return {};
-    }
+    } catch { return { metadata: {} }; }
 }
 
 async function loadExifTags(
