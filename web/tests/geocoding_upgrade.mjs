@@ -169,7 +169,8 @@ async function isolated(dir, dbBin, meiliBin) {
                 const publicEnv = await envModule.text();
                 assert.match(publicEnv, /\bPUBLIC_POCKETBASE_URL\b/);
                 assert.doesNotMatch(publicEnv, /NOMINATIM_URL|private-required|X-Wanderer-Geocoding|internal_proxy_auth/i);
-                assert(!publicEnv.includes(privateURL) && !publicEnv.includes(legacyPrivateURL));
+                assert(!publicEnv.includes(String(fixturePort)), `${name}: public env exposed the private fixture port`);
+                assert(!publicEnv.includes("legacy-geocoding-fixture"), `${name}: public env exposed the legacy fixture marker`);
                 for (const endpoint of [`search?q=${encodeURIComponent(query)}&limit=0x10`, "reverse?lat=%2B4.75e1&lon=0xB"]) {
                     const res = await fetch(`${webOrigin}/api/v1/geocoding/${endpoint}`, {
                         redirect: "error", signal: AbortSignal.timeout(10_000),
