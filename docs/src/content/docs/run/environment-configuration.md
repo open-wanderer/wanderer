@@ -121,7 +121,8 @@ A nondefault, blank, or invalid setting left on `web` blocks geocoding with
 HTTP 502 before sending search terms or coordinates to public Nominatim,
 whether `db` selects it by default or explicitly. A valid private URL on
 `db` is unaffected. To switch to public Nominatim, remove the obsolete setting
-from `web` and leave both Nominatim URL variables unset on `db`.
+from `web`. On `db`, leave both Nominatim URL variables unset or set
+`NOMINATIM_URL` to the public default.
 :::
 
 A Nominatim URL without a scheme uses HTTPS. Use `http://` for an endpoint
@@ -135,12 +136,16 @@ and serve `/search` and `/reverse`. If `db` uses an outbound proxy, add the
 private Nominatim hostname to `NO_PROXY` on `db` when it should be reached
 directly.
 
-Check the PocketBase logs for migration blocks (`private_nominatim_required`),
-invalid Nominatim settings, or upstream failures. For upstream transport
-failures, temporarily set the PocketBase minimum log level to DEBUG (`-4`)
-with log retention enabled. Check the `web` logs for proxy authentication
-errors or redirects from `db`. These diagnostics use fixed messages without
-request or endpoint details.
+PocketBase logs invalid Nominatim settings, blocked upstream redirects, and
+migration blocks (`private_nominatim_required`, once per `db` process).
+Upstream HTTP error statuses are returned without a geocoding log entry.
+
+Timeouts, oversized responses, and transport failures appear only in DEBUG
+logs. To see them, temporarily set the PocketBase minimum log level to `-4`
+with log retention enabled, then restore the previous level.
+
+Check the `web` logs for proxy authentication errors or blocked redirects from
+`db`. Both services use fixed diagnostics without request or endpoint details.
 
 ## Custom CA certificates
 
